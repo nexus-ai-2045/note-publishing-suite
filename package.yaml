@@ -1,5 +1,5 @@
 name: note-publishing-suite
-version: 0.2.2
+version: 0.2.3
 scope: repo-local
 repo_root: .
 entrypoint: SKILL.md
