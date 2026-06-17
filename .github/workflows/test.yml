@@ -1,0 +1,83 @@
+name: test
+
+on:
+  push:
+    branches: ["master", "main"]
+    tags: ["v*"]
+  pull_request:
+    branches: ["master", "main"]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  package-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+
+      - name: Install test dependencies
+        run: python -m pip install pytest
+
+      - name: Run package contract tests
+        run: python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py -q
+
+      - name: Run package version bump guard
+        run: python scripts/check_version_bump.py
+
+      - name: Run Note editor prepublish observation checker
+        run: |
+          cat > /tmp/note-editor-observation.json <<'JSON'
+          {
+            "title": "Public package fixture",
+            "top_image": {"present": true},
+            "toc_count": 1,
+            "footer": {
+              "required_urls": ["https://example.com/archive"],
+              "figures": ["https://example.com/archive"],
+              "raw_counts": {"https://example.com/archive": 0}
+            },
+            "magazine": {"target": "Example", "added": true},
+            "tags": ["note", "公開前QA"],
+            "article_type": "無料",
+            "final_buttons": [{"label": "投稿する", "clicked": false}]
+          }
+          JSON
+          python scripts/note_editor_prepublish_verify.py /tmp/note-editor-observation.json --json > /tmp/note-editor-result.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          result = json.loads(Path("/tmp/note-editor-result.json").read_text(encoding="utf-8"))
+          assert result["ok"] is True, result
+          assert result["ready_for_publish"] is True, result
+          assert result["external_actions_performed"] == [], result
+          assert result["publication_actions_performed"] == [], result
+          PY
+
+      - name: Run clean-machine public package verifier
+        shell: pwsh
+        run: ./scripts/verify_public_package.ps1
+
+      - name: Run provenance leak checker
+        run: python scripts/provenance_leak_check.py --scope all --json
+
+      - name: Run GitHub identity guard
+        run: python scripts/github_identity_guard.py --json
+
+      - name: Run Japanese closeout language gate
+        run: python scripts/japanese_closeout_language_check.py --json
+
+      - name: Run image upload boundary checker
+        run: python scripts/note_image_upload_boundary_check.py --json
+
+      - name: Run local ledger smoke
+        run: python scripts/engagement_tracker.py report --json

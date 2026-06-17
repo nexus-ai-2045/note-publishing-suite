@@ -1,0 +1,9 @@
+__pycache__/
+.pytest_cache/
+.DS_Store
+content/drafts/*.md
+!content/drafts/.gitkeep
+!content/drafts/sample-note-prepublish-fixture.md
+content/drafts/*.preview.html
+data/provenance_leak_policy.local.json
+data/github_identity_guard_policy.local.json

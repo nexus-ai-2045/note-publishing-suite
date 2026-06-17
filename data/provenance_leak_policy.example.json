@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "description": "Copy this file to data/provenance_leak_policy.local.json and add user-specific denylist values. Keep the local file out of git.",
+  "denylist": [
+    {
+      "id": "example_private_repo_owner",
+      "pattern": "example-owner/private-repo",
+      "reason": "Example only. Replace in the local policy with user-specific private repository identifiers."
+    },
+    {
+      "id": "example_local_path",
+      "pattern": "C:\\\\Users\\\\example",
+      "reason": "Example only. Replace in the local policy with user-specific local path fragments."
+    }
+  ],
+  "allowed_paths": [
+    "data/provenance_leak_policy.example.json"
+  ]
+}

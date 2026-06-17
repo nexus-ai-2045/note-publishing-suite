@@ -1,0 +1,159 @@
+name: note-publishing-suite
+version: 0.2.2
+scope: repo-local
+repo_root: .
+entrypoint: SKILL.md
+rendered_readme: README.rendered.html
+roadmap: ROADMAP.md
+changelog: CHANGELOG.md
+issue_draft: issue-drafts.md
+issue_packet: issue-packet.json
+references:
+  note_editor_capability_inventory: references/note-editor-capability-inventory.md
+  note_editor_pdca_orchestration: references/note-editor-pdca-orchestration.md
+  note_editor_live_constraint_boundaries: references/note-editor-live-constraint-boundaries.md
+  note_article_provenance_design: references/note-article-provenance-design.md
+  note_image_upload_automation_boundary: references/note-image-upload-automation-boundary.md
+mission: end_to_end_note_article_publishing_skill_package
+runtime:
+  works_with_codex_only: true
+  works_with_claude_code_only: true
+  tracker_required: false
+  external_connectors_required: false
+  optional_trackers:
+    - Linear
+    - GitHub Issues
+    - Notion
+    - Obsidian
+    - todo.md
+orchestration:
+  optional_acceleration: true
+  required: false
+  trigger_hint: three_files_or_three_topics_or_more
+  codex_optional_worker: spark
+  claude_code_optional_worker: sonnet
+  fallback_without_worker: parent_runtime_sequential
+  parent_runtime_keeps:
+    - question_design
+    - acceptance_decision
+    - type1_boundary
+    - publication_gate
+    - final_closeout
+    - japanese_closeout_language_gate
+  worker_scope:
+    - source_summarization
+    - candidate_extraction
+    - table_conversion
+    - diff_or_log_compression
+    - qa_perspective_listing
+    - simple_implementation_slice
+  worker_denied_capabilities:
+    - credentials
+    - cookies
+    - private_urls
+    - publishing
+    - scheduled_publishing
+    - external_sending
+    - repository_visibility_change
+publication_gate:
+  human_review_required: true
+  explicit_current_conversation_approval_required: true
+  stop_before_final_buttons: true
+external_actions:
+  x_posting: out_of_scope
+  likes: out_of_scope
+  discord_or_slack_announcement: out_of_scope
+ledgers:
+  drafts: data/note_drafts.json
+  published: data/published_notes.json
+local_only_policies:
+  provenance_leak: data/provenance_leak_policy.local.json
+  github_identity_guard: data/github_identity_guard_policy.local.json
+public_policy_examples:
+  - data/provenance_leak_policy.example.json
+  - data/github_identity_guard_policy.example.json
+existing_scripts:
+  - scripts/note_preview.py
+  - scripts/pre_publish_check.py
+  - scripts/note_fact_check.py
+  - scripts/note_diff_check.py
+  - scripts/fetch_note_body.js
+  - scripts/post_publish.py
+  - scripts/engagement_tracker.py
+  - scripts/render_readme.py
+  - scripts/provenance_leak_check.py
+  - scripts/github_identity_guard.py
+  - scripts/japanese_closeout_language_check.py
+  - scripts/note_image_upload_boundary_check.py
+  - scripts/note_editor_prepublish_verify.py
+  - scripts/run_local_draft_qa_proof.py
+  - scripts/check_version_bump.py
+  - scripts/verify_public_package.ps1
+workflow:
+  idea: skills/note-idea-intake/SKILL.md
+  draft: skills/note-draft-production/SKILL.md
+  qa: skills/note-prepublish-qa/SKILL.md
+  editor: skills/note-editor-prepublish/SKILL.md
+  editor_ops: skills/note-editor-ops/SKILL.md
+  official_guidance: skills/note-official-guidance-intake/SKILL.md
+  editor_constraint_debug: skills/note-editor-constraint-debug/SKILL.md
+  gate: skills/note-publication-gate/SKILL.md
+  ledger: skills/note-postpublish-ledger/SKILL.md
+skills:
+  - skills/note-idea-intake/SKILL.md
+  - skills/note-draft-production/SKILL.md
+  - skills/note-prepublish-qa/SKILL.md
+  - skills/note-editor-prepublish/SKILL.md
+  - skills/note-editor-ops/SKILL.md
+  - skills/note-official-guidance-intake/SKILL.md
+  - skills/note-editor-constraint-debug/SKILL.md
+  - skills/note-publication-gate/SKILL.md
+  - skills/note-postpublish-ledger/SKILL.md
+verification:
+  clean_machine:
+    - pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
+  lanes:
+    embedded_copy:
+      mode: embedded_copy_text_scan_only
+      purpose: prove the package still works when copied under nexus_ai/public
+    standalone_clone:
+      mode: standalone_repository
+      purpose: prove the package works as its own public repository clone fixture
+  optional_python_developer_checks:
+    - python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py
+    - python scripts/provenance_leak_check.py --scope changed --json
+    - python scripts/github_identity_guard.py --json
+    - python scripts/github_identity_guard.py --policy data/github_identity_guard_policy.local.json --json
+    - python scripts/japanese_closeout_language_check.py --json
+    - python scripts/note_image_upload_boundary_check.py --json
+    - python scripts/note_editor_prepublish_verify.py <observation.json> --json
+    - python scripts/run_local_draft_qa_proof.py --json
+    - python scripts/check_version_bump.py
+    - python scripts/pre_publish_check.py <draft.md>
+output_language_gate:
+  user_visible_language: japanese
+  cli_status_translation_required: true
+  allowed_literals:
+    - command
+    - file_path
+    - url
+    - sha
+    - package_identifier
+  translate_status_terms:
+    ready_for_review: 下書き解除済み
+    open_pr: 未マージPR
+    merged: マージ済み
+    mergeable: マージ可能
+    success: 成功
+    failed: 失敗
+  forbidden_untranslated_status_terms:
+    - ready for review
+    - open PR
+    - MERGED
+    - mergeable
+    - statusCheckRollup
+roadmap_contract:
+  source: ROADMAP.md
+  status: draft-for-human-review
+  public_actions_allowed: false
+  repository_visibility_change_requires_repo_specific_approval: true
