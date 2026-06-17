@@ -45,12 +45,14 @@ Note 公開、予約投稿、SNS 共有、リポジトリ公開範囲変更は�
 クリーン環境や公開前レビューでは、まずパッケージ契約を確認する。
 この検証は公開操作なしで、`nexus_ai/public` 配下の embedded copy と、
 一時 git repository として作る standalone clone fixture の両方を確認する。
+standalone clone fixture では `scripts/verify_public_package.ps1` 自身も
+その clone 側から再実行して確認する。
 
 ```powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
 ```
 
-Python が使える環境では、公開前検査器と重点テストを回す。
+Python が使える環境では、公開前検査器と重点テストを個別にも回せる。
 
 ```powershell
 python scripts/provenance_leak_check.py --scope changed
@@ -166,9 +168,9 @@ Codex のファイルエディタは Markdown をレンダーではなく、
 整形表示で読みたい時は、同じディレクトリの
 `README.rendered.html` を開く。
 表示が古い時は `python scripts/render_readme.py` で再生成する。
-Python が無いクリーン環境でパッケージと公開境界だけを確認する時は、
+クリーン環境でパッケージと公開境界を確認する時は、PowerShell から
 `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1`
-を使う。
+を使う。この verifier は Python と git も使って各 checker を実行する。
 
 この README 自体も素の表示で読めるように、
 長い行を避けて書く。
@@ -185,9 +187,10 @@ Python が無いクリーン環境でパッケージと公開境界だけを確�
 - `scripts/provenance_leak_check.py`: PR 前に実行時メモリ、
   非公開リポジトリ名、ローカルパス、出典外の運用文字列が混ざっていないか
   確認する検査器。
-- `scripts/verify_public_package.ps1`: Python が無いクリーン環境用の
-  パッケージ契約 / 公開準備検証。embedded copy と standalone clone fixture の
-  GitHub identity guard lane も公開操作なしで確認する。
+- `scripts/verify_public_package.ps1`: PowerShell から起動する
+  パッケージ契約 / 公開準備検証。Python と git を使って各 checker、
+  embedded copy と standalone clone fixture の GitHub identity guard lane、
+  standalone clone 側からの verifier 再実行を公開操作なしで確認する。
 - `package.yaml`: パッケージ管理情報。
 - `ROADMAP.md`: 公開前ゲートと運用拡張のロードマップ契約。
 - `issue-drafts.md`: 追跡ツール非依存の課題下書き。
@@ -521,8 +524,11 @@ README 表示、公開前停止線を確認できること。
 加えて、`scripts/github_identity_guard.py` が embedded copy では
 text scan only、standalone clone fixture では remote、HEAD author、
 repository-local git config まで検査することを確認する。
+さらに standalone clone fixture から `scripts/verify_public_package.ps1 -Json` を
+再実行し、検証器自身が単独 repo 形態で動くことも確認する。
 
-クリーン環境では Python を前提にせず、まずこのコマンドを使う。
+クリーン環境では、PowerShell、Python、git が使えることを確認してから
+まずこのコマンドを使う。
 
 ```powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1

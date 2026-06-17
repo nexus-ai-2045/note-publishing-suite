@@ -100,6 +100,32 @@ def test_public_package_version_is_current_commit_target():
     assert "verify:local" in readme
 
 
+def test_verifier_runtime_requirements_are_honest():
+    docs = {
+        "README.md": (ROOT / "README.md").read_text(encoding="utf-8"),
+        "README.rendered.html": (ROOT / "README.rendered.html").read_text(
+            encoding="utf-8"
+        ),
+        "PUBLIC_READY.md": (ROOT / "PUBLIC_READY.md").read_text(encoding="utf-8"),
+    }
+    package = (ROOT / "package.yaml").read_text(encoding="utf-8")
+
+    for name, text in docs.items():
+        for claim in [
+            "Python が無い",
+            "Python を前提にせず",
+            "Python を必須にせず",
+        ]:
+            assert claim not in text, name
+
+    assert "PowerShell、Python、git" in docs["README.md"]
+    assert "この verifier は Python と git も使って各 checker を実行する" in docs["README.md"]
+    assert "requires:" in package
+    assert "PowerShell" in package
+    assert "Python" in package
+    assert "git" in package
+
+
 def test_package_version_bump_guard_contract_present():
     script = (ROOT / "scripts/check_version_bump.py").read_text(encoding="utf-8")
     workflow = (ROOT / ".github/workflows/test.yml").read_text(encoding="utf-8")
@@ -618,6 +644,30 @@ def test_github_identity_guard_contract_present():
     assert "forbidden_identity_term_count" in result.stdout
 
 
+def test_local_identity_policy_is_ignored_and_not_tracked():
+    policy = "data/github_identity_guard_policy.local.json"
+
+    ignored = subprocess.run(
+        ["git", "check-ignore", policy],
+        cwd=ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert ignored.returncode == 0, ignored.stdout + ignored.stderr
+
+    tracked = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", policy],
+        cwd=ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert tracked.returncode != 0, tracked.stdout + tracked.stderr
+
+
 def copy_public_package_fixture(destination: Path) -> None:
     def ignore(_directory: str, names: list[str]) -> set[str]:
         return {
@@ -646,6 +696,22 @@ def run_git(cwd: Path, *args: str) -> None:
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+def initialize_standalone_public_repo_fixture(path: Path, message: str) -> None:
+    run_git(path, "init")
+    run_git(path, "checkout", "-B", "main")
+    run_git(path, "config", "--local", "user.name", "nexus_ai")
+    run_git(path, "config", "--local", "user.email", "nexus.ai.2045@gmail.com")
+    run_git(
+        path,
+        "remote",
+        "add",
+        "origin",
+        "https://github.com/nexus-ai-2045/note-publishing-suite.git",
+    )
+    run_git(path, "add", "-A")
+    run_git(path, "commit", "-m", message)
+
+
 def run_identity_guard(cwd: Path, env: dict[str, str] | None = None) -> dict[str, object]:
     result = subprocess.run(
         [sys.executable, "scripts/github_identity_guard.py", "--json"],
@@ -663,19 +729,10 @@ def run_identity_guard(cwd: Path, env: dict[str, str] | None = None) -> dict[str
 def test_github_identity_guard_embedded_and_standalone_clone_lanes(tmp_path: Path):
     standalone = tmp_path / "note-publishing-suite-standalone"
     copy_public_package_fixture(standalone)
-    run_git(standalone, "init")
-    run_git(standalone, "checkout", "-B", "main")
-    run_git(standalone, "config", "--local", "user.name", "nexus_ai")
-    run_git(standalone, "config", "--local", "user.email", "nexus.ai.2045@gmail.com")
-    run_git(
+    initialize_standalone_public_repo_fixture(
         standalone,
-        "remote",
-        "add",
-        "origin",
-        "https://github.com/nexus-ai-2045/note-publishing-suite.git",
+        "standalone clone verification fixture",
     )
-    run_git(standalone, "add", "-A")
-    run_git(standalone, "commit", "-m", "standalone clone verification fixture")
 
     standalone_env = {
         **os.environ,
@@ -697,6 +754,43 @@ def test_github_identity_guard_embedded_and_standalone_clone_lanes(tmp_path: Pat
     assert embedded_result["mode"] == "embedded_copy_text_scan_only"
     assert embedded_result["external_actions_performed"] == []
     assert embedded_result["publication_actions_performed"] == []
+
+
+def test_public_package_verifier_runs_from_standalone_clone_fixture(tmp_path: Path):
+    standalone = tmp_path / "note-publishing-suite-verifier"
+    copy_public_package_fixture(standalone)
+    initialize_standalone_public_repo_fixture(
+        standalone,
+        "standalone verifier fixture",
+    )
+
+    env = {
+        **os.environ,
+        "NOTE_PUBLISHING_SUITE_STANDALONE_VERIFIER_DEPTH": "1",
+    }
+    result = subprocess.run(
+        [
+            "pwsh",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "scripts/verify_public_package.ps1",
+            "-Json",
+        ],
+        cwd=standalone,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=env,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    assert payload["verification_lanes"] == ["embedded_copy", "standalone_clone"]
+    assert payload["external_actions_performed"] == []
+    assert payload["publication_actions_performed"] == []
 
 
 def test_github_identity_guard_local_policy_blocks_identity_leaks(tmp_path: Path):

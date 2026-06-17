@@ -111,14 +111,19 @@ skills:
   - skills/note-postpublish-ledger/SKILL.md
 verification:
   clean_machine:
-    - pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
+    requires:
+      - PowerShell
+      - Python
+      - git
+    commands:
+      - pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
   lanes:
     embedded_copy:
       mode: embedded_copy_text_scan_only
       purpose: prove the package still works when copied under nexus_ai/public
     standalone_clone:
       mode: standalone_repository
-      purpose: prove the package works as its own public repository clone fixture
+      purpose: prove both github_identity_guard.py and verify_public_package.ps1 from a standalone public repository clone fixture
   optional_python_developer_checks:
     - python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py
     - python scripts/provenance_leak_check.py --scope changed --json

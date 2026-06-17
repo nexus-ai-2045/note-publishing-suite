@@ -117,9 +117,9 @@
 </tbody></table></div>
 <p>このパッケージは記事本文を勝手に公開しない。 Note 公開、予約投稿、SNS 共有、リポジトリ公開範囲変更は、 現在の会話で対象と操作を特定した人間レビューと明示承認が必要。</p>
 <h2>最短確認</h2>
-<p>クリーン環境や公開前レビューでは、まずパッケージ契約を確認する。 この検証は公開操作なしで、<code>nexus_ai/public</code> 配下の embedded copy と、 一時 git repository として作る standalone clone fixture の両方を確認する。</p>
+<p>クリーン環境や公開前レビューでは、まずパッケージ契約を確認する。 この検証は公開操作なしで、<code>nexus_ai/public</code> 配下の embedded copy と、 一時 git repository として作る standalone clone fixture の両方を確認する。 standalone clone fixture では <code>scripts/verify_public_package.ps1</code> 自身も その clone 側から再実行して確認する。</p>
 <pre><code>pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1</code></pre>
-<p>Python が使える環境では、公開前検査器と重点テストを回す。</p>
+<p>Python が使える環境では、公開前検査器と重点テストを個別にも回せる。</p>
 <pre><code>python scripts/provenance_leak_check.py --scope changed
 python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py</code></pre>
 <p>README の整形表示を更新する時は、次を実行する。</p>
@@ -197,7 +197,7 @@ python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check
 <pre><code>repo root</code></pre>
 <h2>表示について</h2>
 <p>Codex のファイルエディタは Markdown をレンダーではなく、 ソース表示とシンタックスハイライトで開くことがある。</p>
-<p>整形表示で読みたい時は、同じディレクトリの <code>README.rendered.html</code> を開く。 表示が古い時は <code>python scripts/render_readme.py</code> で再生成する。 Python が無いクリーン環境でパッケージと公開境界だけを確認する時は、 <code>pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1</code> を使う。</p>
+<p>整形表示で読みたい時は、同じディレクトリの <code>README.rendered.html</code> を開く。 表示が古い時は <code>python scripts/render_readme.py</code> で再生成する。 クリーン環境でパッケージと公開境界を確認する時は、PowerShell から <code>pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1</code> を使う。この verifier は Python と git も使って各 checker を実行する。</p>
 <p>この README 自体も素の表示で読めるように、 長い行を避けて書く。</p>
 <h2>構成</h2>
 <ul>
@@ -210,8 +210,8 @@ python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check
 <p>残務ゼロ確認。</p>
 <li><code>scripts/provenance_leak_check.py</code>: PR 前に実行時メモリ、</li>
 <p>非公開リポジトリ名、ローカルパス、出典外の運用文字列が混ざっていないか 確認する検査器。</p>
-<li><code>scripts/verify_public_package.ps1</code>: Python が無いクリーン環境用の</li>
-<p>パッケージ契約 / 公開準備検証。embedded copy と standalone clone fixture の GitHub identity guard lane も公開操作なしで確認する。</p>
+<li><code>scripts/verify_public_package.ps1</code>: PowerShell から起動する</li>
+<p>パッケージ契約 / 公開準備検証。Python と git を使って各 checker、 embedded copy と standalone clone fixture の GitHub identity guard lane、 standalone clone 側からの verifier 再実行を公開操作なしで確認する。</p>
 <li><code>package.yaml</code>: パッケージ管理情報。</li>
 <li><code>ROADMAP.md</code>: 公開前ゲートと運用拡張のロードマップ契約。</li>
 <li><code>issue-drafts.md</code>: 追跡ツール非依存の課題下書き。</li>
@@ -437,8 +437,8 @@ python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check
 <h3>Q. 何を保証しない？</h3>
 <p>Note ログイン、常時 attach 成功、画像 upload 完全自動化、 公開成果、PV、SEO、おすすめ掲載、事実の正しさは保証しない。</p>
 <h2>検証</h2>
-<p><code>verify:local</code> 相当の基準は、公開操作なしで package の構成、安全境界、 README 表示、公開前停止線を確認できること。 加えて、<code>scripts/github_identity_guard.py</code> が embedded copy では text scan only、standalone clone fixture では remote、HEAD author、 repository-local git config まで検査することを確認する。</p>
-<p>クリーン環境では Python を前提にせず、まずこのコマンドを使う。</p>
+<p><code>verify:local</code> 相当の基準は、公開操作なしで package の構成、安全境界、 README 表示、公開前停止線を確認できること。 加えて、<code>scripts/github_identity_guard.py</code> が embedded copy では text scan only、standalone clone fixture では remote、HEAD author、 repository-local git config まで検査することを確認する。 さらに standalone clone fixture から <code>scripts/verify_public_package.ps1 -Json</code> を 再実行し、検証器自身が単独 repo 形態で動くことも確認する。</p>
+<p>クリーン環境では、PowerShell、Python、git が使えることを確認してから まずこのコマンドを使う。</p>
 <pre><code>pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1</code></pre>
 <p>Python と pytest が使える開発環境では、追加で以下を実行してよい。</p>
 <pre><code>python3 -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py
