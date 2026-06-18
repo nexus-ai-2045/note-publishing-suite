@@ -36,12 +36,13 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
 
 ROADMAP 確認済み: はい
 
-これはクリーン環境での検証経路。Python を必須にせず、パッケージ契約、
-必須ファイル、JSON 解析可能性、公開ゲート文言、画像アップロード境界、
-描画済み README の存在、個人ローカルパスとシークレットらしい値の
-公開安全走査を確認する。
+これはクリーン環境での検証経路。PowerShell から起動し、Python と git も
+使って、パッケージ契約、必須ファイル、JSON 解析可能性、公開ゲート文言、
+画像アップロード境界、描画済み README の存在、個人ローカルパスと
+シークレットらしい値の公開安全走査、embedded copy / standalone clone
+fixture を確認する。
 
-Python と pytest が使える環境では、Python 系テストも開発者向けの任意検査として有用。
+pytest が使える環境では、Python 系テストも開発者向けの追加検査として有用。
 ただし公開準備の必須コマンドは上記の PowerShell 検証である。
 
 `pre_publish_check.py` には、`C:\\Users`、`/Users/`、`localhost`、`file://`

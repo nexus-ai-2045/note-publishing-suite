@@ -1,5 +1,5 @@
 name: note-publishing-suite
-version: 0.2.2
+version: 0.2.3
 scope: repo-local
 repo_root: .
 entrypoint: SKILL.md
@@ -69,6 +69,13 @@ ledgers:
 local_only_policies:
   provenance_leak: data/provenance_leak_policy.local.json
   github_identity_guard: data/github_identity_guard_policy.local.json
+provenance_label_contract:
+  source_mode: source_pack_locked_with_user_speech_priority
+  required_labels:
+    - user-said
+    - external-fact
+    - assistant-organized
+    - hold
 public_policy_examples:
   - data/provenance_leak_policy.example.json
   - data/github_identity_guard_policy.example.json
@@ -82,6 +89,7 @@ existing_scripts:
   - scripts/engagement_tracker.py
   - scripts/render_readme.py
   - scripts/provenance_leak_check.py
+  - scripts/provenance_label_check.py
   - scripts/github_identity_guard.py
   - scripts/japanese_closeout_language_check.py
   - scripts/note_image_upload_boundary_check.py
@@ -111,17 +119,23 @@ skills:
   - skills/note-postpublish-ledger/SKILL.md
 verification:
   clean_machine:
-    - pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
+    requires:
+      - PowerShell
+      - Python
+      - git
+    commands:
+      - pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
   lanes:
     embedded_copy:
       mode: embedded_copy_text_scan_only
       purpose: prove the package still works when copied under nexus_ai/public
     standalone_clone:
       mode: standalone_repository
-      purpose: prove the package works as its own public repository clone fixture
+      purpose: prove both github_identity_guard.py and verify_public_package.ps1 from a standalone public repository clone fixture
   optional_python_developer_checks:
     - python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py
     - python scripts/provenance_leak_check.py --scope changed --json
+    - python scripts/provenance_label_check.py <draft.md> --json
     - python scripts/github_identity_guard.py --json
     - python scripts/github_identity_guard.py --policy data/github_identity_guard_policy.local.json --json
     - python scripts/japanese_closeout_language_check.py --json
