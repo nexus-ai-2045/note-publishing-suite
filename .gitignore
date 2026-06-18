@@ -3,6 +3,8 @@ __pycache__/
 .DS_Store
 content/drafts/*.md
 !content/drafts/.gitkeep
+!content/drafts/caramel-future-date-prepublish-fixture.md
+!content/drafts/caramel-provenance-label-fixture.md
 !content/drafts/sample-note-prepublish-fixture.md
 content/drafts/*.preview.html
 data/provenance_leak_policy.local.json

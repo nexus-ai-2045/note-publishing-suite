@@ -74,6 +74,11 @@ def build_evidence(
         stop_causes.append("qa_command_failed")
     if pre_publish_overall != "ok":
         stop_causes.append("pre_publish_not_clean")
+    pre_publish_issue_codes = {
+        issue.get("code") for issue in pre_publish.get("issues", []) if isinstance(issue, dict)
+    }
+    if {"future_dated_claim", "publish_time_recheck_required"} & pre_publish_issue_codes:
+        stop_causes.append("future_date_guard")
     if fact_finding_count:
         stop_causes.append("fact_check_candidates_remain")
     if diff_overall == "skipped":
@@ -96,6 +101,7 @@ def build_evidence(
         "fact_check_finding_count": fact_finding_count,
         "fact_check_findings": fact_check.get("findings", []),
         "diff_check": diff_check,
+        "diff_fetch_method": diff_check.get("fetch_method", "not_performed"),
         "publication_gate": {
             "state": "stopped_before_publish",
             "stop_causes": stop_causes,

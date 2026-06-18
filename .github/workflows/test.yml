@@ -70,6 +70,9 @@ jobs:
       - name: Run provenance leak checker
         run: python scripts/provenance_leak_check.py --scope all --json
 
+      - name: Run provenance label checker
+        run: python scripts/provenance_label_check.py content/drafts/caramel-provenance-label-fixture.md --json
+
       - name: Run GitHub identity guard
         run: python scripts/github_identity_guard.py --json
 

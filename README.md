@@ -11,7 +11,7 @@ publication_gate: human_review_required
 このパッケージは、Note 記事投稿をリポジトリ内で一気通貫に扱うための
 スキル群。
 
-パッケージ版: `0.2.2`
+パッケージ版: `0.2.3`
 
 使命は、記事アイデア、下書き、投稿前検査、Note エディタ反映、
 公開直前停止、公開後台帳までを、Codex が安全に迷わず進めること。
@@ -45,15 +45,18 @@ Note 公開、予約投稿、SNS 共有、リポジトリ公開範囲変更は�
 クリーン環境や公開前レビューでは、まずパッケージ契約を確認する。
 この検証は公開操作なしで、`nexus_ai/public` 配下の embedded copy と、
 一時 git repository として作る standalone clone fixture の両方を確認する。
+standalone clone fixture では `scripts/verify_public_package.ps1` 自身も
+その clone 側から再実行して確認する。
 
 ```powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
 ```
 
-Python が使える環境では、公開前検査器と重点テストを回す。
+Python が使える環境では、公開前検査器と重点テストを個別にも回せる。
 
 ```powershell
 python scripts/provenance_leak_check.py --scope changed
+python scripts/provenance_label_check.py <draft.md> --json
 python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py
 ```
 
@@ -166,9 +169,9 @@ Codex のファイルエディタは Markdown をレンダーではなく、
 整形表示で読みたい時は、同じディレクトリの
 `README.rendered.html` を開く。
 表示が古い時は `python scripts/render_readme.py` で再生成する。
-Python が無いクリーン環境でパッケージと公開境界だけを確認する時は、
+クリーン環境でパッケージと公開境界を確認する時は、PowerShell から
 `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1`
-を使う。
+を使う。この verifier は Python と git も使って各 checker を実行する。
 
 この README 自体も素の表示で読めるように、
 長い行を避けて書く。
@@ -185,9 +188,13 @@ Python が無いクリーン環境でパッケージと公開境界だけを確�
 - `scripts/provenance_leak_check.py`: PR 前に実行時メモリ、
   非公開リポジトリ名、ローカルパス、出典外の運用文字列が混ざっていないか
   確認する検査器。
-- `scripts/verify_public_package.ps1`: Python が無いクリーン環境用の
-  パッケージ契約 / 公開準備検証。embedded copy と standalone clone fixture の
-  GitHub identity guard lane も公開操作なしで確認する。
+- `scripts/provenance_label_check.py`: `source_pack_locked_with_user_speech_priority`
+  の下書きで、`user-said`、`external-fact`、`assistant-organized`、`hold`
+  のラベル境界が崩れていないか確認する検査器。
+- `scripts/verify_public_package.ps1`: PowerShell から起動する
+  パッケージ契約 / 公開準備検証。Python と git を使って各 checker、
+  embedded copy と standalone clone fixture の GitHub identity guard lane、
+  standalone clone 側からの verifier 再実行を公開操作なしで確認する。
 - `package.yaml`: パッケージ管理情報。
 - `ROADMAP.md`: 公開前ゲートと運用拡張のロードマップ契約。
 - `issue-drafts.md`: 追跡ツール非依存の課題下書き。
@@ -296,6 +303,9 @@ Note エディタで見つかった失敗や手動境界は、その場限りに
 - PR 前には `scripts/provenance_leak_check.py --scope changed` を実行する。
   ユーザー固有 denylist は gitignored の
   `data/provenance_leak_policy.local.json` に置き、公開パッケージへ直書きしない。
+- `source_pack_locked_with_user_speech_priority` の下書きでは、
+  `scripts/provenance_label_check.py <draft.md> --json` を実行し、
+  本人発言、外部事実、AI の構成整理、保留事項を混ぜない。
 - GitHub account、email、private owner などの identity denylist は
   gitignored の `data/github_identity_guard_policy.local.json` に置く。
   公開パッケージには
@@ -331,6 +341,12 @@ Note エディタで見つかった失敗や手動境界は、その場限りに
   - シークレットらしい値、HTML コメント、TODO/FIXME、未確認語、
     非公開 URL の気配、短すぎる下書きを検出する。
   - `--fix` は HTML コメント除去だけを行う。
+- `scripts/provenance_label_check.py`
+  - `source_pack_locked_with_user_speech_priority` の下書きだけを対象にする。
+  - `user-said`、`external-fact`、`assistant-organized`、`hold` の各ブロックに
+    互換する source hint があるか確認する。
+  - Caramel 完全解説のように本人発言を優先する構成で、外部事実や
+    AI の構成整理へ混線していないかをローカルで止める。
 - `scripts/note_fact_check.py`
   - 未確認表現、数字/日付/件数、URL、内部メモ候補を抽出する。
   - 本人の発言、本人の言葉、体験ベースの主張、出典/根拠マーカーも
@@ -338,10 +354,12 @@ Note エディタで見つかった失敗や手動境界は、その場限りに
   - 外部ファクトチェックはしない。
 - `scripts/note_diff_check.py`
   - Note/public URL がある場合だけ phrase の存在確認を行う。
+  - `note.com` / `www.note.com` の公開URLでは `fetch_note_body.js` を呼び出し、
+    raw HTML ではなくレンダリング後の本文で比較する。
   - URL が `Unknown` / `none` / `-` の場合は未実行として終了する。
 - `scripts/fetch_note_body.js`
   - Note 公開記事の本文を Playwright で取得する。
-  - `note_diff_check.py` で curl/fetch だけでは本文が取れない場合の手動補助として使う。
+  - `note_diff_check.py` の note.com 公開URL比較で自動利用する。
 - `scripts/run_local_draft_qa_proof.py`
   - 1つのローカル下書きに対して preview、投稿前検査、
     local fact check、diff check を順に実行する。
@@ -508,6 +526,7 @@ in-app Browser で接続 / 確認できる場合に限り、
 `note_preview.py`、`pre_publish_check.py`、`note_fact_check.py`、
 `engagement_tracker.py` はローカル処理。
 `note_diff_check.py` だけ、Note/public URL が指定された場合に取得確認を行う。
+note.com 公開URLでは Playwright でレンダリング後本文を取得して比較する。
 
 ### Q. 何を保証しない？
 
@@ -521,8 +540,11 @@ README 表示、公開前停止線を確認できること。
 加えて、`scripts/github_identity_guard.py` が embedded copy では
 text scan only、standalone clone fixture では remote、HEAD author、
 repository-local git config まで検査することを確認する。
+さらに standalone clone fixture から `scripts/verify_public_package.ps1 -Json` を
+再実行し、検証器自身が単独 repo 形態で動くことも確認する。
 
-クリーン環境では Python を前提にせず、まずこのコマンドを使う。
+クリーン環境では、PowerShell、Python、git が使えることを確認してから
+まずこのコマンドを使う。
 
 ```powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
@@ -534,6 +556,7 @@ Python と pytest が使える開発環境では、追加で以下を実行し�
 python3 -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py
 python3 scripts/github_identity_guard.py --json
 python3 scripts/github_identity_guard.py --policy data/github_identity_guard_policy.local.json --json
+python3 scripts/provenance_label_check.py content/drafts/caramel-provenance-label-fixture.md --json
 python3 scripts/japanese_closeout_language_check.py --json
 python3 scripts/note_image_upload_boundary_check.py --json
 python3 scripts/note_editor_prepublish_verify.py <observation.json> --json
