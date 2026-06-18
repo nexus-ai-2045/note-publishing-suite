@@ -51,6 +51,9 @@ Note editor 実測で見つかった失敗、手動境界、復旧手順、成�
 - 記事が何を元に作られたかは `references/note-article-provenance-design.md`
   を正本にし、`article_lane`、`source_mode`、`based_on`、`allowed_use`、
   `not_allowed`、`editor_test_allowed` を draft frontmatter で固定する。
+- `source_mode: source_pack_locked_with_user_speech_priority` の draft では、
+  `scripts/provenance_label_check.py <draft.md> --json` で `user-said`、
+  `external-fact`、`assistant-organized`、`hold` の境界を検査する。
 - note editor の埋め込み、目次、Shift+Enter の live 実測境界は
   `references/note-editor-live-constraint-boundaries.md` を正本にし、
   `figure[data-src]`、`iframe.note-embed`、`table-of-contents`、`toc`、

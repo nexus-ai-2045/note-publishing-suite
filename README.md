@@ -56,6 +56,7 @@ Python が使える環境では、公開前検査器と重点テストを個別�
 
 ```powershell
 python scripts/provenance_leak_check.py --scope changed
+python scripts/provenance_label_check.py <draft.md> --json
 python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py
 ```
 
@@ -187,6 +188,9 @@ Codex のファイルエディタは Markdown をレンダーではなく、
 - `scripts/provenance_leak_check.py`: PR 前に実行時メモリ、
   非公開リポジトリ名、ローカルパス、出典外の運用文字列が混ざっていないか
   確認する検査器。
+- `scripts/provenance_label_check.py`: `source_pack_locked_with_user_speech_priority`
+  の下書きで、`user-said`、`external-fact`、`assistant-organized`、`hold`
+  のラベル境界が崩れていないか確認する検査器。
 - `scripts/verify_public_package.ps1`: PowerShell から起動する
   パッケージ契約 / 公開準備検証。Python と git を使って各 checker、
   embedded copy と standalone clone fixture の GitHub identity guard lane、
@@ -299,6 +303,9 @@ Note エディタで見つかった失敗や手動境界は、その場限りに
 - PR 前には `scripts/provenance_leak_check.py --scope changed` を実行する。
   ユーザー固有 denylist は gitignored の
   `data/provenance_leak_policy.local.json` に置き、公開パッケージへ直書きしない。
+- `source_pack_locked_with_user_speech_priority` の下書きでは、
+  `scripts/provenance_label_check.py <draft.md> --json` を実行し、
+  本人発言、外部事実、AI の構成整理、保留事項を混ぜない。
 - GitHub account、email、private owner などの identity denylist は
   gitignored の `data/github_identity_guard_policy.local.json` に置く。
   公開パッケージには
@@ -334,6 +341,12 @@ Note エディタで見つかった失敗や手動境界は、その場限りに
   - シークレットらしい値、HTML コメント、TODO/FIXME、未確認語、
     非公開 URL の気配、短すぎる下書きを検出する。
   - `--fix` は HTML コメント除去だけを行う。
+- `scripts/provenance_label_check.py`
+  - `source_pack_locked_with_user_speech_priority` の下書きだけを対象にする。
+  - `user-said`、`external-fact`、`assistant-organized`、`hold` の各ブロックに
+    互換する source hint があるか確認する。
+  - Caramel 完全解説のように本人発言を優先する構成で、外部事実や
+    AI の構成整理へ混線していないかをローカルで止める。
 - `scripts/note_fact_check.py`
   - 未確認表現、数字/日付/件数、URL、内部メモ候補を抽出する。
   - 本人の発言、本人の言葉、体験ベースの主張、出典/根拠マーカーも
@@ -341,10 +354,12 @@ Note エディタで見つかった失敗や手動境界は、その場限りに
   - 外部ファクトチェックはしない。
 - `scripts/note_diff_check.py`
   - Note/public URL がある場合だけ phrase の存在確認を行う。
+  - `note.com` / `www.note.com` の公開URLでは `fetch_note_body.js` を呼び出し、
+    raw HTML ではなくレンダリング後の本文で比較する。
   - URL が `Unknown` / `none` / `-` の場合は未実行として終了する。
 - `scripts/fetch_note_body.js`
   - Note 公開記事の本文を Playwright で取得する。
-  - `note_diff_check.py` で curl/fetch だけでは本文が取れない場合の手動補助として使う。
+  - `note_diff_check.py` の note.com 公開URL比較で自動利用する。
 - `scripts/run_local_draft_qa_proof.py`
   - 1つのローカル下書きに対して preview、投稿前検査、
     local fact check、diff check を順に実行する。
@@ -511,6 +526,7 @@ in-app Browser で接続 / 確認できる場合に限り、
 `note_preview.py`、`pre_publish_check.py`、`note_fact_check.py`、
 `engagement_tracker.py` はローカル処理。
 `note_diff_check.py` だけ、Note/public URL が指定された場合に取得確認を行う。
+note.com 公開URLでは Playwright でレンダリング後本文を取得して比較する。
 
 ### Q. 何を保証しない？
 
@@ -540,6 +556,7 @@ Python と pytest が使える開発環境では、追加で以下を実行し�
 python3 -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py
 python3 scripts/github_identity_guard.py --json
 python3 scripts/github_identity_guard.py --policy data/github_identity_guard_policy.local.json --json
+python3 scripts/provenance_label_check.py content/drafts/caramel-provenance-label-fixture.md --json
 python3 scripts/japanese_closeout_language_check.py --json
 python3 scripts/note_image_upload_boundary_check.py --json
 python3 scripts/note_editor_prepublish_verify.py <observation.json> --json

@@ -118,11 +118,34 @@ publication_gate: human_review_required
 external_action: none
 ```
 
+`source_mode: source_pack_locked_with_user_speech_priority` の draft は、
+本人発言を優先して扱うため、本文ブロックごとに provenance label を置く。
+
+```markdown
+<!-- provenance-label: user-said; source: user_speech_notes -->
+本人発言として扱う本文。
+
+<!-- provenance-label: external-fact; source: external_source_pack -->
+source pack で確認した外部事実。
+
+<!-- provenance-label: assistant-organized; source: assistant_structure -->
+構成、順序、接続のための文章。
+
+<!-- provenance-label: hold; source: needs_review_hold -->
+保留: 未確認、追加確認、公開前レビューに戻す項目。
+```
+
+この mode では `scripts/provenance_label_check.py <draft.md> --json` を使い、
+`user-said`、`external-fact`、`assistant-organized`、`hold` の境界が
+崩れていないか確認する。
+
 ## design rules
 
 - draft 作成前に `article_lane` と `source_mode` を決める。
 - ファクト抽出は `source_database` を最優先し、記事単位では `source_pack` に切り出す。
 - `source_pack_locked` の記事では、本文根拠は `based_on` に列挙した source に限定する。
+- `source_pack_locked_with_user_speech_priority` の記事では、本人発言、
+  外部事実、AI による構成整理、保留事項を provenance label で分ける。
 - plot / skeleton は構成にだけ使い、事実根拠として扱わない。
 - wall-bang は問い、論点、仮説、言い回し候補として使い、事実断定の根拠にしない。
 - wall-bang 由来の断定は追加調査ギャップに入れ、source pack で確認されるまで本文の事実にしない。

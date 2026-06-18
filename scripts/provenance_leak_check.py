@@ -147,6 +147,15 @@ def iter_text_files(paths: Iterable[Path]) -> Iterable[Path]:
 
 
 def git_changed_files() -> list[Path]:
+    top_result = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    git_root = Path(top_result.stdout.strip()).resolve() if top_result.stdout.strip() else ROOT
     result = subprocess.run(
         ["git", "diff", "--name-only", "--cached"],
         cwd=ROOT,
@@ -166,7 +175,7 @@ def git_changed_files() -> list[Path]:
             check=False,
         )
         names = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-    return [ROOT / name for name in names]
+    return [git_root / name for name in names]
 
 
 def match_rule(text: str, rule: Rule) -> bool:

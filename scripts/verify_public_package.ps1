@@ -324,6 +324,7 @@ $requiredFiles = @(
     "scripts/engagement_tracker.py",
     "scripts/render_readme.py",
     "scripts/provenance_leak_check.py",
+    "scripts/provenance_label_check.py",
     "scripts/github_identity_guard.py",
     "scripts/japanese_closeout_language_check.py",
     "scripts/note_image_upload_boundary_check.py",
@@ -333,6 +334,7 @@ $requiredFiles = @(
     "tests/test_content_pdca_check.py",
     "tests/test_note_image_upload_boundary.py",
     "tests/test_note_editor_prepublish_verify.py",
+    "content/drafts/caramel-provenance-label-fixture.md",
     "data/github_identity_guard_policy.example.json",
     "data/note_drafts.json",
     "data/published_notes.json",
@@ -449,6 +451,12 @@ Test-Contains "ROADMAP.md" "local_draft_qa_stop_before_publish_evidence.json"
 Test-Contains "PUBLIC_RELEASE_CHECKLIST.md" "リポジトリ公開範囲"
 Test-Contains "PUBLIC_RELEASE_CHECKLIST.md" "## プッシュ前の人間判断"
 Test-Contains "README.md" "scripts/provenance_leak_check.py --scope changed"
+Test-Contains "README.md" "scripts/provenance_label_check.py <draft.md> --json"
+Test-Contains "references/note-article-provenance-design.md" "source_pack_locked_with_user_speech_priority"
+Test-Contains "content/drafts/caramel-provenance-label-fixture.md" "provenance-label: user-said"
+Test-Contains "content/drafts/caramel-provenance-label-fixture.md" "provenance-label: external-fact"
+Test-Contains "content/drafts/caramel-provenance-label-fixture.md" "provenance-label: assistant-organized"
+Test-Contains "content/drafts/caramel-provenance-label-fixture.md" "provenance-label: hold"
 Test-Contains "package.yaml" "scripts/github_identity_guard.py"
 Test-Contains "package.yaml" "data/github_identity_guard_policy.example.json"
 Test-Contains ".gitignore" "data/github_identity_guard_policy.local.json"
@@ -500,6 +508,28 @@ if ($provenanceExitCode -ne 0) {
         }
     } catch {
         Add-Error "failed to parse provenance leak check output: $($_.Exception.Message)"
+    }
+}
+
+Push-Location $root
+try {
+    $labelOutput = & python "scripts/provenance_label_check.py" "content/drafts/caramel-provenance-label-fixture.md" "--json" 2>&1
+} finally {
+    Pop-Location
+}
+$labelExitCode = $LASTEXITCODE
+if ($labelExitCode -ne 0) {
+    Add-Error "provenance label check failed: exit=$labelExitCode output=$($labelOutput -join ' ')"
+} else {
+    try {
+        $labelResult = ($labelOutput -join "`n") | ConvertFrom-Json
+        if ($labelResult.ok -ne $true) {
+            Add-Error "provenance label check did not return ok=true"
+        } else {
+            Add-Checked "provenance label check passed"
+        }
+    } catch {
+        Add-Error "failed to parse provenance label check output: $($_.Exception.Message)"
     }
 }
 

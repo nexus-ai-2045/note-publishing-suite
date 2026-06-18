@@ -38,6 +38,19 @@ def load_github_identity_guard_module():
     return module
 
 
+def load_provenance_leak_check_module():
+    module_name = "provenance_leak_check"
+    spec = importlib.util.spec_from_file_location(
+        module_name, ROOT / "scripts" / "provenance_leak_check.py"
+    )
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 def test_required_files_exist():
     required = [
         "SKILL.md",
@@ -70,6 +83,7 @@ def test_required_files_exist():
         "scripts/engagement_tracker.py",
         "scripts/render_readme.py",
         "scripts/provenance_leak_check.py",
+        "scripts/provenance_label_check.py",
         "scripts/github_identity_guard.py",
         "scripts/japanese_closeout_language_check.py",
         "scripts/note_image_upload_boundary_check.py",
@@ -80,6 +94,7 @@ def test_required_files_exist():
         "data/note_drafts.json",
         "data/published_notes.json",
         "content/drafts/sample-note-prepublish-fixture.md",
+        "content/drafts/caramel-provenance-label-fixture.md",
     ]
     missing = [item for item in required if not (ROOT / item).exists()]
     assert not missing
@@ -583,6 +598,116 @@ def test_provenance_leak_checker_contract_present():
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert '"ok": true' in result.stdout
+
+
+def test_provenance_leak_changed_files_resolves_monorepo_paths(monkeypatch, tmp_path: Path):
+    module = load_provenance_leak_check_module()
+    git_root = tmp_path / "repo"
+    package_root = git_root / "public" / "note-publishing-suite"
+    changed = package_root / "README.md"
+    changed.parent.mkdir(parents=True)
+    changed.write_text("# changed\n", encoding="utf-8")
+    monkeypatch.setattr(module, "ROOT", package_root)
+
+    class Result:
+        def __init__(self, stdout: str):
+            self.stdout = stdout
+            self.stderr = ""
+            self.returncode = 0
+
+    def fake_run(args, **_kwargs):
+        if args[:3] == ["git", "rev-parse", "--show-toplevel"]:
+            return Result(str(git_root))
+        if args[:3] == ["git", "diff", "--name-only"]:
+            return Result("public/note-publishing-suite/README.md\n")
+        raise AssertionError(args)
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+
+    assert module.git_changed_files() == [changed]
+
+
+def test_provenance_label_checker_contract_present(tmp_path: Path):
+    script = (ROOT / "scripts/provenance_label_check.py").read_text(
+        encoding="utf-8"
+    )
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    package = (ROOT / "package.yaml").read_text(encoding="utf-8")
+    design = (
+        ROOT / "references/note-article-provenance-design.md"
+    ).read_text(encoding="utf-8")
+
+    for needle in [
+        "source_pack_locked_with_user_speech_priority",
+        "user-said",
+        "external-fact",
+        "assistant-organized",
+        "hold",
+        "source_hint_mismatch",
+        "external_actions_performed",
+        "publication_actions_performed",
+    ]:
+        assert needle in script, needle
+
+    for name, text in {
+        "readme": readme,
+        "package": package,
+        "design": design,
+    }.items():
+        assert "scripts/provenance_label_check.py" in text, name
+        assert "source_pack_locked_with_user_speech_priority" in text, name
+
+    clean = ROOT / "content/drafts/caramel-provenance-label-fixture.md"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts/provenance_label_check.py"),
+            str(clean),
+            "--json",
+        ],
+        cwd=ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    assert payload["labels_seen"] == [
+        "assistant-organized",
+        "external-fact",
+        "hold",
+        "user-said",
+    ]
+
+    broken = tmp_path / "broken-provenance.md"
+    broken.write_text(
+        "---\n"
+        "title: broken\n"
+        "source_mode: source_pack_locked_with_user_speech_priority\n"
+        "---\n\n"
+        "<!-- provenance-label: external-fact; source: user_speech_notes -->\n"
+        "# Caramel 完全解説\n\n"
+        "ユーザー曰く、この仕様は確定している。\n",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts/provenance_label_check.py"),
+            str(broken),
+            "--json",
+        ],
+        cwd=ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert result.returncode == 1
+    assert "source_hint_mismatch" in result.stdout
+    assert "user_speech_inside_external_fact" in result.stdout
 
 
 def test_github_identity_guard_contract_present():
@@ -1106,6 +1231,7 @@ def test_script_help_smoke():
         "engagement_tracker.py",
         "render_readme.py",
         "provenance_leak_check.py",
+        "provenance_label_check.py",
         "github_identity_guard.py",
         "japanese_closeout_language_check.py",
         "note_image_upload_boundary_check.py",

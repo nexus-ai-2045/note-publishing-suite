@@ -63,10 +63,16 @@ GitHub リリースやタグは別の公開操作として扱い、ここには�
   Python なしで動くように読める誤保証を禁止語として検査するようにした。
 - standalone clone fixture から verifier 自身を再実行し、単独 repo 形態でも
   公開操作なしで検証できることを確認するようにした。
+- `scripts/provenance_label_check.py` を追加し、
+  `source_pack_locked_with_user_speech_priority` の draft で `user-said`、
+  `external-fact`、`assistant-organized`、`hold` の境界を検査できるようにした。
+- Caramel 完全解説風の draft fixture を追加し、本人発言優先構成の
+  provenance label 回帰ケースにした。
 
 検証:
 - `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1`
 - `python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py`
+- `python scripts/provenance_label_check.py content/drafts/caramel-provenance-label-fixture.md --json`
 
 公開境界:
 - Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
