@@ -28,10 +28,13 @@ Note Publishing Suite を公開 GitHub リポジトリにプッシュする前�
 ## 検証
 
 ```powershell
-python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py -q
+sh scripts/verify_public_package.sh
+python -m pytest scripts/test_skill_integration.py tests -q
+python -m pytest tests/test_review_draft_cli.py -q
 python scripts/engagement_tracker.py report --json
 python scripts/note_image_upload_boundary_check.py --json
-python scripts/note_editor_prepublish_verify.py <observation.json> --json
+python scripts/note_editor_prepublish_verify.py data/note_editor_prepublish_observation.fixture.json --json
+python scripts/review_draft.py review-draft content/drafts/sample-note-prepublish-fixture.md --json
 python scripts/render_readme.py
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
 ```

@@ -1,5 +1,5 @@
 name: note-publishing-suite
-version: 0.2.3
+version: 0.2.4
 scope: repo-local
 repo_root: .
 entrypoint: SKILL.md
@@ -94,8 +94,10 @@ existing_scripts:
   - scripts/japanese_closeout_language_check.py
   - scripts/note_image_upload_boundary_check.py
   - scripts/note_editor_prepublish_verify.py
+  - scripts/review_draft.py
   - scripts/run_local_draft_qa_proof.py
   - scripts/check_version_bump.py
+  - scripts/verify_public_package.sh
   - scripts/verify_public_package.ps1
 workflow:
   idea: skills/note-idea-intake/SKILL.md
@@ -120,10 +122,13 @@ skills:
 verification:
   clean_machine:
     requires:
-      - PowerShell
+      - POSIX sh
       - Python
       - git
     commands:
+      - sh scripts/verify_public_package.sh
+      - pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
+    windows_equivalent:
       - pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
   lanes:
     embedded_copy:
@@ -131,16 +136,18 @@ verification:
       purpose: prove the package still works when copied under nexus_ai/public
     standalone_clone:
       mode: standalone_repository
-      purpose: prove both github_identity_guard.py and verify_public_package.ps1 from a standalone public repository clone fixture
+      purpose: prove github_identity_guard.py and verify_public_package.sh from a standalone public repository clone fixture
   optional_python_developer_checks:
-    - python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py
+    - python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py tests/test_review_draft_cli.py
     - python scripts/provenance_leak_check.py --scope changed --json
     - python scripts/provenance_label_check.py <draft.md> --json
     - python scripts/github_identity_guard.py --json
     - python scripts/github_identity_guard.py --policy data/github_identity_guard_policy.local.json --json
     - python scripts/japanese_closeout_language_check.py --json
     - python scripts/note_image_upload_boundary_check.py --json
-    - python scripts/note_editor_prepublish_verify.py <observation.json> --json
+    - python scripts/note_editor_prepublish_verify.py data/note_editor_prepublish_observation.fixture.json --json
+    - python scripts/review_draft.py build-context-card content/drafts/sample-note-prepublish-fixture.md --json
+    - python scripts/review_draft.py review-draft content/drafts/sample-note-prepublish-fixture.md --json
     - python scripts/run_local_draft_qa_proof.py --json
     - python scripts/check_version_bump.py
     - python scripts/pre_publish_check.py <draft.md>

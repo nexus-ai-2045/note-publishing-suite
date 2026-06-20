@@ -16,6 +16,32 @@ GitHub リリースやタグは別の公開操作として扱い、ここには�
 - Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
 - GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
 
+## 0.2.4
+
+日付: 2026-06-20
+
+変更:
+- `scripts/review_draft.py` を追加し、`build-context-card` と
+  `review-draft` の CLI flow を実装した。
+- `review-draft` は `review-intent` ではなく、`build_context_card` /
+  `review_draft` 経路で verdict、reason_codes、confirmation_questions、
+  context_card を返す契約にした。
+- `content/drafts/sample-note-prepublish-fixture.md` を使う fixture-backed
+  local review を追加し、editor fixture は公開候補として進めず blocked にする。
+- Mac / Linux 向けの `scripts/verify_public_package.sh` を primary verifier にし、
+  PowerShell verifier は Windows / PowerShell equivalent として残した。
+- `data/note_editor_prepublish_observation.fixture.json` を追加し、
+  `<observation.json>` placeholder なしで公開前観測 checker を実行できるようにした。
+
+検証:
+- `sh scripts/verify_public_package.sh`
+- `python3 -m pytest scripts/test_skill_integration.py tests -q`
+- `python3 scripts/note_editor_prepublish_verify.py data/note_editor_prepublish_observation.fixture.json --json`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.2.1
 
 日付: 2026-06-17

@@ -175,7 +175,7 @@ function Test-StandaloneCloneVerifierLane {
         $previousDepth = $env:NOTE_PUBLISHING_SUITE_STANDALONE_VERIFIER_DEPTH
         try {
             $env:NOTE_PUBLISHING_SUITE_STANDALONE_VERIFIER_DEPTH = "1"
-            $verifierOutput = & pwsh -NoProfile -ExecutionPolicy Bypass -File "scripts/verify_public_package.ps1" "-Json" 2>&1
+            $verifierOutput = & sh "scripts/verify_public_package.sh" "--json" 2>&1
         } finally {
             if ($null -eq $previousDepth) {
                 Remove-Item Env:\NOTE_PUBLISHING_SUITE_STANDALONE_VERIFIER_DEPTH -ErrorAction SilentlyContinue
@@ -329,12 +329,16 @@ $requiredFiles = @(
     "scripts/japanese_closeout_language_check.py",
     "scripts/note_image_upload_boundary_check.py",
     "scripts/note_editor_prepublish_verify.py",
+    "scripts/review_draft.py",
     "scripts/run_local_draft_qa_proof.py",
     "scripts/verify_public_package.ps1",
+    "scripts/verify_public_package.sh",
     "tests/test_content_pdca_check.py",
     "tests/test_note_image_upload_boundary.py",
     "tests/test_note_editor_prepublish_verify.py",
+    "tests/test_review_draft_cli.py",
     "content/drafts/caramel-provenance-label-fixture.md",
+    "data/note_editor_prepublish_observation.fixture.json",
     "data/github_identity_guard_policy.example.json",
     "data/note_drafts.json",
     "data/published_notes.json",
@@ -388,15 +392,17 @@ Test-Contains "package.yaml" "output_language_gate:"
 Test-Contains "package.yaml" "user_visible_language: japanese"
 Test-Contains "package.yaml" "cli_status_translation_required: true"
 Test-Contains "package.yaml" "roadmap_contract:"
+Test-Contains "package.yaml" "sh scripts/verify_public_package.sh"
 Test-Contains "package.yaml" "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1"
 Test-Contains "package.yaml" "standalone_clone:"
 Test-Contains "package.yaml" "embedded_copy:"
 Test-Contains "package.yaml" "requires:"
-Test-Contains "package.yaml" "PowerShell"
+Test-Contains "package.yaml" "POSIX sh"
 Test-Contains "package.yaml" "Python"
 Test-Contains "package.yaml" "git"
-Test-Contains "README.md" "PowerShell、Python、git"
-Test-Contains "README.md" "この verifier は Python と git も使って各 checker を実行する"
+Test-Contains "README.md" "POSIX sh、Python、git"
+Test-Contains "README.md" "この verifier は Python と git も"
+Test-Contains "README.md" "使って各 checker を実行する"
 
 $forbiddenRuntimeClaims = @(
     "Python が無い",
@@ -430,7 +436,7 @@ if ($packageVersion) {
     Test-Contains "README.md" "パッケージ版: ``$packageVersion``"
     Test-Contains "CHANGELOG.md" "## $packageVersion"
 }
-Test-Contains "CHANGELOG.md" "python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py"
+Test-Contains "CHANGELOG.md" "python3 -m pytest scripts/test_skill_integration.py tests -q"
 Test-Contains "README.md" "ROADMAP.md"
 Test-Contains "README.md" "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1"
 Test-Contains "README.md" "standalone clone"
@@ -441,10 +447,13 @@ Test-Contains "ROADMAP.md" "publication_gate: human_review_required"
 Test-Contains "ROADMAP.md" "external_action: none"
 Test-Contains "ROADMAP.md" "## オーケストレーション地図"
 Test-Contains "ROADMAP.md" "## 判断ルール"
-Test-Contains "PUBLIC_RELEASE_CHECKLIST.md" "tests/test_note_image_upload_boundary.py"
+Test-Contains "PUBLIC_RELEASE_CHECKLIST.md" "python -m pytest scripts/test_skill_integration.py tests -q"
+Test-Contains "PUBLIC_RELEASE_CHECKLIST.md" "tests/test_review_draft_cli.py"
 Test-Contains "PUBLIC_RELEASE_CHECKLIST.md" "python scripts/note_image_upload_boundary_check.py --json"
-Test-Contains "README.md" "scripts/note_editor_prepublish_verify.py <observation.json> --json"
+Test-Contains "README.md" "scripts/note_editor_prepublish_verify.py data/note_editor_prepublish_observation.fixture.json --json"
+Test-Contains "README.md" "scripts/review_draft.py review-draft"
 Test-Contains "package.yaml" "scripts/note_editor_prepublish_verify.py"
+Test-Contains "package.yaml" "scripts/review_draft.py"
 Test-Contains "README.md" "scripts/run_local_draft_qa_proof.py --json"
 Test-Contains "package.yaml" "scripts/run_local_draft_qa_proof.py"
 Test-Contains "ROADMAP.md" "local_draft_qa_stop_before_publish_evidence.json"
