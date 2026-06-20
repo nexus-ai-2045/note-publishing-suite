@@ -88,8 +88,12 @@ def test_required_files_exist():
         "scripts/japanese_closeout_language_check.py",
         "scripts/note_image_upload_boundary_check.py",
         "scripts/note_editor_prepublish_verify.py",
+        "scripts/review_draft.py",
         "scripts/run_local_draft_qa_proof.py",
         "scripts/check_version_bump.py",
+        "scripts/verify_public_package.sh",
+        "tests/test_review_draft_cli.py",
+        "data/note_editor_prepublish_observation.fixture.json",
         "data/github_identity_guard_policy.example.json",
         "data/note_drafts.json",
         "data/published_notes.json",
@@ -133,10 +137,11 @@ def test_verifier_runtime_requirements_are_honest():
         ]:
             assert claim not in text, name
 
-    assert "PowerShell、Python、git" in docs["README.md"]
-    assert "この verifier は Python と git も使って各 checker を実行する" in docs["README.md"]
+    assert "POSIX sh、Python、git" in docs["README.md"]
+    assert "この verifier は Python と git も" in docs["README.md"]
+    assert "使って各 checker を実行する" in docs["README.md"]
     assert "requires:" in package
-    assert "PowerShell" in package
+    assert "POSIX sh" in package
     assert "Python" in package
     assert "git" in package
 
@@ -203,9 +208,10 @@ def test_public_release_checklist_matches_current_public_gate():
     checklist = (ROOT / "PUBLIC_RELEASE_CHECKLIST.md").read_text(encoding="utf-8")
 
     for needle in [
-        "tests/test_note_image_upload_boundary.py",
+        "python -m pytest scripts/test_skill_integration.py tests -q",
+        "tests/test_review_draft_cli.py",
         "python scripts/note_image_upload_boundary_check.py --json",
-        "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1",
+        "sh scripts/verify_public_package.sh",
         "リポジトリ公開範囲",
         "Note 公開、予約投稿、SNS 共有、外部告知",
     ]:
@@ -895,13 +901,9 @@ def test_public_package_verifier_runs_from_standalone_clone_fixture(tmp_path: Pa
     }
     result = subprocess.run(
         [
-            "pwsh",
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            "scripts/verify_public_package.ps1",
-            "-Json",
+            "sh",
+            "scripts/verify_public_package.sh",
+            "--json",
         ],
         cwd=standalone,
         text=True,
@@ -1236,6 +1238,7 @@ def test_script_help_smoke():
         "japanese_closeout_language_check.py",
         "note_image_upload_boundary_check.py",
         "note_editor_prepublish_verify.py",
+        "review_draft.py",
         "run_local_draft_qa_proof.py",
         "check_version_bump.py",
     ]:

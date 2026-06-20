@@ -11,7 +11,7 @@ publication_gate: human_review_required
 このパッケージは、Note 記事投稿をリポジトリ内で一気通貫に扱うための
 スキル群。
 
-パッケージ版: `0.2.3`
+パッケージ版: `0.2.4`
 
 使命は、記事アイデア、下書き、投稿前検査、Note エディタ反映、
 公開直前停止、公開後台帳までを、Codex が安全に迷わず進めること。
@@ -45,19 +45,21 @@ Note 公開、予約投稿、SNS 共有、リポジトリ公開範囲変更は�
 クリーン環境や公開前レビューでは、まずパッケージ契約を確認する。
 この検証は公開操作なしで、`nexus_ai/public` 配下の embedded copy と、
 一時 git repository として作る standalone clone fixture の両方を確認する。
-standalone clone fixture では `scripts/verify_public_package.ps1` 自身も
+standalone clone fixture では `scripts/verify_public_package.sh` 自身も
 その clone 側から再実行して確認する。
 
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
+```bash
+sh scripts/verify_public_package.sh
 ```
 
 Python が使える環境では、公開前検査器と重点テストを個別にも回せる。
 
-```powershell
+```bash
 python scripts/provenance_leak_check.py --scope changed
 python scripts/provenance_label_check.py <draft.md> --json
-python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py
+python scripts/review_draft.py build-context-card content/drafts/sample-note-prepublish-fixture.md --json
+python scripts/review_draft.py review-draft content/drafts/sample-note-prepublish-fixture.md --json
+python -m pytest scripts/test_skill_integration.py tests
 ```
 
 README の整形表示を更新する時は、次を実行する。
@@ -121,8 +123,10 @@ Product Design は読者体験と運用体験を整え、Creative Production は
 
 - README / HTML プレビューで、全体像と停止線をすぐ読めるようにする。
 - `note_image_upload_boundary_check.py --json` で画像アップロード境界を確認する。
-- `note_editor_prepublish_verify.py <observation.json> --json` で公開設定画面の
+- `note_editor_prepublish_verify.py data/note_editor_prepublish_observation.fixture.json --json` で公開設定画面の
   観測結果を確認する。
+- `review_draft.py review-draft content/drafts/sample-note-prepublish-fixture.md --json`
+  で、verdict / reason_codes / confirmation_questions の契約を確認する。
 - `pre_publish_check.py` とローカルプレビューで、下書きの公開前 QA を回す。
 - 公開、投稿、予約、SNS 共有、リポジトリ公開範囲変更は人間レビューまで止める。
 
@@ -169,9 +173,11 @@ Codex のファイルエディタは Markdown をレンダーではなく、
 整形表示で読みたい時は、同じディレクトリの
 `README.rendered.html` を開く。
 表示が古い時は `python scripts/render_readme.py` で再生成する。
-クリーン環境でパッケージと公開境界を確認する時は、PowerShell から
+クリーン環境でパッケージと公開境界を確認する時は、Mac / Linux では
+`sh scripts/verify_public_package.sh` を使う。この verifier は Python と git も
+使って各 checker を実行する。Windows / PowerShell 環境では
 `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1`
-を使う。この verifier は Python と git も使って各 checker を実行する。
+を等価 gate として使える。
 
 この README 自体も素の表示で読めるように、
 長い行を避けて書く。
@@ -191,10 +197,16 @@ Codex のファイルエディタは Markdown をレンダーではなく、
 - `scripts/provenance_label_check.py`: `source_pack_locked_with_user_speech_priority`
   の下書きで、`user-said`、`external-fact`、`assistant-organized`、`hold`
   のラベル境界が崩れていないか確認する検査器。
+- `scripts/review_draft.py`: `build-context-card` と `review-draft` を持つ
+  draft review CLI。`review_draft` は verdict、reason_codes、
+  confirmation_questions、context_card を JSON で返す。
+- `scripts/verify_public_package.sh`: Mac / Linux の `sh` から起動する
+  primary パッケージ契約 / 公開準備検証。fixture-backed の
+  `review-draft` と公開前観測 checker も公開操作なしで確認する。
 - `scripts/verify_public_package.ps1`: PowerShell から起動する
-  パッケージ契約 / 公開準備検証。Python と git を使って各 checker、
-  embedded copy と standalone clone fixture の GitHub identity guard lane、
-  standalone clone 側からの verifier 再実行を公開操作なしで確認する。
+  Windows / PowerShell equivalent。Python と git を使って各 checker、
+  embedded copy と standalone clone fixture の GitHub identity guard lane を
+  公開操作なしで確認する。
 - `package.yaml`: パッケージ管理情報。
 - `ROADMAP.md`: 公開前ゲートと運用拡張のロードマップ契約。
 - `issue-drafts.md`: 追跡ツール非依存の課題下書き。
@@ -404,7 +416,7 @@ Note エディタで見つかった失敗や手動境界は、その場限りに
 
 - 画像アップロードは内部ブラウザだけで完全自動化できるとは保証しない。
 - 画像アップロードの運用境界は
-  `scripts/verify_public_package.ps1` でパッケージ契約と一緒に確認する。
+  `scripts/verify_public_package.sh` でパッケージ契約と一緒に確認する。
   Python が使える開発環境では
   `python scripts/note_image_upload_boundary_check.py --json` で詳細確認してよい。
 - Windows / Mac 環境差は
@@ -540,26 +552,28 @@ README 表示、公開前停止線を確認できること。
 加えて、`scripts/github_identity_guard.py` が embedded copy では
 text scan only、standalone clone fixture では remote、HEAD author、
 repository-local git config まで検査することを確認する。
-さらに standalone clone fixture から `scripts/verify_public_package.ps1 -Json` を
+さらに standalone clone fixture から `scripts/verify_public_package.sh --json` を
 再実行し、検証器自身が単独 repo 形態で動くことも確認する。
 
-クリーン環境では、PowerShell、Python、git が使えることを確認してから
+クリーン環境では、POSIX sh、Python、git が使えることを確認してから
 まずこのコマンドを使う。
 
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
+```bash
+sh scripts/verify_public_package.sh
 ```
 
 Python と pytest が使える開発環境では、追加で以下を実行してよい。
 
 ```bash
-python3 -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py
+python3 -m pytest scripts/test_skill_integration.py tests
 python3 scripts/github_identity_guard.py --json
 python3 scripts/github_identity_guard.py --policy data/github_identity_guard_policy.local.json --json
 python3 scripts/provenance_label_check.py content/drafts/caramel-provenance-label-fixture.md --json
 python3 scripts/japanese_closeout_language_check.py --json
 python3 scripts/note_image_upload_boundary_check.py --json
-python3 scripts/note_editor_prepublish_verify.py <observation.json> --json
+python3 scripts/note_editor_prepublish_verify.py data/note_editor_prepublish_observation.fixture.json --json
+python3 scripts/review_draft.py build-context-card content/drafts/sample-note-prepublish-fixture.md --json
+python3 scripts/review_draft.py review-draft content/drafts/sample-note-prepublish-fixture.md --json
 python3 scripts/run_local_draft_qa_proof.py --json
 python3 scripts/check_version_bump.py
 ```
