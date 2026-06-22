@@ -90,6 +90,7 @@ def test_required_files_exist():
         "scripts/note_editor_prepublish_verify.py",
         "scripts/review_draft.py",
         "scripts/run_local_draft_qa_proof.py",
+        "scripts/bump_package_version.py",
         "scripts/check_version_bump.py",
         "scripts/verify_public_package.sh",
         "tests/test_review_draft_cli.py",
@@ -148,8 +149,10 @@ def test_verifier_runtime_requirements_are_honest():
 
 def test_package_version_bump_guard_contract_present():
     script = (ROOT / "scripts/check_version_bump.py").read_text(encoding="utf-8")
+    bump_script = (ROOT / "scripts/bump_package_version.py").read_text(encoding="utf-8")
     workflow = (ROOT / ".github/workflows/test.yml").read_text(encoding="utf-8")
     package = (ROOT / "package.yaml").read_text(encoding="utf-8")
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
     for needle in [
         "requires_version_bump",
@@ -162,6 +165,15 @@ def test_package_version_bump_guard_contract_present():
     assert "fetch-depth: 0" in workflow
     assert "python scripts/check_version_bump.py" in workflow
     assert "scripts/check_version_bump.py" in package
+    for needle in [
+        "bump_version",
+        "README.rendered.html",
+        "insert_changelog_section",
+        "version_bump=ok",
+    ]:
+        assert needle in bump_script, needle
+    assert "scripts/bump_package_version.py" in package
+    assert "自動採番" in readme
 
 
 def test_fetch_note_body_contract_present():
@@ -1247,8 +1259,9 @@ def test_script_help_smoke():
         "note_image_upload_boundary_check.py",
         "note_editor_prepublish_verify.py",
         "review_draft.py",
-        "run_local_draft_qa_proof.py",
-        "check_version_bump.py",
+            "run_local_draft_qa_proof.py",
+            "bump_package_version.py",
+            "check_version_bump.py",
     ]:
         result = subprocess.run(
             [sys.executable, str(ROOT / "scripts" / script), "--help"],

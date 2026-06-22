@@ -1,5 +1,5 @@
 name: note-publishing-suite
-version: 0.2.6
+version: 0.2.7
 scope: repo-local
 repo_root: .
 entrypoint: SKILL.md
@@ -96,6 +96,7 @@ existing_scripts:
   - scripts/note_editor_prepublish_verify.py
   - scripts/review_draft.py
   - scripts/run_local_draft_qa_proof.py
+  - scripts/bump_package_version.py
   - scripts/check_version_bump.py
   - scripts/verify_public_package.sh
   - scripts/verify_public_package.ps1
@@ -149,6 +150,7 @@ verification:
     - python scripts/review_draft.py build-context-card content/drafts/sample-note-prepublish-fixture.md --json
     - python scripts/review_draft.py review-draft content/drafts/sample-note-prepublish-fixture.md --json
     - python scripts/run_local_draft_qa_proof.py --json
+    - python scripts/bump_package_version.py --change <summary>
     - python scripts/check_version_bump.py
     - python scripts/pre_publish_check.py <draft.md>
 output_language_gate:
