@@ -136,7 +136,7 @@ verification:
       purpose: prove the package still works when copied under nexus_ai/public
     standalone_clone:
       mode: standalone_repository
-      purpose: prove github_identity_guard.py and verify_public_package.sh from a standalone public repository clone fixture
+      purpose: prove github_identity_guard.py and the platform verifier from a standalone public repository clone fixture
   optional_python_developer_checks:
     - python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py tests/test_review_draft_cli.py
     - python scripts/provenance_leak_check.py --scope changed --json

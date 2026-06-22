@@ -552,14 +552,22 @@ README 表示、公開前停止線を確認できること。
 加えて、`scripts/github_identity_guard.py` が embedded copy では
 text scan only、standalone clone fixture では remote、HEAD author、
 repository-local git config まで検査することを確認する。
-さらに standalone clone fixture から `scripts/verify_public_package.sh --json` を
-再実行し、検証器自身が単独 repo 形態で動くことも確認する。
+さらに standalone clone fixture から検証器自身を再実行し、
+単独 repo 形態で動くことも確認する。POSIX sh がある環境では
+`scripts/verify_public_package.sh --json`、Windows の PowerShell 環境では
+`scripts/verify_public_package.ps1 -Json` を使う。
 
 クリーン環境では、POSIX sh、Python、git が使えることを確認してから
 まずこのコマンドを使う。
 
 ```bash
 sh scripts/verify_public_package.sh
+```
+
+Windows で POSIX sh がない場合は、PowerShell verifier を使う。
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
 ```
 
 Python と pytest が使える開発環境では、追加で以下を実行してよい。

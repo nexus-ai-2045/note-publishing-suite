@@ -7,10 +7,15 @@ GitHub リリースやタグは別の公開操作として扱い、ここには�
 ## Unreleased
 
 変更:
-- 未定。
+- Windows / PowerShell 環境で `sh` が無い場合でも、
+  standalone clone verifier lane が `scripts/verify_public_package.ps1 -Json`
+  に fallback して動くようにした。
+- standalone clone fixture の統合テストも、`sh` がある環境では
+  `verify_public_package.sh`、無い環境では PowerShell verifier を使うようにした。
 
 検証:
-- 未実行。
+- `python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py tests/test_review_draft_cli.py -q`
+- `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1`
 
 公開境界:
 - Note 投稿、予約投稿、SNS 共有、外部告知は未実行。

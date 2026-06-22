@@ -452,9 +452,11 @@ python -m pytest scripts/test_skill_integration.py tests</code></pre>
 <h3>Q. 何を保証しない？</h3>
 <p>Note ログイン、常時 attach 成功、画像 upload 完全自動化、 公開成果、PV、SEO、おすすめ掲載、事実の正しさは保証しない。</p>
 <h2>検証</h2>
-<p><code>verify:local</code> 相当の基準は、公開操作なしで package の構成、安全境界、 README 表示、公開前停止線を確認できること。 加えて、<code>scripts/github_identity_guard.py</code> が embedded copy では text scan only、standalone clone fixture では remote、HEAD author、 repository-local git config まで検査することを確認する。 さらに standalone clone fixture から <code>scripts/verify_public_package.sh --json</code> を 再実行し、検証器自身が単独 repo 形態で動くことも確認する。</p>
+<p><code>verify:local</code> 相当の基準は、公開操作なしで package の構成、安全境界、 README 表示、公開前停止線を確認できること。 加えて、<code>scripts/github_identity_guard.py</code> が embedded copy では text scan only、standalone clone fixture では remote、HEAD author、 repository-local git config まで検査することを確認する。 さらに standalone clone fixture から検証器自身を再実行し、 単独 repo 形態で動くことも確認する。POSIX sh がある環境では <code>scripts/verify_public_package.sh --json</code>、Windows の PowerShell 環境では <code>scripts/verify_public_package.ps1 -Json</code> を使う。</p>
 <p>クリーン環境では、POSIX sh、Python、git が使えることを確認してから まずこのコマンドを使う。</p>
 <pre><code>sh scripts/verify_public_package.sh</code></pre>
+<p>Windows で POSIX sh がない場合は、PowerShell verifier を使う。</p>
+<pre><code>pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1</code></pre>
 <p>Python と pytest が使える開発環境では、追加で以下を実行してよい。</p>
 <pre><code>python3 -m pytest scripts/test_skill_integration.py tests
 python3 scripts/github_identity_guard.py --json
