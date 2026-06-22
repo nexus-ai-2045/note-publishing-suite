@@ -899,12 +899,20 @@ def test_public_package_verifier_runs_from_standalone_clone_fixture(tmp_path: Pa
         **os.environ,
         "NOTE_PUBLISHING_SUITE_STANDALONE_VERIFIER_DEPTH": "1",
     }
+    if shutil.which("sh"):
+        command = ["sh", "scripts/verify_public_package.sh", "--json"]
+    else:
+        command = [
+            "pwsh",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "scripts/verify_public_package.ps1",
+            "-Json",
+        ]
     result = subprocess.run(
-        [
-            "sh",
-            "scripts/verify_public_package.sh",
-            "--json",
-        ],
+        command,
         cwd=standalone,
         text=True,
         stdout=subprocess.PIPE,

@@ -68,6 +68,11 @@ function Test-Contains {
     Add-Checked "$RelativePath contains: $Needle"
 }
 
+function Test-CommandAvailable {
+    param([string]$CommandName)
+    return $null -ne (Get-Command $CommandName -ErrorAction SilentlyContinue)
+}
+
 function Invoke-Git {
     param(
         [string]$WorkingDirectory,
@@ -175,7 +180,11 @@ function Test-StandaloneCloneVerifierLane {
         $previousDepth = $env:NOTE_PUBLISHING_SUITE_STANDALONE_VERIFIER_DEPTH
         try {
             $env:NOTE_PUBLISHING_SUITE_STANDALONE_VERIFIER_DEPTH = "1"
-            $verifierOutput = & sh "scripts/verify_public_package.sh" "--json" 2>&1
+            if (Test-CommandAvailable "sh") {
+                $verifierOutput = & sh "scripts/verify_public_package.sh" "--json" 2>&1
+            } else {
+                $verifierOutput = & pwsh -NoProfile -ExecutionPolicy Bypass -File "scripts/verify_public_package.ps1" -Json 2>&1
+            }
         } finally {
             if ($null -eq $previousDepth) {
                 Remove-Item Env:\NOTE_PUBLISHING_SUITE_STANDALONE_VERIFIER_DEPTH -ErrorAction SilentlyContinue
