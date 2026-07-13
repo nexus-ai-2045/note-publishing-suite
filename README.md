@@ -11,7 +11,7 @@ publication_gate: human_review_required
 このパッケージは、Note 記事投稿をリポジトリ内で一気通貫に扱うための
 スキル群。
 
-パッケージ版: `0.2.5`
+パッケージ版: `0.2.7`
 
 使命は、記事アイデア、下書き、投稿前検査、Note エディタ反映、
 公開直前停止、公開後台帳までを、Codex が安全に迷わず進めること。
@@ -382,6 +382,11 @@ Note エディタで見つかった失敗や手動境界は、その場限りに
     base branch より上がっていることを CI で確認する。
   - `package.yaml`、README、CHANGELOG だけの版管理メタデータ更新は
     実体変更とは分けて扱う。
+- `scripts/bump_package_version.py`
+  - patch / minor / major の自動採番を行い、`package.yaml`、README、
+    rendered HTML、CHANGELOG の版管理メタデータを一括更新する。
+  - 手作業で版番号だけを直して、README や CHANGELOG との整合が崩れる
+    状態を避けるための入口にする。
 - `scripts/post_publish.py`
   - 既定はドライラン。
   - `--write-ledger` を付けた時だけ ledger を更新する。
