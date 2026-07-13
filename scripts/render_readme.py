@@ -6,6 +6,7 @@ from __future__ import annotations
 import html
 import re
 from pathlib import Path
+from urllib.parse import urlsplit
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,6 +17,19 @@ OUTPUT = ROOT / "README.rendered.html"
 def inline(text: str) -> str:
     escaped = html.escape(text)
     escaped = re.sub(r"`([^`]+)`", r"<code>\1</code>", escaped)
+    escaped = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", escaped)
+
+    def render_link(match: re.Match[str]) -> str:
+        label, escaped_target = match.groups()
+        target = html.unescape(escaped_target)
+        parsed = urlsplit(target)
+        is_safe = parsed.scheme in {"", "http", "https"} and not target.startswith("//")
+        if not is_safe:
+            return match.group(0)
+        safe_target = html.escape(target, quote=True)
+        return f'<a href="{safe_target}">{label}</a>'
+
+    escaped = re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", render_link, escaped)
     return escaped
 
 
