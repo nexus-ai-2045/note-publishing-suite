@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +22,19 @@ REQUIRED_ROUTES: dict[str, dict[str, Any]] = {
     "visible_windows_file_dialog": {
         "status": "requires_user_confirmation",
         "requires_current_conversation_approval": True,
+    },
+    "cmux_dom_file_paste": {
+        "boundary": "confirmed_target_editor_browser_scoped_file_paste",
+        "status": "requires_user_confirmation",
+        "requires_current_conversation_approval": True,
+        "summary": "cmux browser で対象 editor と local file を確認し、OS clipboard、Cookie、note API を使わず browser-scoped File paste を行う。",
+        "smoke_checks": [
+            "target_editor_visible_active_and_matches",
+            "local_file_name_mime_and_bytes_confirmed",
+            "image_count_and_order_verified_after_paste",
+            "publish_or_schedule_not_clicked",
+        ],
+        "rollback": "undo_or_restore_last_verified_draft_state_and_stop_without_save_if_recovery_is_unverified",
     },
     "chrome_api_cookie_hidden_os": {
         "status": "blocked",
@@ -131,14 +145,29 @@ def validate_policy(policy: dict[str, Any]) -> list[str]:
         errors.append("automation_routes must be a non-empty list")
         return errors
 
-    routes_by_id = {
-        route.get("route_id"): route
+    valid_routes = [
+        route
         for route in routes
         if isinstance(route, dict) and isinstance(route.get("route_id"), str)
+    ]
+    route_id_counts = Counter(route["route_id"] for route in valid_routes)
+    duplicate_route_ids = {
+        route_id for route_id, count in route_id_counts.items() if count > 1
     }
+    if duplicate_route_ids:
+        errors.append(
+            "automation_routes duplicate route_id: "
+            + ", ".join(sorted(duplicate_route_ids))
+        )
+    routes_by_id = {route["route_id"]: route for route in valid_routes}
     missing_routes = set(REQUIRED_ROUTES) - set(routes_by_id)
     if missing_routes:
         errors.append("automation_routes missing: " + ", ".join(sorted(missing_routes)))
+    unexpected_routes = set(routes_by_id) - set(REQUIRED_ROUTES)
+    if unexpected_routes:
+        errors.append(
+            "automation_routes unexpected: " + ", ".join(sorted(unexpected_routes))
+        )
 
     for route_id, expected in REQUIRED_ROUTES.items():
         route = routes_by_id.get(route_id)
@@ -146,7 +175,8 @@ def validate_policy(policy: dict[str, Any]) -> list[str]:
             continue
         for key, value in expected.items():
             actual = route.get(key)
-            if actual is not value if isinstance(value, bool) else actual != value:
+            matches = actual is value if isinstance(value, bool) else actual == value
+            if not matches:
                 label = str(value).lower() if isinstance(value, bool) else value
                 errors.append(f"automation_routes.{route_id}.{key} must be {label}")
         if route.get("status") != "blocked":
@@ -159,6 +189,27 @@ def validate_policy(policy: dict[str, Any]) -> list[str]:
     missing_prohibitions = REQUIRED_PROHIBITIONS - prohibitions
     if missing_prohibitions:
         errors.append("prohibited_actions missing: " + ", ".join(sorted(missing_prohibitions)))
+
+    confirmation_routes = {
+        route_id
+        for route_id, route in routes_by_id.items()
+        if route.get("status") == "requires_user_confirmation"
+    }
+    registered_confirmation_routes = set(
+        policy.get("human_confirmation_before_expansion") or []
+    )
+    missing_confirmation_routes = confirmation_routes - registered_confirmation_routes
+    if missing_confirmation_routes:
+        errors.append(
+            "human_confirmation_before_expansion missing: "
+            + ", ".join(sorted(missing_confirmation_routes))
+        )
+    unexpected_confirmation_routes = registered_confirmation_routes - confirmation_routes
+    if unexpected_confirmation_routes:
+        errors.append(
+            "human_confirmation_before_expansion has non-confirmation routes: "
+            + ", ".join(sorted(unexpected_confirmation_routes))
+        )
 
     return errors
 
@@ -174,6 +225,8 @@ def validate_docs() -> list[str]:
             "Chrome、note API、Cookie、セッション読み取り",
             "Windows / Mac 環境差",
             "残務ゼロ",
+            "cmux_dom_file_paste",
+            "browser-scoped `File` paste",
         ]:
             if needle not in boundary:
                 errors.append(f"boundary missing: {needle}")

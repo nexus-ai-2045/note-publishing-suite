@@ -4,12 +4,25 @@
 from __future__ import annotations
 
 import json
+import importlib.util
 import subprocess
 import sys
+from copy import deepcopy
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def load_checker_module():
+    spec = importlib.util.spec_from_file_location(
+        "note_image_upload_boundary_check",
+        ROOT / "scripts/note_image_upload_boundary_check.py",
+    )
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def load_policy() -> dict:
@@ -26,9 +39,11 @@ def test_policy_separates_allowed_confirmation_and_blocked_routes():
 
     assert routes["manual_user_upload"]["status"] == "allowed_now"
     assert routes["visible_windows_file_dialog"]["status"] == "requires_user_confirmation"
+    assert routes["cmux_dom_file_paste"]["status"] == "requires_user_confirmation"
     assert routes["chrome_api_cookie_hidden_os"]["status"] == "blocked"
 
     assert routes["visible_windows_file_dialog"]["requires_current_conversation_approval"] is True
+    assert routes["cmux_dom_file_paste"]["requires_current_conversation_approval"] is True
     assert routes["chrome_api_cookie_hidden_os"]["requires_current_conversation_approval"] is False
 
 
@@ -99,6 +114,8 @@ def test_boundary_docs_and_package_reference_the_guarantee():
     assert "Chrome、note API、Cookie、セッション読み取り" in docs["boundary"]
     assert "Windows / Mac 環境差" in docs["boundary"]
     assert "残務ゼロ" in docs["boundary"]
+    assert "cmux_dom_file_paste" in docs["boundary"]
+    assert "browser-scoped `File` paste" in docs["boundary"]
 
 
 def test_guarantee_checker_returns_residual_work_zero():
@@ -121,3 +138,85 @@ def test_guarantee_checker_returns_residual_work_zero():
     assert payload["residual_work_zero"] is True
     assert payload["external_actions_performed"] == []
     assert payload["stop_causes"] == []
+
+
+def test_cmux_route_contract_drift_fails_closed():
+    checker = load_checker_module()
+    policy = load_policy()
+
+    unsafe_mutations = {
+        "boundary": "hidden_dom_any_target",
+        "smoke_checks": ["placeholder"],
+        "rollback": "continue_and_save",
+        "summary": "OS clipboard injection を使う",
+    }
+    for key, value in unsafe_mutations.items():
+        candidate = deepcopy(policy)
+        route = next(
+            item
+            for item in candidate["automation_routes"]
+            if item["route_id"] == "cmux_dom_file_paste"
+        )
+        route[key] = value
+        errors = checker.validate_policy(candidate)
+        assert any(f"cmux_dom_file_paste.{key}" in error for error in errors)
+
+
+def test_confirmation_route_registry_drift_fails_closed():
+    checker = load_checker_module()
+    policy = load_policy()
+    policy["human_confirmation_before_expansion"].remove("cmux_dom_file_paste")
+
+    errors = checker.validate_policy(policy)
+    assert any("human_confirmation_before_expansion missing" in error for error in errors)
+
+
+def test_cmux_route_requires_visible_active_target_editor():
+    checker = load_checker_module()
+    policy = load_policy()
+    route = next(
+        item
+        for item in policy["automation_routes"]
+        if item["route_id"] == "cmux_dom_file_paste"
+    )
+    route["smoke_checks"] = [
+        check
+        for check in route["smoke_checks"]
+        if check != "target_editor_visible_active_and_matches"
+    ]
+
+    errors = checker.validate_policy(policy)
+    assert any("cmux_dom_file_paste.smoke_checks" in error for error in errors)
+
+
+def test_unknown_automation_route_fails_closed():
+    checker = load_checker_module()
+    policy = load_policy()
+    policy["automation_routes"].append(
+        {
+            "route_id": "hidden_dom_upload",
+            "boundary": "hidden_dom",
+            "status": "allowed_now",
+            "requires_current_conversation_approval": False,
+            "summary": "unsafe route",
+            "smoke_checks": ["placeholder"],
+            "rollback": "continue_and_save",
+        }
+    )
+
+    errors = checker.validate_policy(policy)
+    assert any("automation_routes unexpected" in error for error in errors)
+
+
+def test_duplicate_automation_route_id_fails_closed():
+    checker = load_checker_module()
+    policy = load_policy()
+    cmux_route = next(
+        item
+        for item in policy["automation_routes"]
+        if item["route_id"] == "cmux_dom_file_paste"
+    )
+    policy["automation_routes"].insert(0, deepcopy(cmux_route))
+
+    errors = checker.validate_policy(policy)
+    assert any("automation_routes duplicate route_id" in error for error in errors)

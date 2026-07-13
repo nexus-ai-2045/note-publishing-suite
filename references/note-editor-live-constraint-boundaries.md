@@ -132,6 +132,78 @@ ratchet:
   - URL embed、見出し、目次はそれぞれ専用 DOM 成功条件で判定する
 ```
 
+## 5. HTML paste による block 生成
+
+```text
+constraint: text/html paste
+surface: cmux browser / ProseMirror body
+date: 2026-07-13
+goal: 記事全体を見出し・段落・箇条書きの block 構造を保って投入する
+action:
+  - DataTransfer に text/html と text/plain を設定する
+  - ClipboardEvent('paste') を ProseMirror body へ dispatch する
+actual:
+  - text/html では h2 / h3 / p / ol / li が対応する block node として生成された
+  - text/plain だけでは全段落が1 block に潰れた
+manual_boundary:
+  - paste 後に H2 / H3 / paragraph / list の件数を DOM で照合する
+  - 下書き保存、公開、予約投稿は別 gate とする
+ratchet:
+  - 構造化本文の一括投入では text/html を必須にする
+  - text/plain 単独 paste を構造保持 route として扱わない
+```
+
+## 6. hidden WebView の入力境界
+
+```text
+constraint: hidden WebView input
+surface: cmux browser
+date: 2026-07-13
+actual:
+  - WebView hidden 時は browser press / click が届かず、focus-webview は invalid_state になった
+  - DOM eval は到達し、ProseMirror への synthetic keydown は処理された
+  - Mod-a + Backspace では本文選択と削除が成立した
+  - document.execCommand('delete') は contenteditable=false の figure を消し残した
+manual_boundary:
+  - synthetic keydown は対象 editor と DOM 状態を確認した限定操作にする
+  - execCommand('delete') は使わない
+ratchet:
+  - hidden WebView では実キー入力の成功を保証しない
+  - figure を含む全選択削除は ProseMirror keymap 経由で行い、残存 figure を検査する
+```
+
+## 7. DOM selection と paste の tick 境界
+
+```text
+constraint: DOM Range selection synchronization
+surface: cmux browser / ProseMirror body
+date: 2026-07-13
+actual:
+  - Range.selectNodeContents() と paste を同一 tick で実行すると挿入位置が末尾へ飛んだ
+  - selection と paste の間に1 tick以上置くと ProseMirror state が選択を取り込んだ
+ratchet:
+  - DOM selection 直後の同一 tick paste を禁止する
+  - 1 tick以上待ち、paste 後に先頭・末尾 marker と block 件数を確認する
+```
+
+## 8. 連続画像と CDN 取り込み
+
+```text
+constraint: consecutive images and remote CDN import
+surface: cmux browser / ProseMirror body
+date: 2026-07-13
+actual:
+  - <p><img></p><p><img></p> の連続画像は1枚目が消え、2枚目だけ残った
+  - 画像間に <p><br></p> を置くと両方残った
+  - assets.st-note.com の既存 CDN URL は5枚中1枚を取りこぼした
+manual_boundary:
+  - 画像間に空 paragraph を置き、投入後の画像件数と順序を照合する
+  - remote CDN URL の再取得を完全経路として保証しない
+ratchet:
+  - 連続画像には空 paragraph separator を必須にする
+  - 確実性が必要な画像は local File paste route を使う
+```
+
 ## Contract test boundary
 
 自動テストで live editor を直接再実行することはしない。代わりに、この
@@ -144,3 +216,7 @@ reference と skill が次の測定済み境界を持ち続けることを contr
 - `H2` / `H3`
 - Shift+Enter の `<br>`
 - Undo 復旧を guarantee しない手動境界
+- `text/html` paste と `text/plain` paste の構造差
+- hidden WebView の synthetic keydown 境界
+- DOM selection と paste の間の 1 tick
+- 連続画像の空 paragraph separator

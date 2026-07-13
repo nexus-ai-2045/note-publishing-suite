@@ -30,6 +30,9 @@ jobs:
       - name: Run package contract tests
         run: python -m pytest scripts/test_skill_integration.py tests -q
 
+      - name: Check package SSOT pointer targets
+        run: python scripts/skill_pointer_check.py --json
+
       - name: Run package version bump guard
         run: python scripts/check_version_bump.py
 

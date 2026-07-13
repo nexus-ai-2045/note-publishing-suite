@@ -76,6 +76,20 @@
       "rollback": "cancel_visible_dialog_or_stop_without_publish"
     },
     {
+      "route_id": "cmux_dom_file_paste",
+      "boundary": "confirmed_target_editor_browser_scoped_file_paste",
+      "status": "requires_user_confirmation",
+      "requires_current_conversation_approval": true,
+      "summary": "cmux browser で対象 editor と local file を確認し、OS clipboard、Cookie、note API を使わず browser-scoped File paste を行う。",
+      "smoke_checks": [
+        "target_editor_visible_active_and_matches",
+        "local_file_name_mime_and_bytes_confirmed",
+        "image_count_and_order_verified_after_paste",
+        "publish_or_schedule_not_clicked"
+      ],
+      "rollback": "undo_or_restore_last_verified_draft_state_and_stop_without_save_if_recovery_is_unverified"
+    },
+    {
       "route_id": "chrome_api_cookie_hidden_os",
       "boundary": "forbidden_external_session_or_hidden_surface",
       "status": "blocked",
@@ -103,6 +117,7 @@
   ],
   "guarantee_command": "python scripts/note_image_upload_boundary_check.py --json",
   "human_confirmation_before_expansion": [
-    "visible_windows_file_dialog"
+    "visible_windows_file_dialog",
+    "cmux_dom_file_paste"
   ]
 }
