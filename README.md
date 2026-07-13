@@ -191,6 +191,9 @@ Codex のファイルエディタは Markdown をレンダーではなく、
 - `scripts/render_readme.py`: README 表示確認用 HTML の再生成。
 - `scripts/note_image_upload_boundary_check.py`: note 画像アップロード境界の
   残務ゼロ確認。
+- `scripts/skill_pointer_check.py`: package 内とインストール済み Claude Code
+  pointer が実在する正本を指すか確認する fail-closed 検査器。
+- `adapters/git-hooks/pre-commit`: pointer 実在検査を commit 前に実行する hook。
 - `scripts/provenance_leak_check.py`: PR 前に実行時メモリ、
   非公開リポジトリ名、ローカルパス、出典外の運用文字列が混ざっていないか
   確認する検査器。
@@ -584,6 +587,7 @@ python3 scripts/github_identity_guard.py --policy data/github_identity_guard_pol
 python3 scripts/provenance_label_check.py content/drafts/caramel-provenance-label-fixture.md --json
 python3 scripts/japanese_closeout_language_check.py --json
 python3 scripts/note_image_upload_boundary_check.py --json
+python3 scripts/skill_pointer_check.py --installed-root "$HOME/.claude/skills" --json
 python3 scripts/note_editor_prepublish_verify.py data/note_editor_prepublish_observation.fixture.json --json
 python3 scripts/review_draft.py build-context-card content/drafts/sample-note-prepublish-fixture.md --json
 python3 scripts/review_draft.py review-draft content/drafts/sample-note-prepublish-fixture.md --json

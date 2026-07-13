@@ -55,6 +55,29 @@ GitHub リリースやタグは別の公開操作として扱い、ここには�
 - Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
 - GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
 
+## 0.2.5
+
+日付: 2026-07-13
+
+変更:
+- `note-publishing-suite` の独立 repo worktree を復旧し、Claude Code pointer の
+  package root を独立正本へ再インストールした。
+- 2026-07-13 の Note editor 実測として、`text/html` paste、hidden WebView、
+  DOM selection の tick、連続画像 separator、CDN 取りこぼしを正本へ反映した。
+- `cmux_dom_file_paste` を明示確認必須の画像経路として追加し、OS clipboard、
+  Cookie、note API を使わない browser-scoped route に限定した。
+- `scripts/skill_pointer_check.py`、回帰テスト、CI、pre-commit hook template を追加し、
+  正本 pointer の消失を fail-closed で検知するようにした。
+
+検証:
+- `python3 -m pytest scripts/test_skill_integration.py tests -q`
+- `python3 scripts/skill_pointer_check.py --installed-root "$HOME/.claude/skills" --json`
+- `python3 scripts/note_image_upload_boundary_check.py --json`
+
+公開境界:
+- Note 投稿、下書き保存、予約投稿、SNS 共有、外部告知は未実行。
+- git push、GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.2.4
 
 日付: 2026-06-20

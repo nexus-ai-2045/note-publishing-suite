@@ -16,4 +16,7 @@ for d in "$PACKAGE_ROOT"/adapters/claude-code/*/; do
       "$d/SKILL.md" > "$DEST/$name/SKILL.md"
   echo "installed: $DEST/$name/SKILL.md"
 done
+python3 "$PACKAGE_ROOT/scripts/skill_pointer_check.py" \
+  --installed-root "$DEST" \
+  --json
 echo "OK: 次の Claude Code セッションから note 系トリガで発火します"

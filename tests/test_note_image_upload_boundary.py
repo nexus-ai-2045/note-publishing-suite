@@ -26,9 +26,11 @@ def test_policy_separates_allowed_confirmation_and_blocked_routes():
 
     assert routes["manual_user_upload"]["status"] == "allowed_now"
     assert routes["visible_windows_file_dialog"]["status"] == "requires_user_confirmation"
+    assert routes["cmux_dom_file_paste"]["status"] == "requires_user_confirmation"
     assert routes["chrome_api_cookie_hidden_os"]["status"] == "blocked"
 
     assert routes["visible_windows_file_dialog"]["requires_current_conversation_approval"] is True
+    assert routes["cmux_dom_file_paste"]["requires_current_conversation_approval"] is True
     assert routes["chrome_api_cookie_hidden_os"]["requires_current_conversation_approval"] is False
 
 
@@ -99,6 +101,8 @@ def test_boundary_docs_and_package_reference_the_guarantee():
     assert "Chrome、note API、Cookie、セッション読み取り" in docs["boundary"]
     assert "Windows / Mac 環境差" in docs["boundary"]
     assert "残務ゼロ" in docs["boundary"]
+    assert "cmux_dom_file_paste" in docs["boundary"]
+    assert "browser-scoped `File` paste" in docs["boundary"]
 
 
 def test_guarantee_checker_returns_residual_work_zero():

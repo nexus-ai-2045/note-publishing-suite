@@ -22,6 +22,10 @@ REQUIRED_ROUTES: dict[str, dict[str, Any]] = {
         "status": "requires_user_confirmation",
         "requires_current_conversation_approval": True,
     },
+    "cmux_dom_file_paste": {
+        "status": "requires_user_confirmation",
+        "requires_current_conversation_approval": True,
+    },
     "chrome_api_cookie_hidden_os": {
         "status": "blocked",
         "requires_current_conversation_approval": False,
@@ -174,6 +178,8 @@ def validate_docs() -> list[str]:
             "Chrome、note API、Cookie、セッション読み取り",
             "Windows / Mac 環境差",
             "残務ゼロ",
+            "cmux_dom_file_paste",
+            "browser-scoped `File` paste",
         ]:
             if needle not in boundary:
                 errors.append(f"boundary missing: {needle}")
