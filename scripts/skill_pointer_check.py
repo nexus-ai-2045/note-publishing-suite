@@ -11,28 +11,41 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 ADAPTER_ROOT = ROOT / "adapters" / "claude-code"
-PACKAGE_TARGET_RE = re.compile(r"\{\{PACKAGE_ROOT\}\}(/[^\s`]*SKILL\.md)")
-INSTALLED_TARGET_RE = re.compile(r"(/[^\s`]*SKILL\.md)")
+PACKAGE_TARGET_RE = re.compile(r"\{\{PACKAGE_ROOT\}\}(/[^`\r\n]*SKILL\.md)")
+INSTALLED_TARGET_RE = re.compile(r"(/[^`\r\n]*SKILL\.md)")
 
 
 def adapter_names() -> list[str]:
     return sorted(path.parent.name for path in ADAPTER_ROOT.glob("*/SKILL.md"))
 
 
+def expected_package_target(name: str) -> Path:
+    if name == "note-publishing-suite":
+        return ROOT / "SKILL.md"
+    return ROOT / "skills" / name / "SKILL.md"
+
+
 def validate_templates() -> tuple[list[str], list[str]]:
     checked: list[str] = []
     errors: list[str] = []
     for template in sorted(ADAPTER_ROOT.glob("*/SKILL.md")):
+        name = template.parent.name
+        expected = expected_package_target(name)
         text = template.read_text(encoding="utf-8")
-        targets = PACKAGE_TARGET_RE.findall(text)
+        suffixes = PACKAGE_TARGET_RE.findall(text)
+        targets = [ROOT / suffix.lstrip("/") for suffix in suffixes]
         if not targets:
             errors.append(f"{template.relative_to(ROOT)}: package SSOT pointer not found")
             continue
-        for suffix in targets:
-            target = ROOT / suffix.lstrip("/")
-            checked.append(str(target))
-            if not target.is_file():
-                errors.append(f"missing package SSOT target: {target}")
+        checked.extend(str(target) for target in targets)
+        if targets != [expected]:
+            errors.append(
+                f"{template.relative_to(ROOT)}: unexpected package SSOT target; "
+                f"expected {expected}"
+            )
+            continue
+        if not expected.is_file():
+            errors.append(f"missing package SSOT target: {expected}")
     return checked, errors
 
 
@@ -41,6 +54,13 @@ def validate_installed(installed_root: Path) -> tuple[list[str], list[str]]:
     errors: list[str] = []
     for name in adapter_names():
         pointer = installed_root / name / "SKILL.md"
+        expected = expected_package_target(name)
+        if pointer.parent.is_symlink():
+            errors.append(f"installed pointer directory must not be a symlink: {pointer.parent}")
+            continue
+        if pointer.is_symlink():
+            errors.append(f"installed pointer must not be a symlink: {pointer}")
+            continue
         if not pointer.is_file():
             errors.append(f"missing installed pointer: {pointer}")
             continue
@@ -48,11 +68,16 @@ def validate_installed(installed_root: Path) -> tuple[list[str], list[str]]:
         if not targets:
             errors.append(f"installed pointer has no absolute SSOT target: {pointer}")
             continue
-        for raw_target in targets:
-            target = Path(raw_target)
-            checked.append(str(target))
-            if not target.is_file():
-                errors.append(f"missing installed SSOT target: {target}")
+        parsed_targets = [Path(raw_target) for raw_target in targets]
+        checked.extend(str(target) for target in parsed_targets)
+        if len(parsed_targets) == 1 and not parsed_targets[0].is_file():
+            errors.append(f"missing installed SSOT target: {parsed_targets[0]}")
+            continue
+        if parsed_targets != [expected]:
+            errors.append(
+                f"unexpected installed SSOT target: {pointer}; expected {expected}"
+            )
+            continue
     return checked, errors
 
 

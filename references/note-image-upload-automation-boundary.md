@@ -20,7 +20,7 @@ note editor の画像アップロードを、できる経路、ユーザー確�
 - 内部ブラウザ単体の画像アップロード完全自動化は保証しない。
 - Codex in-app Browser が file upload API を提供しない場合がある。この場合は
   `File uploads are not supported` を停止原因として扱い、画像候補選定までで止める。
-- cmux browser の対象 editor を DOM で特定でき、現在会話で明示確認がある場合は、
+- cmux browser の画面に見えている active editor を DOM で特定でき、現在会話で明示確認がある場合は、
   local file bytes から生成した `File` を `DataTransfer` に追加する browser-scoped
   paste を別経路として扱う。これは OS clipboard や Cookie、note API を使わない。
 - Chrome、note API、Cookie、セッション読み取り、隠れた画面操作、
@@ -36,7 +36,7 @@ note editor の画像アップロードを、できる経路、ユーザー確�
 |---|---|---|---|---|
 | manual_user_upload | allowed_now | ユーザーが見えている note editor で手動 upload | 対象 editor / 画像対象 / 公開未クリック | 画像未設定または直前状態で停止 |
 | visible_windows_file_dialog | requires_user_confirmation | 画面に見えている Windows ファイル選択ダイアログだけをユーザー監督下で操作 | ダイアログ可視 / 対象 file 確認 / 公開未クリック | ダイアログをキャンセルして停止 |
-| cmux_dom_file_paste | requires_user_confirmation | cmux browser で対象 editor と local file を特定し、browser-scoped `File` paste を行う。OS clipboard、Cookie、note API は使わない | editor identity / file name・MIME / paste 前後の画像件数・順序 / 公開未クリック | Undo または直前の検証済み下書き状態へ戻し、復旧不能なら保存せず停止 |
+| cmux_dom_file_paste | requires_user_confirmation | cmux browser で画面に見えている active editor と local file を特定し、browser-scoped `File` paste を行う。OS clipboard、Cookie、note API は使わない | visible active editor identity / file name・MIME / paste 前後の画像件数・順序 / 公開未クリック | Undo または直前の検証済み下書き状態へ戻し、復旧不能なら保存せず停止 |
 | codex_iab_file_upload | blocked | Codex in-app Browser の file upload 非対応時は実uploadしない | `File uploads are not supported` を停止原因として記録 | 画像未設定で停止し、候補pathを返す |
 | chrome_api_cookie_hidden_os | blocked | Chrome、note API、Cookie、セッション読み取り、隠れた画面、OSフォーカス奪取 | 実行しない | 対象外 |
 
