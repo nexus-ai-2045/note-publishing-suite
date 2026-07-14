@@ -95,388 +95,177 @@
   <main>
     <article>
 <h1>Note Publishing Suite</h1>
-<p>このパッケージは、Note 記事投稿をリポジトリ内で一気通貫に扱うための スキル群。</p>
-<p>パッケージ版: <code>0.2.8</code></p>
-<p>使命は、記事アイデア、下書き、投稿前検査、Note エディタ反映、 公開直前停止、公開後台帳までを、Codex が安全に迷わず進めること。</p>
-<h2>最初に開くリンク</h2>
-<ul>
-<li>[ROADMAP.md](ROADMAP.md): 今やること、次にやること、後でやること。</li>
-<li>[README.rendered.html](README.rendered.html): この README の整形 HTML 表示。</li>
-<li>[PUBLIC_READY.md](PUBLIC_READY.md): 公開リポジトリとして見せてよいかの確認。</li>
-<li>[PUBLIC_RELEASE_CHECKLIST.md](PUBLIC_RELEASE_CHECKLIST.md): 公開前の最終チェック。</li>
-</ul>
-<h2>30秒でわかること</h2>
-<p>Note Publishing Suite は、Note 記事を「書く」「確認する」「エディタに反映する」 「公開直前で止める」ためのリポジトリ内パッケージ。</p>
-<p>読者は 3 種類を想定する。</p>
+<p>ローカル素材から Note の下書きを作り、検査し、エディタへ反映するための Codex 向けパッケージです。<strong>公開・予約投稿・SNS 共有は自動で行わず、 必ず公開直前で止まります。</strong></p>
+<p>パッケージ版: <code>0.2.9</code></p>
+<h2>できること</h2>
 <div class="table-wrap"><table>
-<thead><tr><th>読者</th><th>まず見るもの</th><th>わかること</th></tr></thead>
+<thead><tr><th>できる</th><th>自動では行わない</th></tr></thead>
 <tbody>
-<tr><td>初めて使う人</td><td><code>ワークフロー</code>、<code>最短確認</code></td><td>着想からゲートまでの流れ</td></tr>
-<tr><td>運用する人</td><td><code>保証ラチェット</code>、<code>実行境界</code></td><td>何を自動化し、どこで止まるか</td></tr>
-<tr><td>公開前に見る人</td><td><code>PUBLIC_READY.md</code>、<code>PUBLIC_RELEASE_CHECKLIST.md</code></td><td>公開リポジトリと記事公開の安全確認</td></tr>
+<tr><td>指定したローカル素材から記事候補と下書きを作る</td><td>指定外のフォルダや private URL を読む</td></tr>
+<tr><td>プレビュー、投稿前検査、根拠ラベル確認を行う</td><td>記事内容が正しいと断定する</td></tr>
+<tr><td>Note エディタへ反映し、下書き保存まで進める</td><td>公開、予約投稿、SNS 共有、外部告知</td></tr>
+<tr><td>公開後の確認内容を台帳更新案にする</td><td>PV、SEO、おすすめ掲載などの成果を保証する</td></tr>
 </tbody></table></div>
-<p>このパッケージは記事本文を勝手に公開しない。 Note 公開、予約投稿、SNS 共有、リポジトリ公開範囲変更は、 現在の会話で対象と操作を特定した人間レビューと明示承認が必要。</p>
-<h2>最短確認</h2>
-<p>クリーン環境や公開前レビューでは、まずパッケージ契約を確認する。 この検証は公開操作なしで、<code>nexus_ai/public</code> 配下の embedded copy と、 一時 git repository として作る standalone clone fixture の両方を確認する。 standalone clone fixture では <code>scripts/verify_public_package.sh</code> 自身も その clone 側から再実行して確認する。</p>
-<pre><code>sh scripts/verify_public_package.sh</code></pre>
-<p>Python が使える環境では、公開前検査器と重点テストを個別にも回せる。</p>
+<p>Note 公開、予約投稿、SNS 共有、リポジトリ公開範囲変更には、 現在の会話で対象と操作を特定した人間レビューと明示承認が必要です。</p>
+<h2>3分で始める</h2>
+<p>必要なものは POSIX sh、Python、git です。</p>
+<pre><code>git clone https://github.com/nexus-ai-2045/note-publishing-suite.git
+cd note-publishing-suite
+sh scripts/verify_public_package.sh</code></pre>
+<p>Windows で POSIX sh がない場合は、PowerShell verifier を使います。</p>
+<pre><code>pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1</code></pre>
+<p><code>-ExecutionPolicy Bypass</code> はこの PowerShell プロセスだけに適用され、 端末の永続設定は変更しません。実行前にスクリプトの内容を確認してください。</p>
+<p>この verifier は Python と git も使って各 checker を実行するため、 どちらの環境でも先に利用可能であることを確認してください。 検証は公開操作を行わず、<code>embedded copy</code> と <code>standalone clone</code> の 両方でパッケージ契約を確認します。</p>
+<h2>基本ワークフロー</h2>
+<pre><code>素材を指定 → 記事候補 → 下書き → ローカル検査 → Note 下書き保存 → 公開直前で停止</code></pre>
+<div class="table-wrap"><table>
+<thead><tr><th>段階</th><th>すること</th><th>主な入口</th></tr></thead>
+<tbody>
+<tr><td>1. idea</td><td>読んでよい素材から記事候補を出す</td><td><code>skills/note-idea-intake/SKILL.md</code></td></tr>
+<tr><td>2. draft</td><td>根拠と構成を分けて下書きを作る</td><td><code>skills/note-draft-production/SKILL.md</code></td></tr>
+<tr><td>3. qa</td><td>プレビュー、投稿前検査、根拠確認を行う</td><td><code>skills/note-prepublish-qa/SKILL.md</code></td></tr>
+<tr><td>4. editor</td><td>Note エディタへ反映し、下書き保存まで確認する</td><td><code>skills/note-editor-prepublish/SKILL.md</code></td></tr>
+<tr><td>5. gate</td><td>公開・投稿・予約確定ボタンの手前で止める</td><td><code>skills/note-publication-gate/SKILL.md</code></td></tr>
+<tr><td>6. ledger</td><td>公開後にだけ台帳更新案を作る</td><td><code>skills/note-postpublish-ledger/SKILL.md</code></td></tr>
+</tbody></table></div>
+<p>固定の <code>ネタ帳.md</code> はありません。最初にユーザーが指定した <code>読んでよい素材フォルダ</code> だけを入力として扱います。</p>
+<h2>目的別ナビ</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>目的</th><th>最初に読むもの</th></tr></thead>
+<tbody>
+<tr><td>全体像を知りたい</td><td>この README の「基本ワークフロー」と「安全設計」</td></tr>
+<tr><td>今後の計画を知りたい</td><td><a href="ROADMAP.md">ROADMAP.md</a></td></tr>
+<tr><td>Codex から使いたい</td><td><a href="SKILL.md">SKILL.md</a></td></tr>
+<tr><td>機械可読の契約を確認したい</td><td><a href="package.yaml">package.yaml</a></td></tr>
+<tr><td>公開前の準備を確認したい</td><td><a href="PUBLIC_READY.md">PUBLIC_READY.md</a> / <a href="PUBLIC_RELEASE_CHECKLIST.md">PUBLIC_RELEASE_CHECKLIST.md</a></td></tr>
+<tr><td>セキュリティ方針を確認したい</td><td><a href="SECURITY.md">SECURITY.md</a></td></tr>
+<tr><td>版ごとの差分を知りたい</td><td><a href="CHANGELOG.md">CHANGELOG.md</a></td></tr>
+</tbody></table></div>
+<h2>安全設計</h2>
+<h3>根拠と構成を混ぜない</h3>
+<p>記事制作の材料を次の単位に分けます。</p>
+<div class="table-wrap"><table>
+<thead><tr><th>単位</th><th>役割</th><th>事実根拠にできるか</th></tr></thead>
+<tbody>
+<tr><td><code>source_database</code></td><td>最初に読んでよい材料</td><td>はい</td></tr>
+<tr><td><code>source_pack</code></td><td>記事単位に切り出した根拠</td><td>はい</td></tr>
+<tr><td><code>series_plot</code> / <code>article_plot</code></td><td>連載・記事の展開案</td><td>いいえ</td></tr>
+<tr><td><code>skeleton</code></td><td>見出しと流れの骨格</td><td>いいえ</td></tr>
+<tr><td><code>wall_bang</code></td><td>壁打ち、問い、言い回し候補</td><td>いいえ</td></tr>
+<tr><td><code>editor_fixture</code></td><td>Note エディタ操作の検証用記事</td><td>いいえ</td></tr>
+</tbody></table></div>
+<p>詳しい契約は <code>references/note-article-provenance-design.md</code> を参照してください。 <code>production_candidate</code> と <code>editor_fixture</code> は混ぜません。</p>
+<h3>公開直前で必ず止める</h3>
+<p>次のどれかに当てはまる場合は公開操作へ進みません。</p>
+<ul>
+<li>対象記事、対象操作、公開方式のいずれかが <code>Unknown</code>。</li>
+<li>QA、画像権利、秘密情報除外、内部メモ除外が未確認。</li>
+<li>現在の会話で、対象記事と操作を特定した明示承認がない。</li>
+<li>Note エディタや画像アップロードの状態を実測確認できない。</li>
+</ul>
+<p>「公開して」「投稿して」だけでは承認として扱いません。</p>
+<h3>秘密情報と個人情報を残さない</h3>
+<ul>
+<li>PR 前に <code>scripts/provenance_leak_check.py --scope changed</code> を実行します。</li>
+<li>ユーザー固有 denylist は gitignored の</li>
+<p><code>data/provenance_leak_policy.local.json</code> に置き、公開パッケージへ直書きしない設計です。</p>
+<li>GitHub account、email、private owner の denylist は</li>
+<p><code>data/github_identity_guard_policy.local.json</code> に置きます。</p>
+<li>公開リポジトリには <code>data/github_identity_guard_policy.example.json</code> だけを含めます。</li>
+<li>credential、Cookie、非公開 URL、公開・送信権限を worker に渡しません。</li>
+</ul>
+<h3>本人発言、外部事実、AI の整理を分ける</h3>
+<p><code>source_pack_locked_with_user_speech_priority</code> の下書きでは、次を実行します。</p>
+<pre><code>python scripts/provenance_label_check.py &lt;draft.md&gt; --json</code></pre>
+<p><code>user-said</code>、<code>external-fact</code>、<code>assistant-organized</code>、<code>hold</code> の境界を確認し、 本人の発言と AI の構成整理を混ぜません。</p>
+<h2>Note エディタで扱う範囲</h2>
+<p>接続・確認できる場合に限り、タイトル、本文、見出し、リンク、画像、タグ、 マガジン、公開範囲の反映または確認を行います。</p>
+<ul>
+<li>低レベル操作は <code>skills/note-editor-ops/SKILL.md</code> を使います。</li>
+<li>公式機能とローカル観測の区別は</li>
+<p><code>references/note-editor-capability-inventory.md</code> で確認します。</p>
+<li>操作は <code>references/note-editor-pdca-orchestration.md</code> に沿って</li>
+<p>1 cycle / 1 action で進めます。</p>
+<li>埋め込み、目次、Shift+Enter の実測境界は</li>
+<p><code>references/note-editor-live-constraint-boundaries.md</code> を参照します。</p>
+<li>公式ノウハウは <code>note-official-guidance-intake</code> で一次情報化し、</li>
+<p>未確認を公式扱いしません。</p>
+<li>実画面の制約は <code>note-editor-constraint-debug</code> で確認します。</li>
+<li>画像アップロードの停止線は</li>
+<p><code>references/note-image-upload-automation-boundary.md</code> と <code>scripts/note_image_upload_boundary_check.py</code> で確認します。</p>
+</ul>
+<p>リンクカードは URL を単独行で入力し、その行末で Enter を押します。 成功は表示だけでなく <code>figure[data-src]</code> などの DOM で確認し、<code>href</code> だけが 残る場合は通常リンクとして扱います。固定座標に依存せず、同期しない場合は 手動境界へ切り替えます。下書き保存までで止まり、公開・投稿・予約確定ボタンは 押しません。</p>
+<p>画像アップロードの完全自動化、Note ログイン、常時接続成功は保証しません。</p>
+<h2>主なファイル</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>場所</th><th>役割</th></tr></thead>
+<tbody>
+<tr><td><code>SKILL.md</code></td><td>親スキル。全体ゲートと子スキルのルーティング</td></tr>
+<tr><td><code>package.yaml</code></td><td>入口、ワークフロー、検証コマンドの機械可読契約</td></tr>
+<tr><td><code>skills/</code></td><td>idea / draft / qa / editor / gate / ledger の実行手順</td></tr>
+<tr><td><code>references/</code></td><td>Note エディタ制約、出典設計、画像アップロード境界</td></tr>
+<tr><td><code>scripts/</code></td><td>ローカル QA、検査器、台帳更新ツール</td></tr>
+<tr><td><code>tests/</code></td><td>パッケージ契約と停止線の回帰テスト</td></tr>
+<tr><td><code>data/</code></td><td>初期台帳、fixture、ローカル evidence</td></tr>
+<tr><td><code>content/</code></td><td>下書きと画像素材</td></tr>
+<tr><td><code>published/</code></td><td>公開後の記録</td></tr>
+</tbody></table></div>
+<p>主要なローカルツール:</p>
+<ul>
+<li><code>scripts/note_preview.py</code>: Markdown 下書きのローカルプレビュー。</li>
+<li><code>scripts/pre_publish_check.py</code>: シークレット候補、内部メモ、未確認語の検出。</li>
+<li><code>scripts/note_fact_check.py</code>: 要確認の主張を抽出。外部ファクトチェックはしません。</li>
+<li><code>scripts/note_diff_check.py</code>: 指定された Note/public URL の本文差分確認。</li>
+<li><code>scripts/fetch_note_body.js</code>: Playwright で Note 公開記事の本文を取得。</li>
+<li><code>scripts/review_draft.py</code>: <code>build-context-card</code> と <code>review-draft</code> を提供。</li>
+<li><code>scripts/run_local_draft_qa_proof.py</code>: 公開前で止まるローカル QA 証跡を作成。</li>
+<li><code>scripts/post_publish.py</code>: 既定はドライラン。<code>--write-ledger</code> 指定時だけ台帳更新。</li>
+<li><code>scripts/engagement_tracker.py</code>: ローカル台帳件数だけを報告。</li>
+<li><code>scripts/bump_package_version.py</code>: patch / minor / major を自動採番。</li>
+<li><code>scripts/check_version_bump.py</code>: パッケージ実体変更時の version bump を確認。</li>
+<li><code>scripts/skill_pointer_check.py</code>: スキル参照先の実在を確認。</li>
+</ul>
+<h2>開発者向けの確認</h2>
+<p>README の整形 HTML を更新します。</p>
+<pre><code>python scripts/render_readme.py</code></pre>
+<p>公開前検査器と重点テストを個別に実行する場合:</p>
 <pre><code>python scripts/provenance_leak_check.py --scope changed
 python scripts/provenance_label_check.py &lt;draft.md&gt; --json
 python scripts/review_draft.py build-context-card content/drafts/sample-note-prepublish-fixture.md --json
 python scripts/review_draft.py review-draft content/drafts/sample-note-prepublish-fixture.md --json
+python scripts/note_editor_prepublish_verify.py data/note_editor_prepublish_observation.fixture.json --json
+python scripts/run_local_draft_qa_proof.py --json
+python scripts/japanese_closeout_language_check.py --json
+python scripts/note_image_upload_boundary_check.py --json
 python -m pytest scripts/test_skill_integration.py tests</code></pre>
-<p>README の整形表示を更新する時は、次を実行する。</p>
-<pre><code>python scripts/render_readme.py</code></pre>
-<h2>まず何を見るか</h2>
-<p>このパッケージは、単なるスクリプト集ではなく、Note 公開運用の小さな プロダクトとして扱う。読む順番は「全体像、起動条件、機械可読契約、 詳細参照、検査器」の順。</p>
-<p>最初に見る順番:</p>
-<ul>
-<li><code>README.md</code>: 全体像、保証範囲、ロードマップ。</li>
-<li><code>CHANGELOG.md</code>: 版番号ごとの変更内容と検証範囲。</li>
-<li><code>SKILL.md</code>: Codex がこのパッケージをどう起動し、どう止まるか。</li>
-<li><code>package.yaml</code>: 機械可読の入口、ゲート、ワークフロー。</li>
-<li><code>references/</code>: Note エディタの制約、PDCA、画像アップロード境界。</li>
-<li><code>scripts/</code> と <code>tests/</code>: ローカルで確認できる保証。</li>
-</ul>
-<h2>中核モデル</h2>
-<p>記事制作で混ざりやすい材料を、次の単位に分ける。</p>
-<div class="table-wrap"><table>
-<thead><tr><th>単位</th><th>役割</th><th>事実として扱うか</th></tr></thead>
-<tbody>
-<tr><td><code>source_database</code></td><td>最初に読んでよい材料 DB</td><td>はい。最優先の根拠</td></tr>
-<tr><td><code>source_pack</code></td><td>記事単位に切り出した根拠</td><td>はい。記事内事実の根拠</td></tr>
-<tr><td><code>series_plot</code></td><td>連載全体の設計</td><td>いいえ。構成</td></tr>
-<tr><td><code>article_plot</code></td><td>1 本の記事の展開</td><td>いいえ。構成</td></tr>
-<tr><td><code>skeleton</code></td><td>見出しと流れの骨格</td><td>いいえ。構成</td></tr>
-<tr><td><code>wall_bang</code></td><td>壁打ち、問い、切り口、言い回し候補</td><td>いいえ。仮説と表現</td></tr>
-<tr><td><code>editor_fixture</code></td><td>Note エディタ操作検証用の記事</td><td>いいえ。本番記事と混ぜない</td></tr>
-</tbody></table></div>
-<p>原則は、事実は <code>source_database</code> から出し、記事単位では <code>source_pack</code> に固定すること。構成案、骨子、壁打ちは 文章の設計や検討材料であり、事実根拠にはしない。</p>
-<h2>ロードマップの見取り図</h2>
-<p>前提は、機能一覧ではなく「解く問題、成果、検証ゲート」で進めること。 Product Design は読者体験と運用体験を整え、Creative Production は 記事・画像・告知素材をレビュー可能な制作フローに分ける。</p>
-<div class="table-wrap"><table>
-<thead><tr><th>領域</th><th>目的</th><th>このパッケージで見る場所</th></tr></thead>
-<tbody>
-<tr><td>Product / UX</td><td>読者、執筆者、運用者が迷わない流れにする</td><td><code>ワークフロー</code>、Q&amp;A、<code>references/note-editor-pdca-orchestration.md</code></td></tr>
-<tr><td>Note 投稿運用</td><td>着想から台帳までの実行単位を分ける</td><td><code>skills/</code>、<code>scripts/</code>、<code>data/</code></td></tr>
-<tr><td>セキュリティ / 公開準備</td><td>公開前にシークレット、内部メモ、権利、承認を止める</td><td><code>skills/note-publication-gate/SKILL.md</code>、<code>PUBLIC_READY.md</code>、<code>SECURITY.md</code></td></tr>
-<tr><td>AI エージェント / OpenAI 運用</td><td>ワーカーを使っても親実行環境が採否とゲートを握る</td><td><code>オーケストレーション</code>、<code>package.yaml</code></td></tr>
-<tr><td>制作 / 配布</td><td>TOP 画像案、タグ案、告知素材を公開前レビューに載せる</td><td><code>skills/note-draft-production/SKILL.md</code>、外部操作境界</td></tr>
-<tr><td>測定 / 学習ループ</td><td>公開後の状態と反応を台帳に戻す</td><td><code>skills/note-postpublish-ledger/SKILL.md</code>、<code>scripts/engagement_tracker.py</code></td></tr>
-<tr><td>外部依存ゲート</td><td>Note 実画面、画像アップロード、Mac/Windows 差分を未保証のまま明示する</td><td><code>references/note-image-upload-automation-boundary.md</code></td></tr>
-</tbody></table></div>
-<h2>Now / Next / Later</h2>
-<h3>Now</h3>
-<ul>
-<li>README / HTML プレビューで、全体像と停止線をすぐ読めるようにする。</li>
-<li><code>note_image_upload_boundary_check.py --json</code> で画像アップロード境界を確認する。</li>
-<li><code>note_editor_prepublish_verify.py data/note_editor_prepublish_observation.fixture.json --json</code> で公開設定画面の</li>
-<p>観測結果を確認する。</p>
-<li><code>review_draft.py review-draft content/drafts/sample-note-prepublish-fixture.md --json</code></li>
-<p>で、verdict / reason_codes / confirmation_questions の契約を確認する。</p>
-<li><code>pre_publish_check.py</code> とローカルプレビューで、下書きの公開前 QA を回す。</li>
-<li>公開、投稿、予約、SNS 共有、リポジトリ公開範囲変更は人間レビューまで止める。</li>
-</ul>
-<h3>Next</h3>
-<ul>
-<li>Note 実画面で、画像 caption / alt、長い目次、公開後目次表示を</li>
-<p><code>note-editor-constraint-debug</code> に沿って実測する。埋め込み、目次 DOM、 Shift+Enter は <code>references/note-editor-live-constraint-boundaries.md</code> に実測済み。</p>
-<li>Creative Production の観点で、TOP 画像案、タグ案、告知素材案を</li>
-<p>article flow から分離し、review 可能な候補として残す。</p>
-<li>Product Design の観点で、初回利用者が「どの skill を読むか」を</li>
-<p>README と issue packet から迷わず辿れるようにする。</p>
-</ul>
-<h3>Later</h3>
-<ul>
-<li>Mac 実機など、Windows だけで完結しない検証を</li>
-<p>external gate として別 lane に置く。</p>
-<li>投稿後 ledger と反応測定を、記事改善の学習 loop へ戻す。</li>
-<li>公開候補 package と独立 repo / worktree の扱いを、</li>
-<p>親 repo の <code>public/</code> 運用ルールと同期する。</p>
-</ul>
-<h2>採用前レビュー</h2>
-<p>この手の package はローカル環境、Codex の設定、Python、Browser 状態、 Note の UI 状態によって動かないことがある。</p>
-<p>採用前に必ずレビューする。 レビューは Codex に依頼し、少なくとも README、<code>SKILL.md</code>、<code>package.yaml</code>、 <code>scripts/</code>、<code>tests/</code>、公開ゲート、外部送信境界を確認する。</p>
-<p>レビューなしで公開、予約投稿、SNS共有、外部告知に使わない。</p>
-<p>対象リポジトリ:</p>
-<pre><code>repo root</code></pre>
-<h2>表示について</h2>
-<p>Codex のファイルエディタは Markdown をレンダーではなく、 ソース表示とシンタックスハイライトで開くことがある。</p>
-<p>整形表示で読みたい時は、同じディレクトリの <code>README.rendered.html</code> を開く。 表示が古い時は <code>python scripts/render_readme.py</code> で再生成する。 クリーン環境でパッケージと公開境界を確認する時は、Mac / Linux では <code>sh scripts/verify_public_package.sh</code> を使う。この verifier は Python と git も 使って各 checker を実行する。Windows / PowerShell 環境では <code>pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1</code> を等価 gate として使える。</p>
-<p>この README 自体も素の表示で読めるように、 長い行を避けて書く。</p>
-<h2>構成</h2>
-<ul>
-<li><code>SKILL.md</code>: 親スキル。</li>
-<p>全体ゲート、入出力、子スキルルーティング、課題下書きを持つ。</p>
-<li><code>README.rendered.html</code>: 整形表示用の HTML プレビュー。</li>
-<li><code>CHANGELOG.md</code>: パッケージ版ごとの更新履歴。</li>
-<li><code>scripts/render_readme.py</code>: README 表示確認用 HTML の再生成。</li>
-<li><code>scripts/note_image_upload_boundary_check.py</code>: note 画像アップロード境界の</li>
-<p>残務ゼロ確認。</p>
-<li><code>scripts/skill_pointer_check.py</code>: package 内とインストール済み Claude Code</li>
-<p>pointer が実在する正本を指すか確認する fail-closed 検査器。</p>
-<li><code>adapters/git-hooks/pre-commit</code>: pointer 実在検査を commit 前に実行する hook。</li>
-<li><code>scripts/provenance_leak_check.py</code>: PR 前に実行時メモリ、</li>
-<p>非公開リポジトリ名、ローカルパス、出典外の運用文字列が混ざっていないか 確認する検査器。</p>
-<li><code>scripts/provenance_label_check.py</code>: <code>source_pack_locked_with_user_speech_priority</code></li>
-<p>の下書きで、<code>user-said</code>、<code>external-fact</code>、<code>assistant-organized</code>、<code>hold</code> のラベル境界が崩れていないか確認する検査器。</p>
-<li><code>scripts/review_draft.py</code>: <code>build-context-card</code> と <code>review-draft</code> を持つ</li>
-<p>draft review CLI。<code>review_draft</code> は verdict、reason_codes、 confirmation_questions、context_card を JSON で返す。</p>
-<li><code>scripts/verify_public_package.sh</code>: Mac / Linux の <code>sh</code> から起動する</li>
-<p>primary パッケージ契約 / 公開準備検証。fixture-backed の <code>review-draft</code> と公開前観測 checker も公開操作なしで確認する。</p>
-<li><code>scripts/verify_public_package.ps1</code>: PowerShell から起動する</li>
-<p>Windows / PowerShell equivalent。Python と git を使って各 checker、 embedded copy と standalone clone fixture の GitHub identity guard lane を 公開操作なしで確認する。</p>
-<li><code>package.yaml</code>: パッケージ管理情報。</li>
-<li><code>ROADMAP.md</code>: 公開前ゲートと運用拡張のロードマップ契約。</li>
-<li><code>issue-drafts.md</code>: 追跡ツール非依存の課題下書き。</li>
-<li><code>issue-packet.json</code>: 追跡ツール非依存の機械可読課題パケット。</li>
-<li><code>references/note-editor-capability-inventory.md</code>: note エディタ公式機能、</li>
-<p>実測差分、画面幅、カーソル、ブラウザ面、AI面の棚卸し。</p>
-<li><code>references/note-editor-pdca-orchestration.md</code>: note エディタ操作を</li>
-<p>目的 / 計画 / 実行 / 確認 / 反映の薄い周期で回す運用。</p>
-<li><code>references/note-article-provenance-design.md</code>: 記事が何を元に</li>
-<p>作られたかを出典パック、骨子、姿勢メモ、検査材料に分けて 固定する設計。</p>
-<li><code>references/note-editor-live-constraint-boundaries.md</code>: 埋め込み、目次、</li>
-<p>Shift+Enter の実画面測定、復旧可否、手動境界、契約テスト境界。</p>
-<li><code>references/note-image-upload-automation-boundary.md</code>: note 画像アップロードの</li>
-<p>手動境界、ユーザー確認待ち境界、禁止境界。</p>
-<li><code>skills/note-idea-intake/SKILL.md</code>: 記事候補と素材探索。</li>
-<li><code>skills/note-draft-production/SKILL.md</code>: 骨子、本文、画像案、タグ案。</li>
-<li><code>skills/note-prepublish-qa/SKILL.md</code>: ローカルプレビュー、投稿前検査。</li>
-<li><code>skills/note-editor-prepublish/SKILL.md</code>: Note エディタ反映ラッパー。</li>
-<li><code>skills/note-editor-ops/SKILL.md</code>: エディタの接続、埋め込み、</li>
-<p>DOM 確認、取り消し復旧、検査器ラチェット。</p>
-<li><code>skills/note-official-guidance-intake/SKILL.md</code>: note 公式ソースを</li>
-<p>一次情報として取り込み、未確認を公式扱いしないためのスキル。</p>
-<li><code>skills/note-editor-constraint-debug/SKILL.md</code>: 埋め込み、目次、</li>
-<p>Shift+Enter、画像キャプション / 代替テキスト、保存表示などの実測デバッグスキル。</p>
-<li><code>skills/note-publication-gate/SKILL.md</code>: 公開/予約直前停止。</li>
-<li><code>skills/note-postpublish-ledger/SKILL.md</code>: 公開後確認と台帳更新。</li>
-</ul>
-<h2>実行境界</h2>
-<p>公開、予約投稿、投稿、SNS 共有、外部告知は、 現在の会話で対象記事と操作を特定した明示承認があるまで実行しない。</p>
-<h2>オーケストレーション</h2>
-<p>Codex だけ、または Claude Code だけで動くことを前提にする。 Linear などの外部追跡ツールは必須ではない。</p>
-<ul>
-<li>Spark / Sonnet ワーカーは任意の速度改善として使ってよい。</li>
-<li>ワーカーが無い場合は、親実行環境が同じ分担粒度で順に処理する。</li>
-<li>親実行環境は問い、採否、Type1 境界、公開ゲート、最終報告を持つ。</li>
-<li>ワーカーには認証情報、Cookie、非公開 URL、公開/送信権限を渡さない。</li>
-<li>ワーカー出力は親実行環境が出典、差分、テスト、ゲートを確認して採用する。</li>
-</ul>
-<h2>保証ラチェット</h2>
-<p>Note エディタで見つかった失敗や手動境界は、その場限りにしない。</p>
-<ul>
-<li>失敗した操作は、原因、復旧方法、次回の禁止事項を短く残す。</li>
-<li>再発防止できるものは、検査器、契約テスト、子スキルの境界文言へ落とす。</li>
-<li>検査器に落としたら、実記事下書きへの実行結果まで確認する。</li>
-<li>note 公式ノウハウは <code>note-official-guidance-intake</code> で一次情報化してから</li>
-<p><code>references/note-editor-capability-inventory.md</code> へ反映する。</p>
-<li>埋め込み、目次、Shift+Enter などの実画面制約は</li>
-<p><code>note-editor-constraint-debug</code> で再現手順と手動境界へ落とす。</p>
-<li>UI 状態に依存して自動保証できないものは、手動境界として公開ゲートに残す。</li>
-<li>完了報告では、増やした保証、実行したテスト、まだ保証しないものを分けて報告する。</li>
-<li>日本語運用中に PR / GitHub / CLI の状態語を英語のまま報告した場合は、</li>
-<p>文章ミスではなく出力ゲートの構造バグとして扱う。 <code>ready for review</code> は下書き解除済み、<code>open PR</code> は未マージPR、 <code>MERGED</code> はマージ済み、<code>mergeable</code> はマージ可能、<code>success</code> は成功、 <code>failed</code> は失敗として報告する。 コマンド、ファイルパス、URL、SHA、パッケージ識別子は原文のままでよい。</p>
-</ul>
-<h2>ワークフロー</h2>
-<ul>
-<li>idea: ローカル素材から記事候補を出す。</li>
-<li>draft: <code>references/note-article-provenance-design.md</code> に沿って</li>
-<p><code>article_lane</code>、<code>source_mode</code>、出典データベース、出典パック、構成案、 骨子、壁打ち、姿勢メモを固定してから、本文、TOP 画像案、 タグ案を作る。</p>
-<li>qa: プレビュー、投稿前検査、ファクトチェック、必要な差分確認。</li>
-<li>editor: Note エディタに反映し、下書き保存まで確認する。</li>
-<p>実記事候補 (<code>production_candidate</code>) とエディタ操作検証 (<code>editor_fixture</code>) は混ぜない。 低レベル操作が必要なら <code>note-editor-ops</code> を自動で読む。 公式機能や画面条件が関わる場合は <code>references/note-editor-capability-inventory.md</code> を先に読む。 公式ソースの追加確認が必要なら <code>note-official-guidance-intake</code> を読む。 埋め込み、目次、Shift+Enter、画像キャプション / 代替テキスト、保存表示の実測は <code>note-editor-constraint-debug</code> で行う。 UI操作は <code>references/note-editor-pdca-orchestration.md</code> に沿って、 1周期1操作で証跡を取る。 画像アップロード境界は <code>references/note-image-upload-automation-boundary.md</code> と <code>scripts/note_image_upload_boundary_check.py</code> で確認する。</p>
-<li>gate: 公開/投稿/予約確定ボタンの手前で停止する。</li>
-<li>ledger: 公開後 URL / 状態を確認し、台帳更新案を作る。</li>
-</ul>
-<h2>パッケージ全体で保証されるもの</h2>
-<p>このパッケージが保証するのは、ローカル素材から Note 下書きを作り、 公開前検査、Note エディタ反映準備、公開直前停止、公開後台帳更新案までを 安全に進めるための最小一式。</p>
-<h3>1. ネタ帳 / 素材指定</h3>
-<ul>
-<li>固定の <code>ネタ帳.md</code> は持たない。</li>
-<li>Note 操作前の素材入力は、ユーザーが指定する <code>読んでよい素材フォルダ</code>。</li>
-<li><code>note-idea-intake</code> は選択フォルダ外を読まない。</li>
-<li>読んでよい素材フォルダが未指定なら停止する。</li>
-<li>記事下書きへ進める前に <code>article_lane</code> と <code>source_mode</code> を決める。</li>
-<li>ファクト抽出は最初の出典データベースを優先し、記事単位では</li>
-<p>出典パックに切り出す。</p>
-<li>構成案 / 骨子は展開と構成の設計図であり、事実根拠として扱わない。</li>
-<li>壁打ちは問い、切り口、仮説、言い回し候補であり、事実断定の根拠にしない。</li>
-<li>PR 前には <code>scripts/provenance_leak_check.py --scope changed</code> を実行する。</li>
-<p>ユーザー固有 denylist は gitignored の <code>data/provenance_leak_policy.local.json</code> に置き、公開パッケージへ直書きしない。</p>
-<li><code>source_pack_locked_with_user_speech_priority</code> の下書きでは、</li>
-<p><code>scripts/provenance_label_check.py &lt;draft.md&gt; --json</code> を実行し、 本人発言、外部事実、AI の構成整理、保留事項を混ぜない。</p>
-<li>GitHub account、email、private owner などの identity denylist は</li>
-<p>gitignored の <code>data/github_identity_guard_policy.local.json</code> に置く。 公開パッケージには <code>data/github_identity_guard_policy.example.json</code> だけを含め、実ユーザー固有値を 直書きしない。</p>
-<li>実記事候補をエディタ操作テストの検査材料にしない。</li>
-<li>既存下書き / 公開済み台帳を見る必要がある場合だけ、</li>
-<p><code>data/note_drafts.json</code> と <code>data/published_notes.json</code> を読む。</p>
-</ul>
-<h3>2. パッケージ構成</h3>
-<ul>
-<li>親スキル、管理情報、README、課題下書き、課題パケットがある。</li>
-<li>6つの段階別子スキルがある。</li>
-<p><code>idea / draft / qa / editor / gate / ledger</code> をそれぞれ担当する。</p>
-<li>エディタ段階には、機能別低レベル操作の <code>note-editor-ops</code> がある。</li>
-<li>公式ノウハウ取り込みには <code>note-official-guidance-intake</code> がある。</li>
-<li>エディタ制約デバッグには <code>note-editor-constraint-debug</code> がある。</li>
-<li>エディタ操作には、公式機能、画面幅、カーソル位置、ブラウザ面、</li>
-<p>AI操作面の棚卸し参照がある。</p>
-<li>エディタ操作には、目的 / 計画 / 実行 / 確認 / 反映を薄く回す</li>
-<p>PDCA オーケストレーション参照がある。</p>
-<li><code>scripts/</code> にローカル QA / 台帳用スクリプトがある。</li>
-<li><code>tests/</code> にパッケージ契約とローカル確認のテストがある。</li>
-<li><code>data/</code> に空の初期台帳がある。</li>
-<li><code>content/drafts/</code>、<code>content/assets/</code>、<code>published/</code> がある。</li>
-</ul>
-<h3>3. ローカルスクリプト</h3>
-<ul>
-<li><code>scripts/note_preview.py</code></li>
-<p>- Markdown 下書きからローカル HTML プレビューを生成する。 - 外部送信しない。</p>
-<li><code>scripts/pre_publish_check.py</code></li>
-<p>- シークレットらしい値、HTML コメント、TODO/FIXME、未確認語、 非公開 URL の気配、短すぎる下書きを検出する。 - <code>--fix</code> は HTML コメント除去だけを行う。</p>
-<li><code>scripts/provenance_label_check.py</code></li>
-<p>- <code>source_pack_locked_with_user_speech_priority</code> の下書きだけを対象にする。 - <code>user-said</code>、<code>external-fact</code>、<code>assistant-organized</code>、<code>hold</code> の各ブロックに 互換する source hint があるか確認する。 - Caramel 完全解説のように本人発言を優先する構成で、外部事実や AI の構成整理へ混線していないかをローカルで止める。</p>
-<li><code>scripts/note_fact_check.py</code></li>
-<p>- 未確認表現、数字/日付/件数、URL、内部メモ候補を抽出する。 - 本人の発言、本人の言葉、体験ベースの主張、出典/根拠マーカーも 公開前の確認候補として抽出する。 - 外部ファクトチェックはしない。</p>
-<li><code>scripts/note_diff_check.py</code></li>
-<p>- Note/public URL がある場合だけ phrase の存在確認を行う。 - <code>note.com</code> / <code>www.note.com</code> の公開URLでは <code>fetch_note_body.js</code> を呼び出し、 raw HTML ではなくレンダリング後の本文で比較する。 - URL が <code>Unknown</code> / <code>none</code> / <code>-</code> の場合は未実行として終了する。</p>
-<li><code>scripts/fetch_note_body.js</code></li>
-<p>- Note 公開記事の本文を Playwright で取得する。 - <code>note_diff_check.py</code> の note.com 公開URL比較で自動利用する。</p>
-<li><code>scripts/run_local_draft_qa_proof.py</code></li>
-<p>- 1つのローカル下書きに対して preview、投稿前検査、 local fact check、diff check を順に実行する。 - 結果を <code>data/local_draft_qa_stop_before_publish_evidence.json</code> に記録し、 人間レビュー必須、公開操作 0、外部操作 0 の停止線を残す。</p>
-<li><code>scripts/check_version_bump.py</code></li>
-<p>- PR でパッケージ実体が変わった場合、<code>package.yaml</code> の semver が base branch より上がっていることを CI で確認する。 - <code>package.yaml</code>、README、CHANGELOG だけの版管理メタデータ更新は 実体変更とは分けて扱う。</p>
-<li><code>scripts/bump_package_version.py</code></li>
-<p>- patch / minor / major の自動採番を行い、<code>package.yaml</code>、README、 rendered HTML、CHANGELOG の版管理メタデータを一括更新する。 - 手作業で版番号だけを直して、README や CHANGELOG との整合が崩れる 状態を避けるための入口にする。</p>
-<li><code>scripts/post_publish.py</code></li>
-<p>- 既定はドライラン。 - <code>--write-ledger</code> を付けた時だけ ledger を更新する。 - SNS 投稿 option は持たない。</p>
-<li><code>scripts/engagement_tracker.py</code></li>
-<p>- ローカル台帳件数だけを報告する。 - 外部アクセスしない。</p>
-</ul>
-<h3>4. Note エディタ操作</h3>
-<p>保証される範囲:</p>
-<ul>
-<li>in-app Browser で Note エディタを接続 / 確認できる場合だけ進める。</li>
-<li>タイトル、本文、見出し、リンク、画像、タグ、マガジン、公開範囲を</li>
-<p>反映または確認する手順を持つ。</p>
-<li>リンクカード埋め込みは、URL を単独行で入力し、その行末で Enter を</li>
-<p>押して変換する手順を持つ。</p>
-<li>埋め込みの成功は、表示だけではなく <code>figure[data-src]</code> などの</li>
-<p>DOM で確認する手順を持つ。</p>
-<li><code>href</code> だけが残る状態は通常リンク残りとして扱い、必要なら</li>
-<p>取り消しで復旧する。</p>
-<li>ボタン配置は動的に変わるため、公開/予約/共有/保存系は</li>
-<p>固定座標で押さず、DOM、ラベル、状態で識別する。</p>
-<li>Playwright と実操作面が同期しない場合は、固定座標操作を続けず、</li>
-<p>手動境界または別ルートへ切り替える。</p>
-<li>下書き保存までで止める。</li>
-<li>公開/投稿/予約確定ボタンは押さない。</li>
-<li>Cookie、トークン、非公開 URL、個人情報をログに残さない。</li>
-<li>Chrome、Computer Use、live article へ無断で切り替えない。</li>
-</ul>
-<p>条件付き / 非保証:</p>
-<ul>
-<li>画像アップロードは内部ブラウザだけで完全自動化できるとは保証しない。</li>
-<li>画像アップロードの運用境界は</li>
-<p><code>scripts/verify_public_package.sh</code> でパッケージ契約と一緒に確認する。 Python が使える開発環境では <code>python scripts/note_image_upload_boundary_check.py --json</code> で詳細確認してよい。</p>
-<li>Windows / Mac 環境差は</li>
-<p><code>references/note-image-upload-automation-boundary.md</code> の対応表に従う。 Windows 10 以上、macOS 14 以上の公式推奨ブラウザでも成功保証ではなく、 停止線と禁止経路を保証する。</p>
-<li>画面に見えている Windows ファイル選択ダイアログだけを扱う場合も、</li>
-<p>現在会話での明示確認があるまで実行しない。</p>
-<li>接続 / 確認できない場合は停止する。</li>
-<li>埋め込みカード位置、目次位置、カーソル操作、画像アップロードは</li>
-<p>実測確認できない場合、手動境界として報告する。</p>
-</ul>
-<h3>5. 公開ゲート</h3>
-<ul>
-<li>対象記事、対象操作、公開方式のどれかが <code>Unknown</code> なら停止する。</li>
-<li>QA、画像権利、秘密情報除外、内部メモ除外が未確認なら停止する。</li>
-<li>現在会話で対象記事と操作を特定した明示承認がないなら停止する。</li>
-<li>「公開して」「投稿して」だけでは不十分。</li>
-<p>対象記事と操作の特定が必要。</p>
-</ul>
-<h3>6. 外部 action 境界</h3>
-<ul>
-<li>X 投稿は scope 外。</li>
-<li>いいねは scope 外。</li>
-<li>Discord / Slack 告知は scope 外。</li>
-<li>自動告知、SNS 同時投稿、公開範囲変更は明示承認なしに実行しない。</li>
-<li>リポジトリ公開範囲変更は扱わない。</li>
-<li>credential、Cookie、非公開 URL、公開/予約/送信権限は worker に渡さない。</li>
-</ul>
-<h2>保証しないもの</h2>
-<ul>
-<li>GitHub の Download ZIP や clone だけで Codex に自動インストールされること。</li>
-<li>Note へのログイン。</li>
-<li>Note エディタ接続 / 確認が常に成功すること。</li>
-<li>画像アップロードの完全自動化。</li>
-<li>公開、予約投稿、SNS共有、外部告知。</li>
-<li>外部 URL の内容が常に取得できること。</li>
-<li>記事内容の事実が正しいこと。</li>
-<p><code>note_fact_check.py</code> は確認候補の抽出まで。</p>
-<li>本人の発言や体験が本当に本人由来であること。</li>
-<p><code>note_fact_check.py</code> は本人発言/体験ベースの確認候補を抽出するが、 原文、会話ログ、体験メモ、ユーザー確認との突き合わせは人間レビューで行う。</p>
-<li>SEO、おすすめ掲載、PV、反応数。</li>
-<li>ユーザーが指定していない素材フォルダや private URL の読取。</li>
-</ul>
-<h2>必要十分の境界</h2>
-<p>この package が必要十分として保証する範囲:</p>
-<ul>
-<li>ローカル素材を指定して記事候補を作る。</li>
-<li>ローカル下書きを作る。</li>
-<li>ローカル preview と公開前検査を回す。</li>
-<li>Note エディタへ進む前の安全ゲートを持つ。</li>
-<li>Note エディタでは下書き保存までを扱い、公開直前で止まる。</li>
-<li>画像アップロード境界は <code>references/note-image-upload-automation-boundary.md</code> と</li>
-<p><code>scripts/note_image_upload_boundary_check.py</code> により、手動 upload、 確認待ちの可視 Windows ダイアログ、Chrome/API/Cookie 禁止を分離する。</p>
-<li>公開後にだけ ledger 更新案を作る。</li>
-</ul>
-<p>この範囲を超える公開操作、外部送信、画像アップロード完全自動化、 成果保証は package の保証外。</p>
-<h2>Q&amp;A</h2>
-<h3>Q. 一言で言うと何？</h3>
-<p>Note記事をローカル素材から下書き・検査・下書き保存まで進め、 公開直前で必ず止める手順書。</p>
-<h3>Q. ZIP は別で用意する？</h3>
-<p>別の独自 ZIP は不要。 GitHub の標準機能で、repository や branch は Download ZIP できる。 通常は repository を clone するか、GitHub の Download ZIP を使う。</p>
-<h3>Q. ネタ帳はどこ？</h3>
-<p>固定の <code>ネタ帳.md</code> はない。 ユーザーが指定した <code>読んでよい素材フォルダ</code> をネタ帳として扱う。</p>
-<h3>Q. 勝手な作文をしない？</h3>
-<p>指定素材フォルダだけを読む設計。 根拠がローカルに見つからない候補は停止条件。 下書きでは事実、推定、意見を分け、根拠が必要な主張は確認対象として残す。 本人の発言や体験として書く場合は、原文、会話ログ、体験メモ、 または現在会話での確認に戻れる形にする。</p>
-<p>ただし文章化そのものは行うため、完全な作文ゼロではない。 公開前 QA と人間レビューで止める。</p>
-<h3>Q. 公開まで自動で進む？</h3>
-<p>進まない。 公開、投稿、予約投稿、SNS共有、外部告知は、 現在の会話で対象記事と操作を特定した明示承認があるまで実行しない。</p>
-<h3>Q. Note エディタで何ができる？</h3>
-<p>in-app Browser で接続 / 確認できる場合に限り、 タイトル、本文、見出し、リンク、画像、タグ、マガジン、公開範囲を 反映または確認する手順を持つ。 リンクカード埋め込みは URL 単独行の行末で Enter を押して変換する。 下書き保存までで止まる。</p>
-<h3>Q. 画像アップロードは完全自動？</h3>
-<p>保証しない。 内部ブラウザで完了しない場合は停止し、手動または supervised 操作として扱う。</p>
-<h3>Q. 外部 tracker や connector は必要？</h3>
-<p>不要。 <code>tracker_required: false</code>、<code>external_connectors_required: false</code> の前提。</p>
-<h3>Q. script は外部送信する？</h3>
-<p>基本しない。 <code>note_preview.py</code>、<code>pre_publish_check.py</code>、<code>note_fact_check.py</code>、 <code>engagement_tracker.py</code> はローカル処理。 <code>note_diff_check.py</code> だけ、Note/public URL が指定された場合に取得確認を行う。 note.com 公開URLでは Playwright でレンダリング後本文を取得して比較する。</p>
-<h3>Q. 何を保証しない？</h3>
-<p>Note ログイン、常時 attach 成功、画像 upload 完全自動化、 公開成果、PV、SEO、おすすめ掲載、事実の正しさは保証しない。</p>
-<h2>検証</h2>
-<p><code>verify:local</code> 相当の基準は、公開操作なしで package の構成、安全境界、 README 表示、公開前停止線を確認できること。 加えて、<code>scripts/github_identity_guard.py</code> が embedded copy では text scan only、standalone clone fixture では remote、HEAD author、 repository-local git config まで検査することを確認する。 さらに standalone clone fixture から検証器自身を再実行し、 単独 repo 形態で動くことも確認する。POSIX sh がある環境では <code>scripts/verify_public_package.sh --json</code>、Windows の PowerShell 環境では <code>scripts/verify_public_package.ps1 -Json</code> を使う。</p>
-<p>クリーン環境では、POSIX sh、Python、git が使えることを確認してから まずこのコマンドを使う。</p>
+<p>クリーン環境では、まず次の包括検証を使ってください。</p>
 <pre><code>sh scripts/verify_public_package.sh</code></pre>
-<p>Windows で POSIX sh がない場合は、PowerShell verifier を使う。</p>
-<pre><code>pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1</code></pre>
-<p>Python と pytest が使える開発環境では、追加で以下を実行してよい。</p>
-<pre><code>python3 -m pytest scripts/test_skill_integration.py tests
-python3 scripts/github_identity_guard.py --json
-python3 scripts/github_identity_guard.py --policy data/github_identity_guard_policy.local.json --json
-python3 scripts/provenance_label_check.py content/drafts/caramel-provenance-label-fixture.md --json
-python3 scripts/japanese_closeout_language_check.py --json
-python3 scripts/note_image_upload_boundary_check.py --json
-python3 scripts/skill_pointer_check.py --installed-root &quot;$HOME/.claude/skills&quot; --json
-python3 scripts/note_editor_prepublish_verify.py data/note_editor_prepublish_observation.fixture.json --json
-python3 scripts/review_draft.py build-context-card content/drafts/sample-note-prepublish-fixture.md --json
-python3 scripts/review_draft.py review-draft content/drafts/sample-note-prepublish-fixture.md --json
-python3 scripts/run_local_draft_qa_proof.py --json
-python3 scripts/check_version_bump.py</code></pre>
-<p>任意の実記事 draft を見る場合だけ、追加で次を実行する。</p>
-<pre><code>python3 scripts/pre_publish_check.py &lt;draft.md&gt;</code></pre>
+<p><code>verify:local</code> の基準は、公開操作なしでパッケージ構成、安全境界、 README 表示、公開前停止線を確認できることです。</p>
+<p>日本語運用中に PR / GitHub / CLI の状態語を英語のまま報告した場合は、 文章ミスではなく出力ゲートの構造バグとして扱います。 <code>ready for review</code> は下書き解除済み、<code>open PR</code> は未マージPR、 <code>MERGED</code> はマージ済み、<code>mergeable</code> はマージ可能として報告します。 コマンド、ファイルパス、URL、SHA、パッケージ識別子は原文のまま扱います。</p>
+<h2>保証ラチェット</h2>
+<p>Note エディタで見つかった失敗や手動境界は、その場限りにしません。</p>
+<ul>
+<li>原因、復旧方法、次回の禁止事項を短く残す。</li>
+<li>再発防止できるものは検査器、契約テスト、子スキルへ落とす。</li>
+<li>検査器を追加したら、fixture または実記事候補で結果を確認する。</li>
+<li>UI 状態に依存するものは、無理に自動化せず手動境界として残す。</li>
+</ul>
+<h2>よくある質問</h2>
+<h3>ZIP は別で必要？</h3>
+<p>不要です。通常は repository を clone するか、GitHub の Download ZIP を使います。 ただし、clone や ZIP 取得だけで Codex に自動インストールされるわけではありません。</p>
+<h3>勝手な作文をしない？</h3>
+<p>指定素材だけを読み、根拠が見つからない主張は確認対象として残します。 文章化は行うため完全な作文ゼロではありませんが、事実、推定、意見を分け、 公開前 QA と人間レビューで止めます。</p>
+<h3>script は外部送信する？</h3>
+<p>基本しません。<code>note_preview.py</code>、<code>pre_publish_check.py</code>、 <code>note_fact_check.py</code>、<code>engagement_tracker.py</code> はローカル処理です。 <code>note_diff_check.py</code> だけ、Note/public URL が指定された場合に取得確認を行います。</p>
+<h3>外部 tracker や connector は必要？</h3>
+<p>不要です。<code>tracker_required: false</code>、<code>external_connectors_required: false</code> の前提です。</p>
+<h3>何を保証しない？</h3>
+<p>Note ログイン、接続の常時成功、画像アップロードの完全自動化、公開成果、 PV、SEO、おすすめ掲載、記事内容の事実性は保証しません。</p>
+<h2>ロードマップ</h2>
+<p>現在の優先順位と判断ルールは <a href="ROADMAP.md">ROADMAP.md</a> に集約しています。 README は「初めて使う人が安全に始めるための入口」に絞り、詳細な計画は ロードマップ側で管理します。</p>
+<h2>表示について</h2>
+<p>GitHub ではこの README をそのまま読めます。ローカルで整形表示したい場合は <code>python scripts/render_readme.py</code> を実行し、<code>README.rendered.html</code> を開いてください。</p>
+<p>公開、push、PR 作成、リポジトリ公開範囲変更は、この README の編集とは別の 人間レビュー対象です。</p>
     </article>
   </main>
 </body>

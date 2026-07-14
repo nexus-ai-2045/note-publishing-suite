@@ -210,6 +210,19 @@ def test_render_readme_supports_roadmap_table():
     assert "<td>Creative production / distribution</td>" in html
 
 
+def test_render_readme_supports_safe_links_and_strong_text():
+    render_readme = load_render_readme_module()
+    rendered = render_readme.inline(
+        "**公開直前で停止** [ROADMAP](ROADMAP.md) "
+        "[unsafe](javascript:alert(1))"
+    )
+
+    assert "<strong>公開直前で停止</strong>" in rendered
+    assert '<a href="ROADMAP.md">ROADMAP</a>' in rendered
+    assert "javascript:alert(1)" in rendered
+    assert '<a href="javascript:alert(1)">' not in rendered
+
+
 def test_publication_gate_contract_present():
     skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
     package = (ROOT / "package.yaml").read_text(encoding="utf-8")
