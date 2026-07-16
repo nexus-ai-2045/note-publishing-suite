@@ -1,5 +1,5 @@
 name: note-publishing-suite
-version: 0.2.9
+version: 0.2.10
 scope: repo-local
 repo_root: .
 entrypoint: SKILL.md
@@ -14,6 +14,7 @@ references:
   note_editor_live_constraint_boundaries: references/note-editor-live-constraint-boundaries.md
   note_article_provenance_design: references/note-article-provenance-design.md
   note_image_upload_automation_boundary: references/note-image-upload-automation-boundary.md
+  post_publish_context_proof: references/post-publish-context-proof.md
 mission: end_to_end_note_article_publishing_skill_package
 runtime:
   works_with_codex_only: true

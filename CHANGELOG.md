@@ -4,6 +4,23 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
+## 0.2.10
+
+日付: 2026-07-16
+
+変更:
+- `post_publish.py --ledger-dir`でworkspace固有のprivate台帳を注入可能にした。
+- draft ledgerを追記ではなく一意な公開状態遷移として更新するようにした。
+- 公開本文snapshot、SHA-256、公開版との差分、見出し画像確認をledgerへ記録可能にした。
+- `note_diff_check.py --snapshot-out`で公開本文snapshotとSHA-256を同時に生成可能にした。
+
+検証:
+- 人間レビュー前に実行し、結果をレビューpacketへ記録する。
+
+公開境界:
+- Note投稿、予約投稿、SNS共有、外部告知は未実行。
+- commit、push、PR、GitHubリリース、tag作成は人間レビュー後まで未実行。
+
 ## 0.2.9
 
 日付: 2026-07-14

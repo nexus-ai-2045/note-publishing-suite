@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import ipaddress
 import json
 import subprocess
@@ -76,12 +77,23 @@ def fetch_page_text(url: str) -> tuple[str, str]:
     return fetch_text(url), "raw_http_text"
 
 
+def write_snapshot(page: str, path: Path) -> str:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(page, encoding="utf-8")
+    return hashlib.sha256(page.encode("utf-8")).hexdigest()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("note_url")
     parser.add_argument("draft", type=Path)
     parser.add_argument("phrases", nargs="*")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument(
+        "--snapshot-out",
+        type=Path,
+        help="Write the fetched public text to this local path and report its SHA-256.",
+    )
     args = parser.parse_args()
 
     if args.note_url.lower() in SKIPPED_URLS:
@@ -97,6 +109,9 @@ def main() -> int:
             }
         else:
             page, fetch_method = fetch_page_text(args.note_url)
+            body_sha256 = hashlib.sha256(page.encode("utf-8")).hexdigest()
+            if args.snapshot_out:
+                body_sha256 = write_snapshot(page, args.snapshot_out)
             draft_text = args.draft.read_text(encoding="utf-8")
             phrases = args.phrases or [
                 line.strip() for line in draft_text.splitlines() if len(line.strip()) >= 24
@@ -110,6 +125,8 @@ def main() -> int:
                 "checks": checks,
                 "external_fetch_performed": True,
                 "fetch_method": fetch_method,
+                "body_sha256": body_sha256,
+                "snapshot_path": str(args.snapshot_out) if args.snapshot_out else None,
             }
 
     if args.json:

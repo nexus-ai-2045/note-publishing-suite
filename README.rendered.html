@@ -96,7 +96,7 @@
     <article>
 <h1>Note Publishing Suite</h1>
 <p>ローカル素材から Note の下書きを作り、検査し、エディタへ反映するための Codex 向けパッケージです。<strong>公開・予約投稿・SNS 共有は自動で行わず、 必ず公開直前で止まります。</strong></p>
-<p>パッケージ版: <code>0.2.9</code></p>
+<p>パッケージ版: <code>0.2.10</code></p>
 <h2>できること</h2>
 <div class="table-wrap"><table>
 <thead><tr><th>できる</th><th>自動では行わない</th></tr></thead>
@@ -215,11 +215,11 @@ sh scripts/verify_public_package.sh</code></pre>
 <li><code>scripts/note_preview.py</code>: Markdown 下書きのローカルプレビュー。</li>
 <li><code>scripts/pre_publish_check.py</code>: シークレット候補、内部メモ、未確認語の検出。</li>
 <li><code>scripts/note_fact_check.py</code>: 要確認の主張を抽出。外部ファクトチェックはしません。</li>
-<li><code>scripts/note_diff_check.py</code>: 指定された Note/public URL の本文差分確認。</li>
+<li><code>scripts/note_diff_check.py</code>: 指定された Note/public URL の本文差分確認。<code>--snapshot-out</code> で公開本文とSHA-256をローカル保存できます。</li>
 <li><code>scripts/fetch_note_body.js</code>: Playwright で Note 公開記事の本文を取得。</li>
 <li><code>scripts/review_draft.py</code>: <code>build-context-card</code> と <code>review-draft</code> を提供。</li>
 <li><code>scripts/run_local_draft_qa_proof.py</code>: 公開前で止まるローカル QA 証跡を作成。</li>
-<li><code>scripts/post_publish.py</code>: 既定はドライラン。<code>--write-ledger</code> 指定時だけ台帳更新。</li>
+<li><code>scripts/post_publish.py</code>: 既定はドライラン。<code>--write-ledger</code> 指定時だけ台帳更新。<code>--ledger-dir</code> でpackage外のprivate台帳を指定でき、同じdraftの状態遷移は一意に更新します。</li>
 <li><code>scripts/engagement_tracker.py</code>: ローカル台帳件数だけを報告。</li>
 <li><code>scripts/bump_package_version.py</code>: patch / minor / major を自動採番。</li>
 <li><code>scripts/check_version_bump.py</code>: パッケージ実体変更時の version bump を確認。</li>

@@ -22,7 +22,7 @@ description: "Use inside note-publishing-suite after explicitly approved Note pu
 
 ```powershell
 python scripts\post_publish.py --url <note_url> --draft <draft.md> --dry-run
-python scripts\note_diff_check.py <note_url> <draft.md> <phrase...>
+python scripts\note_diff_check.py <note_url> <draft.md> <phrase...> --snapshot-out <local-snapshot.txt> --json
 python scripts\engagement_tracker.py report
 ```
 
@@ -31,9 +31,17 @@ python scripts\engagement_tracker.py report
 1. 公開または予約が現在会話で明示承認済みか確認する。
 2. Note 側の URL、公開状態、表示日時、予約日時を確認する。
 3. `post_publish.py --dry-run` で本文/ledger 更新案を確認する。
-4. 必要 phrase を指定して `note_diff_check.py` を実行する。
-5. `data/published_notes.json` と `data/note_drafts.json` の更新案を作る。
+4. 必要 phrase を指定して `note_diff_check.py` を実行し、公開本文 snapshot と SHA-256 を残す。
+5. `data/published_notes.json` と `data/note_drafts.json` の更新案を作る。記事データを package 外で管理する場合は `post_publish.py --ledger-dir <dir>` を使い、scripts を複製しない。
 6. 実更新する場合も、X 投稿 option は使わない。
+
+## 記事データと実行コードの分離
+
+- 実行コードの正本はこの package の `scripts/` に置く。
+- private / workspace 固有の draft・snapshot・ledger は package 外に置いてよい。
+- package 外の台帳へ書く時は `--ledger-dir` を明示し、`note_drafts.json` と `published_notes.json` を同じ directory で管理する。
+- 公開版が editor で変わった場合は、`published_snapshot`、`published_body_sha256`、`local_draft_differs_from_published` を記録する。
+- `note_id` または draft filename が一致する既存 draft 行は上書き遷移し、同じ公開処理の再実行で行を増やさない。
 
 ## 台帳
 
