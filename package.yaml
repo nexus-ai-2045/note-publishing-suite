@@ -1,5 +1,5 @@
 name: note-publishing-suite
-version: 0.2.10
+version: 0.2.11
 scope: repo-local
 repo_root: .
 entrypoint: SKILL.md
@@ -60,6 +60,23 @@ publication_gate:
   human_review_required: true
   explicit_current_conversation_approval_required: true
   stop_before_final_buttons: true
+editor_operation_contract:
+  target_lock_before_write: true
+  user_confirmation_before_target_or_surface_switch: true
+  unsupported_capability_retry_count: 0
+  retryable_same_target_max_retry_count: 1
+  implicit_surface_fallback_allowed: false
+  fallback_order:
+    - same_target_reinspect
+    - manual_or_human_supervised
+    - user_approved_surface_switch
+    - hold
+  material_target_changes:
+    - note_or_draft
+    - tab
+    - browser_surface
+    - account
+    - read_only_to_write
 external_actions:
   x_posting: out_of_scope
   likes: out_of_scope

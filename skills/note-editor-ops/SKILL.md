@@ -37,6 +37,7 @@ Note editor で実際に必要になる低レベル操作を、機能ごとに�
 - 画面幅、viewport、scroll、カーソル、selection。
 - DOM変化、responsive、overflow menu、selector fallback。
 - 内部ブラウザ、in-app Browser、Chrome extension、推奨ブラウザ。
+- 操作対象ロック、対象切替、surface 切替、事前確認、fallback、再試行。
 - 画像 upload、note-image-upload-automation-boundary、
   note_image_upload_boundary_check.py。
 - Codex main、Spark、worker、human supervised。
@@ -62,6 +63,23 @@ Note editor で実際に必要になる低レベル操作を、機能ごとに�
 - in-app Browser の URL policy が `note.com` / `editor.note.com` の open/goto を拒否した場合、raw CDP、別ブラウザ、Chrome profile、間接URLなどで回避しない。ユーザーがサイドパネルで開いた後に current tab へ attach する。
 - Browser surface は in-app Browser / Chrome extension / manual browser のどれかを明示する。
 - AI surface は Codex main / worker / human supervised のどれかを明示する。
+
+### 1a. Operation target lock
+
+- write前に `note id / draft URL / article lane / tab / Browser surface / account / operation mode` を対象ロックとして記録する。
+- 別note、別draft、公開済み記事、別tab、別Browser surface、別account、read-onlyからwriteへの変更は対象切替として扱う。
+- 対象切替の前に、切替先、理由、予定操作、公開系操作は未実行のままであること、戻り先を示し、ユーザーの事前確認を得る。
+- 同一editor内のDOM再確認やscrollは対象切替ではない。ただしURLまたはnote idが変わった場合は即停止する。
+- ユーザーが明示選択したBrowser surfaceはtask中の制約。接続や認証に失敗しても無断で別surfaceへ切り替えない。
+
+### 1b. Failure recovery ladder
+
+- `unsupported_capability`、`wrong_or_ambiguous_target`、`authentication_required`、`unexpected_write_or_recovery_uncertain` は同じrouteを再試行しない。
+- attach/connection failureは、同一surface・同一targetへの再接続だけ1回許可する。
+- selector/viewport driftは、DOM候補を再列挙して同一targetで1 actionだけ再試行する。
+- fallback順は `same target re-inspect -> manual/human supervised -> user-approved surface switch -> hold` とする。
+- manualまたはhuman supervisedへ渡す時は、対象URL、local file path、完了確認項目、未実行の公開系操作を返す。
+- 別surfaceへの自動fallbackは禁止する。新しい対象ロックとユーザー確認が揃ってから別cycleとして開始する。
 
 ### 2. Publication gate
 
@@ -114,7 +132,7 @@ Note editor で実際に必要になる低レベル操作を、機能ごとに�
 - Playwright の DOM 座標と CUA の実操作面が同期しないことがある。
 - 意図しない段落に入力したら、続けて修正しようとせず、まず Undo で直前の正常状態へ戻す。
 - 復旧後に DOM と本文末尾を読み、壊れた文字列が残っていないことを確認する。
-- 同じ失敗が2回続いたら、その操作ルートは使わず、別ルートまたは手動境界へ切り替える。
+- retry可能な同じ失敗が2回続いたら、その操作ルートは使わない。能力非対応や対象不明は初回で停止する。
 
 ### 6. Local checker ratchet
 
@@ -159,4 +177,5 @@ Note editor で実際に必要になる低レベル操作を、機能ごとに�
 - 触った機能: attach / embed / DOM verification / Undo / checker / ledger。
 - 成功判定: `figure[data-src]`、checker結果、台帳件数など。
 - 復旧した失敗と再発防止。
+- target lock / 対象切替 / ユーザー確認 / failure class / retry count / fallback。
 - 未実行の公開、保存、共有、SNS action。

@@ -356,8 +356,39 @@ def test_note_editor_capability_inventory_contract_present():
         "Codex main",
         "Spark",
         "human supervised",
+        "操作対象ロック / surface 切替確認契約",
+        "失敗分類と復旧契約",
+        "unsupported_capability",
+        "wrong_or_ambiguous_target",
+        "authentication_required",
+        "same target re-inspect -> manual/human supervised -> user-approved surface switch -> hold",
     ]:
         assert needle in inventory, needle
+
+    prepublish = (
+        ROOT / "skills/note-editor-prepublish/SKILL.md"
+    ).read_text(encoding="utf-8")
+    root_skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+    for name, text in {
+        "root_skill": root_skill,
+        "ops": ops,
+        "prepublish": prepublish,
+    }.items():
+        for needle in [
+            "対象ロック",
+            "ユーザーの事前確認",
+            "自動fallback",
+        ]:
+            assert needle in text, f"{name}: {needle}"
+
+    for needle in [
+        "target_lock_before_write: true",
+        "user_confirmation_before_target_or_surface_switch: true",
+        "unsupported_capability_retry_count: 0",
+        "retryable_same_target_max_retry_count: 1",
+        "implicit_surface_fallback_allowed: false",
+    ]:
+        assert needle in package, needle
 
 
 def test_official_guidance_source_registry_contract_present():
