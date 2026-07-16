@@ -12,7 +12,7 @@ publication_gate: human_review_required
 Codex 向けパッケージです。**公開・予約投稿・SNS 共有は自動で行わず、
 必ず公開直前で止まります。**
 
-パッケージ版: `0.2.9`
+パッケージ版: `0.2.10`
 
 ## できること
 
@@ -177,11 +177,11 @@ python scripts/provenance_label_check.py <draft.md> --json
 - `scripts/note_preview.py`: Markdown 下書きのローカルプレビュー。
 - `scripts/pre_publish_check.py`: シークレット候補、内部メモ、未確認語の検出。
 - `scripts/note_fact_check.py`: 要確認の主張を抽出。外部ファクトチェックはしません。
-- `scripts/note_diff_check.py`: 指定された Note/public URL の本文差分確認。
+- `scripts/note_diff_check.py`: 指定された Note/public URL の本文差分確認。`--snapshot-out` で公開本文とSHA-256をローカル保存できます。
 - `scripts/fetch_note_body.js`: Playwright で Note 公開記事の本文を取得。
 - `scripts/review_draft.py`: `build-context-card` と `review-draft` を提供。
 - `scripts/run_local_draft_qa_proof.py`: 公開前で止まるローカル QA 証跡を作成。
-- `scripts/post_publish.py`: 既定はドライラン。`--write-ledger` 指定時だけ台帳更新。
+- `scripts/post_publish.py`: 既定はドライラン。`--write-ledger` 指定時だけ台帳更新。`--ledger-dir` でpackage外のprivate台帳を指定でき、同じdraftの状態遷移は一意に更新します。
 - `scripts/engagement_tracker.py`: ローカル台帳件数だけを報告。
 - `scripts/bump_package_version.py`: patch / minor / major を自動採番。
 - `scripts/check_version_bump.py`: パッケージ実体変更時の version bump を確認。

@@ -162,7 +162,7 @@ Note editor 実測で見つかった失敗、手動境界、復旧手順、成�
 python scripts\note_preview.py <draft.md> -o <preview.html>
 python scripts\pre_publish_check.py <draft.md>
 python scripts\note_fact_check.py local <draft.md>
-python scripts\note_diff_check.py <note_url> <draft.md> <phrase...>
+python scripts\note_diff_check.py <note_url> <draft.md> <phrase...> --snapshot-out <local-snapshot.txt> --json
 ```
 
 - `scripts/pre_publish_check.py --fix` はファイルを書き換えるため、ユーザーが明示した時だけ使う。
@@ -238,6 +238,8 @@ python scripts\engagement_tracker.py report
 - `scripts/post_publish.py` は X 投稿や schedule option を持つため、`--x-text`、`--x-schedule` はこの suite から使わない。
 - `data/published_notes.json` には公開済み URL、title、published_at、tags、image_url、local_source、source、plain_status を記録する。
 - `data/note_drafts.json` は draft/stale/superseded/published_from_note_editor_record の状態を保ち、公開済み一次台帳に混ぜない。
+- package 外の workspace 固有台帳を使う場合は `scripts/post_publish.py --ledger-dir <dir>` を使う。script の複製は作らない。
+- editor で公開版が変わった場合は、公開本文 snapshot、SHA-256、`local_draft_differs_from_published` を ledger に残す。
 - Note 表示日時はユーザーの手動確認値を優先して記録する。
 
 ## Issue Drafts
