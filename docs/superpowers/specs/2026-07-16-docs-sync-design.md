@@ -1,8 +1,9 @@
 ---
 title: Note Publishing Suite ドキュメント同期設計
 type: design
-status: human-review-pending
+status: approved-for-planning
 created: 2026-07-16
+approved: 2026-07-17
 owner: nexus-ai-2045
 publication_gate: human_review_required
 external_action: none
@@ -165,6 +166,10 @@ PRの変更path
 ## 実装分離
 
 PR #9はBrowser操作契約に限定する。本設計とdocs-sync実装は別branch・別PRで扱う。PR #9が先にmergeされた場合、docs-sync実装branchを最新`main`へ更新し、`0.2.11`以降の文書を基準に同期する。
+
+## 承認と停止線
+
+2026-07-17に推奨順での進行が承認された。現段階では設計をDraft PRとして共有するところまでとし、PR #9のmergeおよびdocs-sync実装は行わない。実装はPR #9のmergeと本設計のレビュー完了後、最新`main`を基点に開始する。
 
 ## 完了条件
 
