@@ -10,7 +10,7 @@ GitHub リリースやタグは別の公開操作として扱い、ここには�
 
 変更:
 - Note editorのBrowser能力表を読み取り、入力、file upload、手動操作に分けて整理した。
-- 別note、tab、Browser surface、account、read-only/write境界の切替前にユーザー確認を必須化した。
+- 別note、tab、Browser surface、accountの切替、または現在の会話で未承認のread-onlyからwriteへの変更前にユーザー確認を必須化した。
 - 能力非対応は再試行0回、同一対象の接続・DOM状態ズレは1回までとし、fallback順を固定した。
 
 検証:
@@ -18,7 +18,7 @@ GitHub リリースやタグは別の公開操作として扱い、ここには�
 
 公開境界:
 - Note投稿、予約投稿、SNS共有、外部告知は未実行。
-- commit、push、PR、GitHubリリース、tag作成は人間レビュー後まで未実行。
+- package変更はcommit、pushし、Draft PRとして人間レビューへ提出した。GitHubリリース、tag作成は未実行。
 
 ## 0.2.10
 

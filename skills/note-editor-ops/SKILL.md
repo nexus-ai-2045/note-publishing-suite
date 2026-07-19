@@ -67,8 +67,9 @@ Note editor で実際に必要になる低レベル操作を、機能ごとに�
 ### 1a. Operation target lock
 
 - write前に `note id / draft URL / article lane / tab / Browser surface / account / operation mode` を対象ロックとして記録する。
-- 別note、別draft、公開済み記事、別tab、別Browser surface、別account、read-onlyからwriteへの変更は対象切替として扱う。
+- 別note、別draft、公開済み記事、別tab、別Browser surface、別accountへの変更は対象切替として扱う。
 - 対象切替の前に、切替先、理由、予定操作、公開系操作は未実行のままであること、戻り先を示し、ユーザーの事前確認を得る。
+- 同一対象へのwriteが現在の会話で承認済みなら、read-onlyからwriteへ進むためだけの重複確認は不要とする。未承認ならwrite前に確認する。
 - 同一editor内のDOM再確認やscrollは対象切替ではない。ただしURLまたはnote idが変わった場合は即停止する。
 - ユーザーが明示選択したBrowser surfaceはtask中の制約。接続や認証に失敗しても無断で別surfaceへ切り替えない。
 

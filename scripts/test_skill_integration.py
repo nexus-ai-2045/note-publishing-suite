@@ -377,6 +377,7 @@ def test_note_editor_capability_inventory_contract_present():
         for needle in [
             "対象ロック",
             "ユーザーの事前確認",
+            "重複確認は不要",
             "自動fallback",
         ]:
             assert needle in text, f"{name}: {needle}"
@@ -384,6 +385,8 @@ def test_note_editor_capability_inventory_contract_present():
     for needle in [
         "target_lock_before_write: true",
         "user_confirmation_before_target_or_surface_switch: true",
+        "current_conversation_write_approval_reusable_for_same_target: true",
+        "user_confirmation_before_unapproved_write: true",
         "unsupported_capability_retry_count: 0",
         "retryable_same_target_max_retry_count: 1",
         "implicit_surface_fallback_allowed: false",

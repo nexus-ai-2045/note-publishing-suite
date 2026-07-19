@@ -63,6 +63,8 @@ publication_gate:
 editor_operation_contract:
   target_lock_before_write: true
   user_confirmation_before_target_or_surface_switch: true
+  current_conversation_write_approval_reusable_for_same_target: true
+  user_confirmation_before_unapproved_write: true
   unsupported_capability_retry_count: 0
   retryable_same_target_max_retry_count: 1
   implicit_surface_fallback_allowed: false
@@ -76,7 +78,6 @@ editor_operation_contract:
     - tab
     - browser_surface
     - account
-    - read_only_to_write
 external_actions:
   x_posting: out_of_scope
   likes: out_of_scope

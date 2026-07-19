@@ -72,7 +72,7 @@ Note editor 実測で見つかった失敗、手動境界、復旧手順、成�
 - Note 画面では、公開ボタン、投稿ボタン、予約確定ボタンを押す手前で停止する。
 - X 投稿、いいね、キャンペーン、自動告知、Discord/Slack 共有はこの汎用 Note パッケージ外。別依頼と別承認で扱う。
 - 内部ブラウザだけで画像アップロードを完全自動化できる前提にしない。失敗時は手動または supervised 操作に分け、未設定ならその状態を報告する。
-- Note editor の write 前に対象ロックを置く。別note、別draft、別tab、別Browser surface、別account、read-onlyからwriteへの切替は、理由と予定操作を示してユーザーの事前確認を得る。Chrome、Computer Use、manual browserへ自動fallbackしない。
+- Note editor の write 前に対象ロックを置く。別note、別draft、別tab、別Browser surface、別accountへの切替は、理由と予定操作を示してユーザーの事前確認を得る。同一対象へのwriteが現在の会話で承認済みなら、read-onlyからwriteへ進むためだけの重複確認は不要とする。未承認ならwrite前に確認する。Chrome、Computer Use、manual browserへ自動fallbackしない。
 - 能力非対応は再試行0回、同一対象の接続失敗またはDOM状態ズレは再確認後1回までとする。復旧できなければ、対象pathと未実行操作を返して手動境界または保留へ落とす。
 - 画像 upload 境界は `references/note-image-upload-automation-boundary.md` と `scripts/note_image_upload_boundary_check.py` で確認する。画面に見えている Windows ファイル選択ダイアログだけを扱う場合も、現在会話での明示確認があるまで実行しない。
 - Windows / Mac 環境差は `references/note-image-upload-automation-boundary.md` の matrix に従う。公式推奨環境でも成功保証ではなく、stopline と禁止経路を保証する。

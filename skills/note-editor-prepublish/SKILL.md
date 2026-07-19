@@ -65,7 +65,7 @@ Note editor への反映、目次、リンク、画像、埋め込み、タグ�
 
 - in-app Browser を優先する。
 - attach/inspect できない場合は停止する。Chrome、Computer Use、live article へ無断で切り替えない。
-- write前に note id、draft URL、tab、Browser surface、account、operation mode を対象ロックとして確認する。別note、別tab、別surface、別account、read-onlyからwriteへ切り替える場合は、切替理由と予定操作を示してユーザーの事前確認を得る。
+- write前に note id、draft URL、tab、Browser surface、account、operation mode を対象ロックとして確認する。別note、別tab、別surface、別accountへ切り替える場合は、切替理由と予定操作を示してユーザーの事前確認を得る。同一対象へのwriteが現在の会話で承認済みなら、read-onlyからwriteへ進むためだけの重複確認は不要とし、未承認ならwrite前に確認する。
 - 能力非対応は再試行せず手動境界へ渡す。接続失敗またはDOM状態ズレだけ、同一対象で1回まで再確認・再試行する。別surfaceへの移行は自動fallbackにしない。
 - note editor のボタン、ツールバー、サイドパネル配置は画面幅や選択状態で動的に変わる。公開、予約、共有、保存系は固定座標で操作せず、DOM、ラベル、状態で識別し、明示承認がなければ押さない。
 - Playwright の DOM 座標と CUA の実操作面が同期しない場合、固定座標操作を継続しない。意図しない段落に入力したら即 Undo で復旧し、DOM/ラベル/選択状態で再確認できる方法へ切り替える。復旧できない場合は手動境界として止める。

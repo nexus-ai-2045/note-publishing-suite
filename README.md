@@ -162,6 +162,8 @@ Note editor へ書き込む前に、対象note、draft URL、tab、Browser surfa
 操作modeをロックします。別note・別tab・別browser・別accountへ切り替える場合は、
 理由と予定操作を示して事前確認を取ります。能力非対応は再試行せず手動引継ぎ、
 接続や画面状態のズレだけ同一対象で1回再確認し、別surfaceへは自動移行しません。
+同じ対象へのwriteが現在の会話ですでに承認されている場合、read-only確認から
+writeへ進むためだけの重複確認は行いません。未承認ならwrite前に確認します。
 
 ## 主なファイル
 

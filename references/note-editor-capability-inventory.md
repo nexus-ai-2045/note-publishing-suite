@@ -130,8 +130,9 @@ skill 本文へ「公式がそう言っている」と書く前に、この file
 Note editor に write 操作を行う前に、`note id / draft URL / article lane / tab / Browser surface / account / read-only or write` を現在の操作対象としてロックする。
 
 - 同一 editor 内の DOM 再確認や scroll は対象切替ではない。
-- 別 note、別 draft、公開済み記事、別tab、別Browser surface、別account、read-only から write への変更は対象切替。
+- 別 note、別 draft、公開済み記事、別tab、別Browser surface、別accountへの変更は対象切替。
 - 対象切替が必要なら、切替先、理由、実行予定操作、未実行の公開系操作、戻り先を1画面で示し、ユーザーの事前確認を得る。
+- 同一対象へのwriteが現在の会話で承認済みなら、read-onlyからwriteへ進むためだけの重複確認は不要。未承認ならwrite前にユーザー確認を得る。
 - ユーザーが in-app Browser や Chrome を明示選択している場合、その選択はtask中の制約として保持する。接続や認証に失敗しても無断で別surfaceへ移らない。
 - `File uploads are not supported` は能力不足の確定結果。Chrome、Computer Use、note API、Cookie、別tabへ自動fallbackせず、画像pathを返して manual browser / human supervised へ引き継ぐ。
 
@@ -146,7 +147,7 @@ note_editor_target_lock:
 - operation_mode: read_only | write_draft | save_draft | publish_gate
 - switch_requested: yes | no
 - switch_reason:
-- user_confirmation: confirmed | missing | not_required_same_target
+- user_confirmation: confirmed | missing | not_required_same_target | not_required_current_conversation_approval
 - return_to:
 ```
 
