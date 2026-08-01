@@ -5,6 +5,7 @@ status: active
 created: 2026-06-12
 source_scope: note official source registry and local observation
 last_official_guidance_intake: 2026-06-16
+last_local_capability_review: 2026-07-16
 ---
 
 # note editor capability inventory
@@ -117,11 +118,51 @@ skill 本文へ「公式がそう言っている」と書く前に、この file
 
 ### 4. Browser surface 軸
 
-| surface | 使う条件 | 注意 |
-|---|---|---|
-| in-app Browser | Codex から current tab を attach / inspect できる場合の第一候補。 | Playwright DOM と CUA 実操作面が同期しないことがある。 |
-| Chrome extension | ログイン状態、拡張機能、普段の profile が必要で、ユーザーが明示した場合。 | Cookie/profile を worker に渡さない。公開/保存系は main agent が gate を持つ。 |
-| note official recommended browsers | 実運用の手動確認や最終確認。Mac は Safari / Chrome、Windows は Chrome / Edge / Firefox。 | 推奨環境でも組み合わせにより一部機能が使えない可能性がある。 |
+| surface | 読み取り/DOM確認 | 本文・タイトル入力 | local file upload | 使う条件と境界 |
+|---|---|---|---|---|
+| in-app Browser | attach / inspect できる場合は可能 | 対象 editor と入力位置を再確認できる範囲で可能 | `File uploads are not supported` の場合は不可。再試行しない | Codex の第一候補。Playwright DOM と CUA 実操作面が同期しない場合は固定座標を使わない。 |
+| Chrome extension | 接続済みの対象tabを確認できる場合は可能 | ユーザーがこの surface を明示選択した場合だけ候補 | profile と可視UIの能力に依存し、自動成功を保証しない | ログイン状態、拡張機能、普段の profile が必要な場合。in-app Browser から無断で切り替えない。Cookie/profile を worker に渡さない。 |
+| manual browser / human supervised | ユーザーが見えている画面を確認 | 人間操作として可能 | 可視ファイル選択または手動 upload | 画像 upload、カーソル位置が不安定な操作、profile依存操作の既定 fallback。Codex は対象pathと確認項目を渡す。 |
+| note official recommended browsers | note側の対応環境 | 人間操作としての候補 | 人間操作としての候補 | Mac は Safari / Chrome、Windows は Chrome / Edge / Firefox。推奨環境でも機能成功を保証しない。 |
+
+### 4a. 操作対象ロック / surface 切替確認契約
+
+Note editor に write 操作を行う前に、`note id / draft URL / article lane / tab / Browser surface / account / read-only or write` を現在の操作対象としてロックする。
+
+- 同一 editor 内の DOM 再確認や scroll は対象切替ではない。
+- 別 note、別 draft、公開済み記事、別tab、別Browser surface、別accountへの変更は対象切替。
+- 対象切替が必要なら、切替先、理由、実行予定操作、未実行の公開系操作、戻り先を1画面で示し、ユーザーの事前確認を得る。
+- 同一対象へのwriteが現在の会話で承認済みなら、read-onlyからwriteへ進むためだけの重複確認は不要。未承認ならwrite前にユーザー確認を得る。
+- ユーザーが in-app Browser や Chrome を明示選択している場合、その選択はtask中の制約として保持する。接続や認証に失敗しても無断で別surfaceへ移らない。
+- `File uploads are not supported` は能力不足の確定結果。Chrome、Computer Use、note API、Cookie、別tabへ自動fallbackせず、画像pathを返して manual browser / human supervised へ引き継ぐ。
+
+標準packet:
+
+```text
+note_editor_target_lock:
+- note_id_or_draft_url:
+- article_lane:
+- browser_surface:
+- account_confirmed:
+- operation_mode: read_only | write_draft | save_draft | publish_gate
+- switch_requested: yes | no
+- switch_reason:
+- user_confirmation: confirmed | missing | not_required_same_target | not_required_current_conversation_approval
+- return_to:
+```
+
+### 4b. 失敗分類と復旧契約
+
+| failure class | 同じrouteの再試行 | 対応 |
+|---|---:|---|
+| `unsupported_capability` | 0回 | 即停止。未実行状態、local file path、手動手順を返す。 |
+| `wrong_or_ambiguous_target` | 0回 | writeせず対象候補を示し、ユーザー確認へ戻す。 |
+| `authentication_required` | 0回 | 選択中surfaceでのsign-inを依頼する。別surfaceへは切り替えない。 |
+| `attach_or_connection_failure` | 1回 | 同一surface・同一targetへの再接続だけ試し、失敗なら保留。 |
+| `selector_or_viewport_drift` | 1回 | DOM候補を再列挙して同一targetで1 actionだけ再試行する。 |
+| `unexpected_write_or_recovery_uncertain` | 0回 | 追加編集を止め、Undoまたは最後の検証済み状態を確認する。復旧不明なら人間監督へ渡す。 |
+
+fallback順は `same target re-inspect -> manual/human supervised -> user-approved surface switch -> hold`。surface切替は常に新しい対象ロックとユーザー確認を必要とする。
 
 ### 5. AI surface 軸
 
@@ -145,7 +186,7 @@ skill 本文へ「公式がそう言っている」と書く前に、この file
 - 画面幅ごとの button / toolbar 配置を、viewport 別にまだ snapshot 化していない。
 - 画面幅ごとの DOM 構造差分、selector 差分、overflow menu への移動条件を
   まだ snapshot 化していない。
-- Chrome extension と in-app Browser の使い分けを、認証/DOM/操作/安全 gate の表でまだ十分にテストしていない。
+- Chrome extension の file upload、認証回復、DOM/CUA同期は未実測。ユーザー確認後の個別測定が必要で、fallback成功は保証しない。
 
 ## closeout で必ず残す条件
 
@@ -156,3 +197,4 @@ skill 本文へ「公式がそう言っている」と書く前に、この file
   viewport 依存だったか。
 - cursor / selection の状態。空段落、本文中、選択あり、URL行上など。
 - 実行した note 操作と、明示承認がないため未実行にした操作。
+- target lock、対象切替の有無、ユーザー確認状態、失敗分類、再試行回数、採用したfallback。
