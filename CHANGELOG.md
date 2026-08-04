@@ -4,6 +4,22 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
+## 0.2.12
+
+日付: 2026-08-02
+
+変更:
+- PR単位のドキュメント同期設計を追加し、生成物と手書き文書の更新漏れをread-only CIで検出する方針を定義した。
+- PR #9のmerge後の状態へ設計前提を更新し、docs-sync実装を別PRへ分離した。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.2.11
 
 日付: 2026-07-16
