@@ -96,7 +96,7 @@
     <article>
 <h1>Note Publishing Suite</h1>
 <p>ローカル素材から Note の下書きを作り、検査し、エディタへ反映するための Codex 向けパッケージです。<strong>公開・予約投稿・SNS 共有は自動で行わず、 必ず公開直前で止まります。</strong></p>
-<p>パッケージ版: <code>0.2.10</code></p>
+<p>パッケージ版: <code>0.2.11</code></p>
 <h2>できること</h2>
 <div class="table-wrap"><table>
 <thead><tr><th>できる</th><th>自動では行わない</th></tr></thead>
@@ -196,6 +196,7 @@ sh scripts/verify_public_package.sh</code></pre>
 </ul>
 <p>リンクカードは URL を単独行で入力し、その行末で Enter を押します。 成功は表示だけでなく <code>figure[data-src]</code> などの DOM で確認し、<code>href</code> だけが 残る場合は通常リンクとして扱います。固定座標に依存せず、同期しない場合は 手動境界へ切り替えます。下書き保存までで止まり、公開・投稿・予約確定ボタンは 押しません。</p>
 <p>画像アップロードの完全自動化、Note ログイン、常時接続成功は保証しません。</p>
+<p>Note editor へ書き込む前に、対象note、draft URL、tab、Browser surface、account、 操作modeをロックします。別note・別tab・別browser・別accountへ切り替える場合は、 理由と予定操作を示して事前確認を取ります。能力非対応は再試行せず手動引継ぎ、 接続や画面状態のズレだけ同一対象で1回再確認し、別surfaceへは自動移行しません。 同じ対象へのwriteが現在の会話ですでに承認されている場合、read-only確認から writeへ進むためだけの重複確認は行いません。未承認ならwrite前に確認します。</p>
 <h2>主なファイル</h2>
 <div class="table-wrap"><table>
 <thead><tr><th>場所</th><th>役割</th></tr></thead>

@@ -12,7 +12,7 @@ publication_gate: human_review_required
 Codex 向けパッケージです。**公開・予約投稿・SNS 共有は自動で行わず、
 必ず公開直前で止まります。**
 
-パッケージ版: `0.2.10`
+パッケージ版: `0.2.11`
 
 ## できること
 
@@ -157,6 +157,13 @@ python scripts/provenance_label_check.py <draft.md> --json
 押しません。
 
 画像アップロードの完全自動化、Note ログイン、常時接続成功は保証しません。
+
+Note editor へ書き込む前に、対象note、draft URL、tab、Browser surface、account、
+操作modeをロックします。別note・別tab・別browser・別accountへ切り替える場合は、
+理由と予定操作を示して事前確認を取ります。能力非対応は再試行せず手動引継ぎ、
+接続や画面状態のズレだけ同一対象で1回再確認し、別surfaceへは自動移行しません。
+同じ対象へのwriteが現在の会話ですでに承認されている場合、read-only確認から
+writeへ進むためだけの重複確認は行いません。未承認ならwrite前に確認します。
 
 ## 主なファイル
 
