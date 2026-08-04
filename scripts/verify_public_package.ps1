@@ -116,7 +116,7 @@ function Test-StandaloneCloneIdentityLane {
         Invoke-Git $fixtureRoot @("init") | Out-Null
         Invoke-Git $fixtureRoot @("checkout", "-B", "main") | Out-Null
         Invoke-Git $fixtureRoot @("config", "--local", "user.name", "nexus_ai") | Out-Null
-        Invoke-Git $fixtureRoot @("config", "--local", "user.email", "nexus.ai.2045@gmail.com") | Out-Null
+        Invoke-Git $fixtureRoot @("config", "--local", "user.email", "273569186+nexus-ai-2045@users.noreply.github.com") | Out-Null
         Invoke-Git $fixtureRoot @("remote", "add", "origin", "https://github.com/nexus-ai-2045/note-publishing-suite.git") | Out-Null
         Invoke-Git $fixtureRoot @("add", "-A") | Out-Null
         Invoke-Git $fixtureRoot @("commit", "-m", "standalone clone verification fixture") | Out-Null
@@ -171,7 +171,7 @@ function Test-StandaloneCloneVerifierLane {
         Invoke-Git $fixtureRoot @("init") | Out-Null
         Invoke-Git $fixtureRoot @("checkout", "-B", "main") | Out-Null
         Invoke-Git $fixtureRoot @("config", "--local", "user.name", "nexus_ai") | Out-Null
-        Invoke-Git $fixtureRoot @("config", "--local", "user.email", "nexus.ai.2045@gmail.com") | Out-Null
+        Invoke-Git $fixtureRoot @("config", "--local", "user.email", "273569186+nexus-ai-2045@users.noreply.github.com") | Out-Null
         Invoke-Git $fixtureRoot @("remote", "add", "origin", "https://github.com/nexus-ai-2045/note-publishing-suite.git") | Out-Null
         Invoke-Git $fixtureRoot @("add", "-A") | Out-Null
         Invoke-Git $fixtureRoot @("commit", "-m", "standalone verifier fixture") | Out-Null

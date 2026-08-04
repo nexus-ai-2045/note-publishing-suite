@@ -794,7 +794,7 @@ def test_github_identity_guard_contract_present():
         "EXPECTED_GIT_NAME",
         "nexus_ai",
         "EXPECTED_GIT_EMAIL",
-        "nexus.ai.2045@gmail.com",
+        "273569186+nexus-ai-2045@users.noreply.github.com",
         "ALLOWED_GITHUB_COMMITTER",
         "noreply@github.com",
         "DEFAULT_LOCAL_POLICY",
@@ -892,7 +892,13 @@ def initialize_standalone_public_repo_fixture(path: Path, message: str) -> None:
     run_git(path, "init")
     run_git(path, "checkout", "-B", "main")
     run_git(path, "config", "--local", "user.name", "nexus_ai")
-    run_git(path, "config", "--local", "user.email", "nexus.ai.2045@gmail.com")
+    run_git(
+        path,
+        "config",
+        "--local",
+        "user.email",
+        "273569186+nexus-ai-2045@users.noreply.github.com",
+    )
     run_git(
         path,
         "remote",
