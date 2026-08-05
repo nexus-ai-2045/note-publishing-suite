@@ -104,6 +104,15 @@ Note エディタ反映段階を公開なしで通し、下書き保存までの
 - `--x-text` と `--x-schedule` はパッケージ内で使用禁止とする。
 - 公開URL、公開状態、表示日時が未確認なら台帳更新しない。
 
+## 完了: PR単位のドキュメント同期を検査する
+
+状態: 実装済み・人間レビュー待ち
+
+- `package.yaml`に生成物、必須文書、変更path対応を定義した。
+- `scripts/docs_sync_check.py`をローカルとCIで共用する。
+- PR workflowは`contents: read`だけを使い、失敗時はJSONとpatch artifactを残す。
+- CIからcommit、push、PR編集は行わない。
+
 ## 課題: note 公式ノウハウの取り込み
 
 - note 公式 (ヘルプセンター / 公式マガジン / クリエイター向け記事) の執筆・タグ・目次・公開時間のノウハウを一次情報として収集し、references/ に落とす。

@@ -55,6 +55,7 @@ for item in \
   PUBLIC_READY.md \
   PUBLIC_RELEASE_CHECKLIST.md \
   scripts/review_draft.py \
+  scripts/docs_sync_check.py \
   scripts/verify_public_package.sh \
   scripts/verify_public_package.ps1 \
   tests/test_review_draft_cli.py \
@@ -65,6 +66,7 @@ do
 done
 
 contains package.yaml "scripts/review_draft.py"
+contains package.yaml "scripts/docs_sync_check.py"
 contains package.yaml "scripts/verify_public_package.sh"
 contains package.yaml "data/note_editor_prepublish_observation.fixture.json"
 contains package.yaml "sh scripts/verify_public_package.sh"
@@ -74,6 +76,8 @@ contains README.md "sh scripts/verify_public_package.sh"
 contains README.md "scripts/note_editor_prepublish_verify.py data/note_editor_prepublish_observation.fixture.json --json"
 contains PUBLIC_READY.md "sh scripts/verify_public_package.sh"
 contains PUBLIC_RELEASE_CHECKLIST.md "sh scripts/verify_public_package.sh"
+
+run_json_ok "docs sync check" python3 scripts/docs_sync_check.py --base-ref HEAD^
 
 run_json_ok "provenance leak check" python3 scripts/provenance_leak_check.py --scope all --json
 run_json_ok "provenance label check" python3 scripts/provenance_label_check.py content/drafts/caramel-provenance-label-fixture.md --json

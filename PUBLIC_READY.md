@@ -27,11 +27,13 @@ status: 人間レビュー待ち
 - GitHub へのプッシュ実行済み: はい。人間レビュー用ブランチまで
 - リポジトリ公開範囲の変更: なし
 - CHINJU CLI 確認: 未実行
+- docs-sync read-only検査: 実装済み・人間レビュー待ち
 
 ## 検証コマンド
 
 ```powershell
 sh scripts/verify_public_package.sh
+python scripts/docs_sync_check.py --base-ref origin/main
 ```
 
 ROADMAP 確認済み: はい
@@ -68,3 +70,6 @@ CHINJU 検証完了とは扱わない。
 GitHub へのプッシュ、公開リリース、公開リポジトリ作成、リポジトリ公開範囲変更の前に停止し、
 対象操作ごとの明示承認を確認する。公開後は、コミット履歴とファイルがウェブ上で
 見える可能性がある。
+
+docs-sync workflowは`contents: read`のみを使い、検査結果と生成物patchのartifact以外を
+書き込まない。repositoryへのcommit、push、PR編集は行わない。

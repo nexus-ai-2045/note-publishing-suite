@@ -1,5 +1,5 @@
 name: note-publishing-suite
-version: 0.2.16
+version: 0.2.17
 scope: repo-local
 repo_root: .
 entrypoint: SKILL.md
@@ -15,6 +15,57 @@ references:
   note_article_provenance_design: references/note-article-provenance-design.md
   note_image_upload_automation_boundary: references/note-image-upload-automation-boundary.md
   post_publish_context_proof: references/post-publish-context-proof.md
+docs_sync_contract: |
+  {
+    "version": 1,
+    "generated": [
+      {
+        "source": "README.md",
+        "output": "README.rendered.html",
+        "renderer": "scripts/render_readme.py"
+      }
+    ],
+    "required_docs": [
+      "README.md",
+      "README.rendered.html",
+      "SKILL.md",
+      "ROADMAP.md",
+      "CHANGELOG.md",
+      "PUBLIC_READY.md",
+      "PUBLIC_RELEASE_CHECKLIST.md",
+      "SECURITY.md",
+      "issue-drafts.md"
+    ],
+    "path_rules": [
+      {
+        "patterns": ["scripts/**", "skills/**", "adapters/**", "references/**"],
+        "docs": ["README.md", "SKILL.md", "package.yaml", "CHANGELOG.md"]
+      },
+      {
+        "patterns": [".github/workflows/**"],
+        "docs": ["README.md", "package.yaml", "PUBLIC_READY.md", "PUBLIC_RELEASE_CHECKLIST.md", "CHANGELOG.md"]
+      },
+      {
+        "patterns": ["tests/**", "scripts/test_*.py"],
+        "docs": ["issue-drafts.md", "CHANGELOG.md"]
+      },
+      {
+        "patterns": ["package.yaml"],
+        "docs": ["README.md", "CHANGELOG.md"]
+      }
+    ],
+    "public_package_docs": [
+      "README.md",
+      "README.rendered.html",
+      "SKILL.md",
+      "ROADMAP.md",
+      "CHANGELOG.md",
+      "PUBLIC_READY.md",
+      "PUBLIC_RELEASE_CHECKLIST.md",
+      "SECURITY.md",
+      "issue-drafts.md"
+    ]
+  }
 mission: end_to_end_note_article_publishing_skill_package
 runtime:
   works_with_codex_only: true
@@ -107,6 +158,7 @@ existing_scripts:
   - scripts/post_publish.py
   - scripts/engagement_tracker.py
   - scripts/render_readme.py
+  - scripts/docs_sync_check.py
   - scripts/provenance_leak_check.py
   - scripts/provenance_label_check.py
   - scripts/github_identity_guard.py
@@ -173,6 +225,7 @@ verification:
     - python scripts/run_local_draft_qa_proof.py --json
     - python scripts/bump_package_version.py --change <summary>
     - python scripts/check_version_bump.py
+    - python scripts/docs_sync_check.py --base-ref origin/main
     - python scripts/pre_publish_check.py <draft.md>
 output_language_gate:
   user_visible_language: japanese

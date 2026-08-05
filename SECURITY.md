@@ -13,8 +13,12 @@ Note Publishing Suite は、ローカルファーストのワークフローパ�
 - `SKILL.md` と `skills/` 配下のスキル指示
 - `adapters/` 配下のアダプター指示
 - `data/` 配下のローカル台帳スキーマ
+- `.github/workflows/` 配下のread-only docs-sync検査
 
 このパッケージはホスト型サービスを運用しません。
+
+docs-sync workflowは`contents: read`のみを要求し、repositoryへのcommit、push、
+PR編集、comment投稿を行いません。失敗時のartifactには検査JSONと生成物patchだけを含めます。
 
 ## 報告方法
 

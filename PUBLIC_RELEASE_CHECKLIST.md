@@ -24,6 +24,8 @@ Note Publishing Suite を公開 GitHub リポジトリにプッシュする前�
 - `scripts/post_publish.py` はローカル台帳専用で、SNS 投稿オプションを持たない。
 - `LICENSE`、`SECURITY.md`、`PUBLIC_READY.md` が root にある。
 - `PUBLIC_READY.md` に未実行の外部検証と人間レビューゲートを明記している。
+- `scripts/docs_sync_check.py`が成功し、README生成物と関連文書が同期している。
+- docs-sync workflowの権限が`contents: read`で、commit、push、PR編集を含まない。
 
 ## 検証
 
@@ -36,6 +38,7 @@ python scripts/note_image_upload_boundary_check.py --json
 python scripts/note_editor_prepublish_verify.py data/note_editor_prepublish_observation.fixture.json --json
 python scripts/review_draft.py review-draft content/drafts/sample-note-prepublish-fixture.md --json
 python scripts/render_readme.py
+python scripts/docs_sync_check.py --base-ref origin/main
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
 ```
 
