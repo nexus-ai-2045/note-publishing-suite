@@ -4,6 +4,21 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
+## 0.2.16
+
+日付: 2026-08-05
+
+変更:
+- READMEの視覚的な階層と折りたたみ表示を改善
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `README renderer contract tests`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.2.15
 
 日付: 2026-08-05

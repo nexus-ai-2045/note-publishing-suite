@@ -223,6 +223,21 @@ def test_render_readme_supports_safe_links_and_strong_text():
     assert '<a href="javascript:alert(1)">' not in rendered
 
 
+def test_render_readme_supports_safe_collapsible_details():
+    render_readme = load_render_readme_module()
+    rendered = render_readme.render(
+        "<details>\n"
+        "<summary>開発者向けの **検証**</summary>\n\n"
+        "安全な本文\n"
+        "</details>\n"
+    )
+
+    assert "<details>" in rendered
+    assert "<summary>開発者向けの <strong>検証</strong></summary>" in rendered
+    assert "<p>安全な本文</p>" in rendered
+    assert "</details>" in rendered
+
+
 def test_publication_gate_contract_present():
     skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
     package = (ROOT / "package.yaml").read_text(encoding="utf-8")

@@ -50,6 +50,18 @@
     p { margin: 12px 0; }
     ul { padding-left: 1.3rem; }
     li { margin: 8px 0; }
+    details {
+      margin: 24px 0;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+    }
+    summary {
+      cursor: pointer;
+      color: var(--accent);
+      font-weight: 650;
+    }
+    details[open] summary { margin-bottom: 16px; }
+    details h2:first-of-type { margin-top: 0; }
     .table-wrap {
       margin: 18px 0;
       overflow-x: auto;
@@ -95,8 +107,11 @@
   <main>
     <article>
 <h1>Note Publishing Suite</h1>
-<p>ローカル素材から Note の下書きを作り、検査し、エディタへ反映する Codex 向けパッケージです。<strong>公開・予約投稿・SNS 共有は自動で行わず、 必ず公開直前で止まります。</strong></p>
-<p>パッケージ版: <code>0.2.15</code></p>
+<p><strong>書くところまで自動化。公開は、人が決める。</strong></p>
+<p><code>素材</code> → <code>記事候補</code> → <code>下書き</code> → <code>QA</code> → <code>Note 下書き保存</code> → <strong>人間の公開判断</strong></p>
+<p>ローカル素材から Note の下書きを作り、検査し、エディタへ反映する Codex 向けパッケージです。公開・予約投稿・SNS 共有は自動で行わず、 必ず公開直前で止まります。</p>
+<p>パッケージ版: <code>0.2.16</code></p>
+<p><a href="#3分で始める">3分で始める</a> · <a href="#安全設計">安全設計</a> · <a href="#入口と詳しい資料">詳しい資料</a></p>
 <h2>できること</h2>
 <div class="table-wrap"><table>
 <thead><tr><th>できる</th><th>自動では行わない</th></tr></thead>
@@ -143,6 +158,8 @@ sh scripts/verify_public_package.sh</code></pre>
 </ul>
 <p>根拠ラベルの確認:</p>
 <pre><code>python scripts/provenance_label_check.py &lt;draft.md&gt; --json</code></pre>
+<details>
+<summary>Note エディタの詳しい境界</summary>
 <h2>Note エディタの境界</h2>
 <p>接続できる場合に限り、タイトル、本文、リンク、画像、タグなどを反映します。 下書き保存までで止まり、公開・投稿・予約確定ボタンは押しません。</p>
 <ul>
@@ -154,6 +171,7 @@ sh scripts/verify_public_package.sh</code></pre>
 <li>公式情報: <code>note-official-guidance-intake</code>、制約調査: <code>note-editor-constraint-debug</code></li>
 </ul>
 <p>リンクカードはURLを単独行に置いて Enter を押し、<code>figure[data-src]</code> などの DOMで確認します。同期しない場合や固定座標が必要な場合は手動境界へ切り替えます。 Noteログイン、常時接続、画像アップロードの完全自動化は保証しません。</p>
+</details>
 <h2>入口と詳しい資料</h2>
 <div class="table-wrap"><table>
 <thead><tr><th>目的</th><th>参照先</th></tr></thead>
@@ -173,6 +191,8 @@ sh scripts/verify_public_package.sh</code></pre>
 <li><code>scripts/post_publish.py</code>: 既定はドライランの台帳更新。</li>
 <li><code>scripts/bump_package_version.py</code>: patch / minor / major を自動採番。</li>
 </ul>
+<details>
+<summary>開発者向けの検証と保証</summary>
 <h2>開発・検証</h2>
 <pre><code>python scripts/render_readme.py
 python scripts/review_draft.py build-context-card content/drafts/sample-note-prepublish-fixture.md --json
@@ -187,6 +207,7 @@ python -m pytest scripts/test_skill_integration.py tests</code></pre>
 <h2>保証ラチェット</h2>
 <p>失敗や手動境界は、原因・復旧方法・次回の禁止事項を残します。再発防止できる ものは検査器、契約テスト、スキルへ反映し、UI依存は無理に自動化しません。</p>
 <p>GitHubではこのREADMEをそのまま読めます。ローカル整形版は <code>python scripts/render_readme.py</code> で <code>README.rendered.html</code> に生成できます。</p>
+</details>
     </article>
   </main>
 </body>
