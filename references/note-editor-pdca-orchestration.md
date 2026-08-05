@@ -14,6 +14,9 @@ note editor 操作を一括実行せず、薄い PDCA cycle で回す。
 画面幅、DOM 変化、カーソル位置、ブラウザ面、AI面が変わるため、
 各操作を小さい work packet に分けて evidence を取ってから次へ進む。
 
+本文の短縮防止、著者性、改行、図、キャプションは
+`references/note-draft-authority-and-layout-contract.md` を参照する。
+
 ## 最小サイクル
 
 ### 1. Goal
@@ -54,6 +57,8 @@ Gate: 一時保存 / 公開に進む / 共有は押さない。
 - 通常リンク残り、誤段落入力、DOM不明、候補が複数で曖昧なら Undo または手動境界へ戻す。
 - 同じ失敗が2回続いたら、その操作 route は使わない。
 - 新しく分かった失敗や手順は checker、contract test、または skill 文言へ落とす。
+- Browser / CDP / DOM timeout、切断、対象タブ消失は `../scripts/note_editor_timeout_recovery.py` に渡す。同じrouteは2回で閉じ、全routeが閉じたら `recovery_routes_exhausted` として停止する。process kill を自動実行しない。
+- `../scripts/note_browser_transport_recovery.py` はread-only snapshotの `snapshot_digest` とPID identityを照合して復旧計画だけを生成し、process終了は実行しない。operator assertionは人間承認の証明ではない。実際の終了は、信頼済みruntimeが現在会話の承認とPID identityを直前に再検証できる場合だけ別操作として行う。復旧後は対象URLと本文構造をfresh readbackし、完了済みmutationを再実行しない。
 
 ## work packet 分割例
 
@@ -64,6 +69,8 @@ Gate: 一時保存 / 公開に進む / 共有は押さない。
 | cursor prep | 空段落へ cursor を置く | selection なし / 空段落 | 本文中や選択あり |
 | embed one URL | URL 1件を貼って Enter | `figure[data-src]` 1件 | hrefだけ / 誤段落 |
 | footer sweep | footer のリンク状態を検査 | raw URL / 重複 / 旧ラベルなし | 不一致あり |
+| layout audit | 改行、図、キャプションを照合 | 主要句とfigure近傍構造が正本と一致 | 短縮、図欠落、空段落、caption不一致 |
+| timeout recovery | stale bindingを捨てて対象タブを再取得 | fresh session + exact URL +本文構造readback | 同一route 2回 / 全route枯渇 |
 | save state | 保存状態を表示確認 | 自動保存/手動保存表示の evidence | 保存系 button を押す必要 |
 | publish gate | 公開前停止条件を確認 | 未実行 action を列挙 | 明示承認なし |
 | postpublish ledger | 公開URLと台帳を確認 | published/draft ledger evidence | 公開URL/status 未確認 |

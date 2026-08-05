@@ -46,9 +46,26 @@ description: "Use when the user wants repo-local, end-to-end Note publishing sup
 - worker 出力は raw のまま採用せず、親 runtime が source、diff、test、publication gate を確認してから反映する。
 - worker が使えない tool surface では、理由を closeout に残し、親 runtime が同じ分担粒度で順に処理する。
 
+### MPC型フィードバックとFDE分割
+
+複数の問題を一度に総当たりすると、組合せが急増する「次元の呪い」が起きる。
+これを消せるとは主張せず、FDEで同時に探索する軸を分割する。
+
+- 観測: 現在の原稿、検査、Browser、runtime、公開境界を別々に測る。
+- 予測: 各軸の次の一手が改善する範囲と、壊し得る範囲を記録する。
+- 局所最適化: 内容品質、記事構造、UI復旧、runtime配布などを独立担当へ分ける。
+- 一歩実行: 各軸で最小の検証可能な変更だけを反映する。
+- 再観測: focused testと統合testを測り、失敗した軸だけ計画を更新する。
+
+局所担当は他軸の変更を決めず、親runtimeが合流点、Type1境界、公開判断を統合する。
+これはMPC（モデル予測制御）のように、有限範囲を予測して一歩進み、結果から再計画する運用契約である。
+
 ## Guarantee Ratchet
 
 Note editor 実測で見つかった失敗、手動境界、復旧手順、成功条件は、その場限りの会話メモで終わらせない。
+
+壁打ち、問答、口調・著者性、短縮防止、改行、図、キャプションの共通契約は
+`references/note-draft-authority-and-layout-contract.md` を正本にする。
 
 - 失敗した操作は、原因、復旧方法、次回の禁止事項を短く記録する。
 - 再発防止できるものは、既存 script の checker、package contract test、または子スキルの境界文言へ落とす。
@@ -80,6 +97,7 @@ Note editor 実測で見つかった失敗、手動境界、復旧手順、成�
 
 - ユーザーが明示的に選んだローカル資料フォルダだけ読む。
 - 公開、予約投稿、投稿、共有、告知、SNS 同時投稿、外部送信、公開範囲変更は、現在の会話で対象記事と操作を特定した明示承認があるまで実行しない。
+- `note_browser_transport_recovery.py` はread-only計画専用とし、process終了や人間承認の真正性確認をこの公開packageだけで行ったとみなさない。
 - Note 画面では、公開ボタン、投稿ボタン、予約確定ボタンを押す手前で停止する。
 - X 投稿、いいね、キャンペーン、自動告知、Discord/Slack 共有はこの汎用 Note パッケージ外。別依頼と別承認で扱う。
 - 内部ブラウザだけで画像アップロードを完全自動化できる前提にしない。失敗時は手動または supervised 操作に分け、未設定ならその状態を報告する。
@@ -164,6 +182,11 @@ Note editor 実測で見つかった失敗、手動境界、復旧手順、成�
 - 本文は事実、推定、意見が混ざらないように書く。根拠が必要な主張は確認対象として残す。
 - TOP 画像は 7 案を出す。実画像生成ができない場合は prompt、構図、避ける表現、適合理由を出す。
 - タグ案は広い発見タグ、主題タグ、文脈タグ、所有シリーズタグを混ぜる。
+- 本人の発言や素材が不足する場合は問答 intake に戻り、`voice_profile` を根拠に感想や体験を作文しない。`shortening_budget` を置き、省略候補は人間確認なしに削除しない。
+- `production_candidate` は、問答packetまたは編集前正本を一意に示す
+  `shortening_source` と `shortening_budget` をfrontmatterへ記録し、
+  production QA で `note_authorship_gate.py` を実行する。
+  `shortening.checked=true` と `overall=ok` を確認できなければ完了扱いにしない。
 
 ### note-prepublish-qa
 
@@ -209,6 +232,7 @@ python scripts\note_diff_check.py <note_url> <draft.md> <phrase...> --snapshot-o
 - `note-editor-ops` と組み合わせ、1 cycle 1 action で再現手順と復旧可否を残す。
 - 自動化できるものは checker / contract test / skill 文言へ落とす。
 - UI 状態に依存して保証できないものは手動境界として公開 gate に残す。
+- 改行、図、キャプションは `references/note-draft-authority-and-layout-contract.md` と照合する。
 
 ### note-publication-gate
 

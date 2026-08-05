@@ -17,6 +17,8 @@ Note editor で実際に必要になる低レベル操作を、機能ごとに�
 `../note-editor-constraint-debug/SKILL.md` を読む。
 操作の分割、検証、差し戻しは
 `../../references/note-editor-pdca-orchestration.md` を読む。
+本文の短縮防止、著者性、改行、図、キャプションは
+`../../references/note-draft-authority-and-layout-contract.md` を読む。
 埋め込み、目次、Shift+Enter の live 実測境界は
 `../../references/note-editor-live-constraint-boundaries.md` を読む。
 画像 upload 境界は `../../references/note-image-upload-automation-boundary.md` を読み、
@@ -43,6 +45,7 @@ Note editor で実際に必要になる低レベル操作を、機能ごとに�
 - Codex main、Spark、worker、human supervised。
 - PDCA、Goal、Plan、Do、Check、Act、work packet、cycle、orchestration。
 - 公開後、台帳、published_notes、note_drafts。
+- transport closed、timeout、切断、対象タブ消失、図や改行の欠落。
 
 ## 機能別操作
 
@@ -81,6 +84,10 @@ Note editor で実際に必要になる低レベル操作を、機能ごとに�
 - fallback順は `same target re-inspect -> manual/human supervised -> user-approved surface switch -> hold` とする。
 - manualまたはhuman supervisedへ渡す時は、対象URL、local file path、完了確認項目、未実行の公開系操作を返す。
 - 別surfaceへの自動fallbackは禁止する。新しい対象ロックとユーザー確認が揃ってから別cycleとして開始する。
+
+Browser / CDP / DOM の timeout、切断、対象タブ消失は `../../scripts/note_editor_timeout_recovery.py` に渡す。同じrouteは2回で閉じ、古いsession、claim、locatorを破棄する。全routeが閉じたら `recovery_routes_exhausted` として停止し、process kill を自動実行しない。
+
+新しいsmokeでもtransport切断が再現し、対象限定終了が現在会話で承認された場合だけ `../../scripts/note_browser_transport_recovery.py` を使う。read-only snapshotの `snapshot_digest` とPID identityが一致する時だけ対象processを終了し、汎用processやidentityが変わったPIDには触れない。復旧後は対象URL、本文、図、キャプション、改行をfresh readbackし、完了済みmutationを再実行しない。
 
 ### 2. Publication gate
 
@@ -127,6 +134,7 @@ Note editor で実際に必要になる低レベル操作を、機能ごとに�
 - フッターでは、生URL残り、旧ラベル通常リンク残り、同一URL重複、意図しない段落混入を確認する。
 - DOM 確認時は viewport size、scroll position、本文 root、対象 paragraph を closeout に残す。
 - 操作対象の候補数、採用した識別子、使わなかった候補、DOM path が viewport 依存だったかを closeout に残す。
+- 図の直前・直後の空段落、`<figcaption>`、段落内`<br>`、文字として残ったバックスラッシュを確認し、`note_figure_structure_gate.py` と `note_linebreak_gate.py` の結果へ接続する。
 
 ### 5. Undo recovery
 

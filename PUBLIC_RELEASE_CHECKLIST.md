@@ -26,6 +26,8 @@ Note Publishing Suite を公開 GitHub リポジトリにプッシュする前�
 - `PUBLIC_READY.md` に未実行の外部検証と人間レビューゲートを明記している。
 - `scripts/docs_sync_check.py`が成功し、README生成物と関連文書が同期している。
 - docs-sync workflowの権限が`contents: read`で、commit、push、PR編集を含まない。
+- Browser transport復旧はread-only計画専用で、公開packageがprocess終了や人間承認の真正性確認を行わない。
+- Linuxの通常テストとWindows installer smokeがCIで分離され、両方の結果を確認できる。
 
 ## 検証
 

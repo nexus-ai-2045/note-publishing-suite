@@ -1,5 +1,5 @@
 name: note-publishing-suite
-version: 0.2.19
+version: 0.2.20
 scope: repo-local
 repo_root: .
 entrypoint: SKILL.md
@@ -9,6 +9,7 @@ changelog: CHANGELOG.md
 issue_draft: issue-drafts.md
 issue_packet: issue-packet.json
 references:
+  note_draft_authority_and_layout_contract: references/note-draft-authority-and-layout-contract.md
   note_editor_capability_inventory: references/note-editor-capability-inventory.md
   note_editor_pdca_orchestration: references/note-editor-pdca-orchestration.md
   note_editor_live_constraint_boundaries: references/note-editor-live-constraint-boundaries.md
@@ -26,6 +27,7 @@ docs_sync_contract: |
       }
     ],
     "required_docs": [
+      "CONTRIBUTING.md",
       "README.md",
       "README.rendered.html",
       "SKILL.md",
@@ -56,6 +58,7 @@ docs_sync_contract: |
       }
     ],
     "public_package_docs": [
+      "CONTRIBUTING.md",
       "README.md",
       "README.rendered.html",
       "SKILL.md",
@@ -81,6 +84,9 @@ runtime:
     - Obsidian
     - todo.md
 orchestration:
+  decomposition_strategy: fde_axis_partition
+  control_loop: mpc_feedback_loop
+  integration_owner: parent_runtime_integration
   optional_acceleration: true
   required: false
   trigger_hint: three_files_or_three_topics_or_more
@@ -141,6 +147,11 @@ ledgers:
 local_only_policies:
   provenance_leak: data/provenance_leak_policy.local.json
   github_identity_guard: data/github_identity_guard_policy.local.json
+browser_transport_recovery:
+  mode: read_only_plan
+  process_termination_performed: false
+  approval_authenticity_verified: false
+  execution_owner: trusted_runtime_outside_this_package
 provenance_label_contract:
   source_mode: source_pack_locked_with_user_speech_priority
   required_labels:
@@ -153,6 +164,17 @@ public_policy_examples:
   - data/provenance_leak_policy.example.json
   - data/github_identity_guard_policy.example.json
 existing_scripts:
+  - scripts/note_authorship_gate.py
+  - scripts/note_interview_packet.py
+  - scripts/note_linebreak_gate.py
+  - scripts/note_figure_structure_gate.py
+  - scripts/note_browser_transport_recovery.py
+  - scripts/note_editor_timeout_recovery.py
+  - scripts/note_editor_pdca_failure_check.py
+  - scripts/note_cover_image_upload_check.py
+  - scripts/note_editor_toolbar_measurement_check.py
+  - scripts/sync_note_public_snapshot.py
+  - scripts/package_consistency_check.py
   - scripts/note_preview.py
   - scripts/pre_publish_check.py
   - scripts/note_fact_check.py
@@ -206,6 +228,7 @@ verification:
       - pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
     windows_equivalent:
       - pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
+      - pwsh -NoProfile -File adapters/codex/install.ps1 -PackageRoot <package-root> -DestinationRoot <temporary-skills-root>
   lanes:
     embedded_copy:
       mode: embedded_copy_text_scan_only
