@@ -122,6 +122,25 @@ def test_public_markdown_strips_html_comment_bang_end_tag():
     assert public_text == "本文。\n"
 
 
+def test_multiline_provenance_accepts_and_strips_html_comment_bang_end_tag():
+    checker = load_script("provenance_label_check")
+    text = sample_draft().replace("-->", "--!>")
+    _, body, start_line = checker.split_frontmatter(text)
+
+    blocks, findings = checker.parse_blocks(body, start_line)
+    public_text = checker.strip_provenance_comments(body)
+
+    assert findings == []
+    assert [block.label for block in blocks] == [
+        "user-said",
+        "external-fact",
+        "assistant-organized",
+        "hold",
+    ]
+    assert "<!-- provenance" not in public_text
+    assert "本人の言葉" in public_text
+
+
 def test_review_preview_renders_visible_japanese_provenance_labels():
     preview = load_script("note_preview")
     rendered = preview.render_markdown(sample_draft(), review_provenance=True)
