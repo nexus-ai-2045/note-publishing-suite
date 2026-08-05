@@ -4,6 +4,24 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
+## 0.2.17
+
+日付: 2026-08-05
+
+変更:
+- `package.yaml`にドキュメント同期契約を追加した。
+- 生成物差分、関連文書レビュー漏れ、必須文書欠損をread-onlyで検出するcheckerとPR workflowを追加した。
+- CI失敗時に検査JSONと生成物patchをartifactとして取得できるようにした。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `python scripts/docs_sync_check.py --base-ref origin/main`
+- `sh scripts/verify_public_package.sh`
+
+公開境界:
+- CI権限は`contents: read`。commit、push、PR編集は行わない。
+- Note投稿、予約投稿、SNS共有、外部告知、GitHub release、tag、repository visibility変更は未実行。
+
 ## 0.2.16
 
 日付: 2026-08-05

@@ -61,6 +61,8 @@ Note editor 実測で見つかった失敗、手動境界、復旧手順、成�
 - checker に落とす場合は、実記事 draft への実行結果まで確認する。
 - UI やブラウザ状態に依存して自動保証できないものは、手動境界として明記し、公開 gate の確認項目へ残す。
 - 追加した保証は、closeout で「増やした保証」「実行したテスト」「まだ保証しないもの」に分けて報告する。
+- packageやworkflowを変更するPRでは、`scripts/docs_sync_check.py`で生成物と関連文書を検査する。通常検査はread-onlyとし、修復は明示的な`--fix-generated`だけに限定する。
+- docs-sync CIは`contents: read`を保ち、artifact以外の外部書き込み、commit、push、PR編集を行わない。
 - ユーザーが日本語運用を指定している場合、完了報告や PR 報告の
   状態語を CLI 表示の英語のまま出さない。これは謝罪文ではなく
   `output_language_gate` の構造バグとして扱う。

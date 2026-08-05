@@ -16,7 +16,7 @@ publication_gate: human_review_required
 Codex 向けパッケージです。公開・予約投稿・SNS 共有は自動で行わず、
 必ず公開直前で止まります。
 
-パッケージ版: `0.2.16`
+パッケージ版: `0.2.17`
 
 [3分で始める](#3分で始める) · [安全設計](#安全設計) · [詳しい資料](#入口と詳しい資料)
 
@@ -129,6 +129,21 @@ Noteログイン、常時接続、画像アップロードの完全自動化は�
 - `scripts/note_diff_check.py` / `scripts/fetch_note_body.js`: 公開本文の取得・差分確認。
 - `scripts/post_publish.py`: 既定はドライランの台帳更新。
 - `scripts/bump_package_version.py`: patch / minor / major を自動採番。
+- `scripts/docs_sync_check.py`: 生成物と関連文書をread-onlyで同期検査。
+
+## PRごとのドキュメント同期
+
+`package.yaml`の`docs_sync_contract`を正本として、変更pathに対応する文書更新と
+`README.rendered.html`の生成差分を検査します。通常検査はrepositoryを変更せず、
+不足時は`generated_drift`、`missing_doc_review`、`missing_required_doc`を返します。
+
+```bash
+python scripts/docs_sync_check.py --base-ref origin/main
+```
+
+PRでは`.github/workflows/test.yml`が`contents: read`だけで実行します。失敗時は
+検査JSONと生成物patchをartifactに残しますが、commit、push、PR編集は行いません。
+ローカルで生成物だけ直す場合は、明示的に`--fix-generated`を付けます。
 
 <details>
 <summary>開発者向けの検証と保証</summary>
@@ -137,6 +152,7 @@ Noteログイン、常時接続、画像アップロードの完全自動化は�
 
 ```bash
 python scripts/render_readme.py
+python scripts/docs_sync_check.py --base-ref origin/main
 python scripts/review_draft.py build-context-card content/drafts/sample-note-prepublish-fixture.md --json
 python scripts/review_draft.py review-draft content/drafts/sample-note-prepublish-fixture.md --json
 python scripts/note_editor_prepublish_verify.py data/note_editor_prepublish_observation.fixture.json --json

@@ -58,6 +58,7 @@ def test_required_files_exist():
         "README.md",
         "CHANGELOG.md",
         "PUBLIC_RELEASE_CHECKLIST.md",
+        ".github/pull_request_template.md",
         "issue-drafts.md",
         "issue-packet.json",
         "references/note-editor-capability-inventory.md",
@@ -82,6 +83,7 @@ def test_required_files_exist():
         "scripts/post_publish.py",
         "scripts/engagement_tracker.py",
         "scripts/render_readme.py",
+        "scripts/docs_sync_check.py",
         "scripts/provenance_leak_check.py",
         "scripts/provenance_label_check.py",
         "scripts/github_identity_guard.py",
@@ -96,6 +98,7 @@ def test_required_files_exist():
         "scripts/verify_public_package.sh",
         "adapters/git-hooks/pre-commit",
         "tests/test_review_draft_cli.py",
+        "tests/test_docs_sync_check.py",
         "data/note_editor_prepublish_observation.fixture.json",
         "data/github_identity_guard_policy.example.json",
         "data/note_drafts.json",
@@ -176,6 +179,29 @@ def test_package_version_bump_guard_contract_present():
         assert needle in bump_script, needle
     assert "scripts/bump_package_version.py" in package
     assert "自動採番" in readme
+
+
+def test_read_only_docs_sync_contract_present():
+    checker = (ROOT / "scripts/docs_sync_check.py").read_text(encoding="utf-8")
+    workflow = (ROOT / ".github/workflows/test.yml").read_text(encoding="utf-8")
+    package = (ROOT / "package.yaml").read_text(encoding="utf-8")
+    template = (ROOT / ".github/pull_request_template.md").read_text(encoding="utf-8")
+
+    for needle in [
+        "generated_drift",
+        "missing_doc_review",
+        "missing_required_doc",
+        "repository_modified",
+        "--fix-generated",
+    ]:
+        assert needle in checker, needle
+    assert "docs_sync_contract: |" in package
+    assert "scripts/docs_sync_check.py" in package
+    assert "permissions:\n  contents: read" in workflow
+    assert "actions/upload-artifact@v4" in workflow
+    for forbidden in ["git push", "gh pr edit", "pull-requests: write", "contents: write"]:
+        assert forbidden not in workflow
+    assert "更新不要。理由:" in template
 
 
 def test_fetch_note_body_contract_present():

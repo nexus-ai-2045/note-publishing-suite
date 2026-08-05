@@ -110,7 +110,7 @@
 <p><strong>書くところまで自動化。公開は、人が決める。</strong></p>
 <p><code>素材</code> → <code>記事候補</code> → <code>下書き</code> → <code>QA</code> → <code>Note 下書き保存</code> → <strong>人間の公開判断</strong></p>
 <p>ローカル素材から Note の下書きを作り、検査し、エディタへ反映する Codex 向けパッケージです。公開・予約投稿・SNS 共有は自動で行わず、 必ず公開直前で止まります。</p>
-<p>パッケージ版: <code>0.2.16</code></p>
+<p>パッケージ版: <code>0.2.17</code></p>
 <p><a href="#3分で始める">3分で始める</a> · <a href="#安全設計">安全設計</a> · <a href="#入口と詳しい資料">詳しい資料</a></p>
 <h2>できること</h2>
 <div class="table-wrap"><table>
@@ -190,11 +190,17 @@ sh scripts/verify_public_package.sh</code></pre>
 <li><code>scripts/note_diff_check.py</code> / <code>scripts/fetch_note_body.js</code>: 公開本文の取得・差分確認。</li>
 <li><code>scripts/post_publish.py</code>: 既定はドライランの台帳更新。</li>
 <li><code>scripts/bump_package_version.py</code>: patch / minor / major を自動採番。</li>
+<li><code>scripts/docs_sync_check.py</code>: 生成物と関連文書をread-onlyで同期検査。</li>
 </ul>
+<h2>PRごとのドキュメント同期</h2>
+<p><code>package.yaml</code>の<code>docs_sync_contract</code>を正本として、変更pathに対応する文書更新と <code>README.rendered.html</code>の生成差分を検査します。通常検査はrepositoryを変更せず、 不足時は<code>generated_drift</code>、<code>missing_doc_review</code>、<code>missing_required_doc</code>を返します。</p>
+<pre><code>python scripts/docs_sync_check.py --base-ref origin/main</code></pre>
+<p>PRでは<code>.github/workflows/test.yml</code>が<code>contents: read</code>だけで実行します。失敗時は 検査JSONと生成物patchをartifactに残しますが、commit、push、PR編集は行いません。 ローカルで生成物だけ直す場合は、明示的に<code>--fix-generated</code>を付けます。</p>
 <details>
 <summary>開発者向けの検証と保証</summary>
 <h2>開発・検証</h2>
 <pre><code>python scripts/render_readme.py
+python scripts/docs_sync_check.py --base-ref origin/main
 python scripts/review_draft.py build-context-card content/drafts/sample-note-prepublish-fixture.md --json
 python scripts/review_draft.py review-draft content/drafts/sample-note-prepublish-fixture.md --json
 python scripts/note_editor_prepublish_verify.py data/note_editor_prepublish_observation.fixture.json --json

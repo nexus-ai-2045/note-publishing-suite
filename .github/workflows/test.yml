@@ -10,6 +10,9 @@ on:
     types: [published]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   package-smoke:
     runs-on: ubuntu-latest
@@ -86,3 +89,55 @@ jobs:
 
       - name: Run local ledger smoke
         run: python scripts/engagement_tracker.py report --json
+
+  docs-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+
+      - name: Extract pull request review text
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          event_path = Path(os.environ["GITHUB_EVENT_PATH"])
+          event = json.loads(event_path.read_text(encoding="utf-8"))
+          body = (event.get("pull_request") or {}).get("body") or ""
+          Path("/tmp/docs-sync-review.txt").write_text(body, encoding="utf-8")
+          PY
+
+      - name: Run read-only docs sync checker
+        id: check
+        shell: bash
+        run: |
+          set +e
+          BASE_REF="origin/${GITHUB_BASE_REF:-main}"
+          python scripts/docs_sync_check.py \
+            --base-ref "$BASE_REF" \
+            --review-file /tmp/docs-sync-review.txt \
+            --json-out build/docs-sync/result.json \
+            --patch-out build/docs-sync/generated.patch
+          STATUS=$?
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload docs sync evidence
+        if: steps.check.outputs.status != '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-sync-evidence
+          path: build/docs-sync/
+
+      - name: Enforce docs sync result
+        if: steps.check.outputs.status != '0'
+        run: exit 1
