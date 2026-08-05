@@ -19,6 +19,18 @@ def inline(text: str) -> str:
     escaped = re.sub(r"`([^`]+)`", r"<code>\1</code>", escaped)
     escaped = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", escaped)
 
+    def render_image(match: re.Match[str]) -> str:
+        alt, escaped_target = match.groups()
+        target = html.unescape(escaped_target)
+        parsed = urlsplit(target)
+        is_safe = parsed.scheme in {"", "http", "https"} and not target.startswith("//")
+        if not is_safe:
+            return match.group(0)
+        safe_target = html.escape(target, quote=True)
+        return f'<img src="{safe_target}" alt="{alt}" loading="lazy">'
+
+    escaped = re.sub(r"!\[([^\]]*)\]\(([^)\s]+)\)", render_image, escaped)
+
     def render_link(match: re.Match[str]) -> str:
         label, escaped_target = match.groups()
         target = html.unescape(escaped_target)
@@ -268,6 +280,13 @@ def main() -> int:
       border: 1px solid var(--line);
     }}
     pre code {{ padding: 0; background: transparent; color: var(--text); }}
+    img {{
+      display: block;
+      width: 100%;
+      height: auto;
+      margin: 20px 0 24px;
+      border-radius: 8px;
+    }}
   </style>
 </head>
 <body>
