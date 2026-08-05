@@ -8,11 +8,17 @@ publication_gate: human_review_required
 
 # Note Publishing Suite
 
-ローカル素材から Note の下書きを作り、検査し、エディタへ反映する
-Codex 向けパッケージです。**公開・予約投稿・SNS 共有は自動で行わず、
-必ず公開直前で止まります。**
+**書くところまで自動化。公開は、人が決める。**
 
-パッケージ版: `0.2.14`
+`素材` → `記事候補` → `下書き` → `QA` → `Note 下書き保存` → **人間の公開判断**
+
+ローカル素材から Note の下書きを作り、検査し、エディタへ反映する
+Codex 向けパッケージです。公開・予約投稿・SNS 共有は自動で行わず、
+必ず公開直前で止まります。
+
+パッケージ版: `0.2.15`
+
+[3分で始める](#3分で始める) · [安全設計](#安全設計) · [詳しい資料](#入口と詳しい資料)
 
 ## できること
 
@@ -84,6 +90,9 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
 python scripts/provenance_label_check.py <draft.md> --json
 ```
 
+<details>
+<summary>Note エディタの詳しい境界</summary>
+
 ## Note エディタの境界
 
 接続できる場合に限り、タイトル、本文、リンク、画像、タグなどを反映します。
@@ -99,6 +108,8 @@ python scripts/provenance_label_check.py <draft.md> --json
 リンクカードはURLを単独行に置いて Enter を押し、`figure[data-src]` などの
 DOMで確認します。同期しない場合や固定座標が必要な場合は手動境界へ切り替えます。
 Noteログイン、常時接続、画像アップロードの完全自動化は保証しません。
+
+</details>
 
 ## 入口と詳しい資料
 
@@ -118,6 +129,9 @@ Noteログイン、常時接続、画像アップロードの完全自動化は�
 - `scripts/note_diff_check.py` / `scripts/fetch_note_body.js`: 公開本文の取得・差分確認。
 - `scripts/post_publish.py`: 既定はドライランの台帳更新。
 - `scripts/bump_package_version.py`: patch / minor / major を自動採番。
+
+<details>
+<summary>開発者向けの検証と保証</summary>
 
 ## 開発・検証
 
@@ -147,3 +161,5 @@ python -m pytest scripts/test_skill_integration.py tests
 
 GitHubではこのREADMEをそのまま読めます。ローカル整形版は
 `python scripts/render_readme.py` で `README.rendered.html` に生成できます。
+
+</details>

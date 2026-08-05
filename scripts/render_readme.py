@@ -129,6 +129,18 @@ def render(markdown: str) -> str:
             close_para()
             close_ul()
             continue
+        stripped = line.strip()
+        if stripped in {"<details>", "</details>"}:
+            close_para()
+            close_ul()
+            out.append(stripped)
+            continue
+        summary = re.fullmatch(r"<summary>(.+)</summary>", stripped)
+        if summary:
+            close_para()
+            close_ul()
+            out.append(f"<summary>{inline(summary.group(1))}</summary>")
+            continue
         heading = re.match(r"^(#{1,6})\s+(.+)$", line)
         if heading:
             close_para()
@@ -205,6 +217,18 @@ def main() -> int:
     p {{ margin: 12px 0; }}
     ul {{ padding-left: 1.3rem; }}
     li {{ margin: 8px 0; }}
+    details {{
+      margin: 24px 0;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+    }}
+    summary {{
+      cursor: pointer;
+      color: var(--accent);
+      font-weight: 650;
+    }}
+    details[open] summary {{ margin-bottom: 16px; }}
+    details h2:first-of-type {{ margin-top: 0; }}
     .table-wrap {{
       margin: 18px 0;
       overflow-x: auto;
