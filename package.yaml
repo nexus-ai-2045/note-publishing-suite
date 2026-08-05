@@ -1,5 +1,5 @@
 name: note-publishing-suite
-version: 0.2.18
+version: 0.2.19
 scope: repo-local
 repo_root: .
 entrypoint: SKILL.md
@@ -30,6 +30,7 @@ docs_sync_contract: |
       "README.rendered.html",
       "SKILL.md",
       "ROADMAP.md",
+      "PROJECT_SSOT.md",
       "CHANGELOG.md",
       "PUBLIC_READY.md",
       "PUBLIC_RELEASE_CHECKLIST.md",
@@ -59,6 +60,7 @@ docs_sync_contract: |
       "README.rendered.html",
       "SKILL.md",
       "ROADMAP.md",
+      "PROJECT_SSOT.md",
       "CHANGELOG.md",
       "PUBLIC_READY.md",
       "PUBLIC_RELEASE_CHECKLIST.md",
@@ -145,6 +147,7 @@ provenance_label_contract:
     - user-said
     - external-fact
     - assistant-organized
+  blocking_labels:
     - hold
 public_policy_examples:
   - data/provenance_leak_policy.example.json

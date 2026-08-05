@@ -6,12 +6,14 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
 PRE_PUBLISH_CHECK = ROOT / "scripts" / "pre_publish_check.py"
+PROVENANCE_LABEL_CHECK = ROOT / "scripts" / "provenance_label_check.py"
 
 
 def load_pre_publish_check():
@@ -19,6 +21,17 @@ def load_pre_publish_check():
     if spec is None or spec.loader is None:
         raise RuntimeError("failed to load pre_publish_check.py")
     module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_provenance_label_check():
+    name = "provenance_label_check"
+    spec = importlib.util.spec_from_file_location(name, PROVENANCE_LABEL_CHECK)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("failed to load provenance_label_check.py")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -76,6 +89,13 @@ def build_context_card(draft: Path) -> dict[str, Any]:
     metadata, body = parse_frontmatter(text)
     pre_publish_check = load_pre_publish_check()
     issues = pre_publish_check.collect_issues(text)
+    provenance_check = load_provenance_label_check()
+    provenance_result = provenance_check.check_draft(draft)
+    counts = {label: 0 for label in provenance_check.ALLOWED_LABELS}
+    for block in provenance_result.get("blocks", []):
+        kind = str(block.get("kind") or "")
+        if kind in counts:
+            counts[kind] += 1
 
     title = str(metadata.get("title") or "").strip()
     if not title:
@@ -103,6 +123,22 @@ def build_context_card(draft: Path) -> dict[str, Any]:
             else ("warning" if issues else "ok"),
             "issues": issues,
         },
+        "provenance": {
+            "overall": provenance_result.get("overall", "skipped"),
+            "publication_ready": provenance_result.get("publication_ready", False),
+            "counts": counts,
+            "hold_count": counts["hold"],
+            "findings": provenance_result.get("findings", []),
+            "review_handles": [
+                {
+                    "kind": block.get("kind", ""),
+                    "heading": block.get("heading", ""),
+                    "quote": block.get("quote", ""),
+                    "review": block.get("review", ""),
+                }
+                for block in provenance_result.get("blocks", [])
+            ],
+        },
         "external_actions_performed": [],
         "publication_actions_performed": [],
     }
@@ -112,6 +148,12 @@ def build_context_card(draft: Path) -> dict[str, Any]:
 def review_draft(draft: Path) -> dict[str, Any]:
     context_card = build_context_card(draft)
     reason_codes = normalize_reason_codes(context_card["prepublish"]["issues"])
+    provenance = context_card["provenance"]
+    reason_codes.extend(
+        str(finding.get("code"))
+        for finding in provenance["findings"]
+        if finding.get("code")
+    )
     confirmation_questions: list[str] = []
 
     article_lane = str(context_card.get("article_lane") or "")
@@ -143,7 +185,8 @@ def review_draft(draft: Path) -> dict[str, Any]:
         confirmation_questions.append("pre-publish warning / error を解消するまで editor 反映を止めますか。")
 
     reason_codes = unique_ordered(reason_codes)
-    if has_errors or has_blocking_lane:
+    has_provenance_errors = provenance["overall"] == "error"
+    if has_errors or has_blocking_lane or has_provenance_errors:
         verdict = "blocked"
     elif context_card["prepublish"]["issues"] or publication_gate == "human_review_required":
         verdict = "needs_confirmation"

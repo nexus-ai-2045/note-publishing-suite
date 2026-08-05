@@ -16,7 +16,7 @@ publication_gate: human_review_required
 Codex 向けパッケージです。公開・予約投稿・SNS 共有は自動で行わず、
 必ず公開直前で止まります。
 
-パッケージ版: `0.2.18`
+パッケージ版: `0.2.19`
 
 [3分で始める](#3分で始める) · [安全設計](#安全設計) · [詳しい資料](#入口と詳しい資料)
 
@@ -90,6 +90,22 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
 python scripts/provenance_label_check.py <draft.md> --json
 ```
 
+AI 作文を含む下書きは、次の順でローカルレビューします。
+
+```bash
+python scripts/provenance_label_check.py <draft.md> --json
+python scripts/note_preview.py <draft.md> --review-provenance -o <review.html>
+python scripts/provenance_label_check.py <draft.md> --public-output <public-body.md>
+```
+
+- 「記事を書いて」「文章にまとめて」「会話を記事に」「メモを記事に」
+  「下書きを直して」も下書き制作の自動発火対象です。
+- レビュー HTML では、ユーザー発言、確認済み外部事実、AI による整理・
+  言い換え、未確認・人間判断待ちを色分けします。
+- 修正対象は内部 ID ではなく、見出しまたは本文の短い引用で指定できます。
+- `hold` が残る間は公開本文候補を書き出しません。公開本文候補では
+  ローカル管理用の由来コメントを除去します。
+
 <details>
 <summary>Note エディタの詳しい境界</summary>
 
@@ -115,6 +131,7 @@ Noteログイン、常時接続、画像アップロードの完全自動化は�
 
 | 目的 | 参照先 |
 | --- | --- |
+| プロジェクト境界と現在地 | [PROJECT_SSOT.md](PROJECT_SSOT.md) |
 | Codex から使う | [SKILL.md](SKILL.md) |
 | 機械可読の契約 | [package.yaml](package.yaml) |
 | 今後の計画 | [ROADMAP.md](ROADMAP.md) |

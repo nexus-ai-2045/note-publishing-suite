@@ -1,6 +1,6 @@
 ---
 name: note-publishing-suite
-description: "Use when the user wants repo-local, end-to-end Note publishing support: idea intake, local source review, skeleton and draft production, top-image and tag planning, local prepublish QA, Note editor handoff, publication gate, post-publish verification, and local ledger updates. Also use for Japanese requests such as \"note投稿を一気通貫\", \"Note投稿パッケージ\", \"note公開前チェック\", \"note台帳\", \"Note下書きから公開後まで\", or \"noteスキル郡\"."
+description: "Use when the user wants repo-local, end-to-end Note publishing support or asks to write, assemble, or revise an article/draft from conversation or notes. Also use for Japanese requests such as \"記事を書いて\", \"文章にまとめて\", \"会話を記事に\", \"メモを記事に\", \"下書きを直して\", \"note投稿を一気通貫\", \"Note投稿パッケージ\", or \"note公開前チェック\"."
 ---
 
 # Note Publishing Suite
@@ -16,6 +16,10 @@ description: "Use when the user wants repo-local, end-to-end Note publishing sup
 ## Routing
 
 ユーザーの依頼を次の phase に分ける。複数 phase にまたがる場合も、公開/外部送信 gate は最後まで保持する。
+
+「記事を書いて」「文章にまとめて」「会話を記事に」「メモを記事に」
+「下書きを直して」など、Note を明記しない作文・編集依頼でも、公開候補へ
+つながるローカル記事制作なら本スキルを自動発火する。
 
 | phase | 子スキル | 主な成果物 | 停止条件 |
 |---|---|---|---|
@@ -54,6 +58,11 @@ Note editor 実測で見つかった失敗、手動境界、復旧手順、成�
 - `source_mode: source_pack_locked_with_user_speech_priority` の draft では、
   `scripts/provenance_label_check.py <draft.md> --json` で `user-said`、
   `external-fact`、`assistant-organized`、`hold` の境界を検査する。
+- ローカル Markdown の由来情報は公開本文へ見せる注記ではない。
+  `note_preview.py --review-provenance` で人間レビュー用 HTML を作り、
+  修正指示は内部 ID ではなく見出しまたは本文の短い引用で受ける。
+- `hold` がゼロになり検査が通った後だけ、
+  `provenance_label_check.py --public-output` で由来コメントを除いた本文候補を作る。
 - note editor の埋め込み、目次、Shift+Enter の live 実測境界は
   `references/note-editor-live-constraint-boundaries.md` を正本にし、
   `figure[data-src]`、`iframe.note-embed`、`table-of-contents`、`toc`、
@@ -274,7 +283,11 @@ python scripts\engagement_tracker.py report
 - 公開/予約/共有は明示承認なしに実行不可と明記されている。
 - X 投稿、いいね、外部告知が Note 汎用パッケージ外として分離されている。
 - `data/note_drafts.json` と `data/published_notes.json` の役割が明記されている。
-- `package.yaml`、`README.md`、`issue-drafts.md`、6つの子スキルが存在する。
+- `package.yaml`、`README.md`、`issue-drafts.md` と、`package.yaml` の
+  `skills` に列挙された全子スキルが存在する。
 - 子スキルが入力、成果物、停止条件、closeout evidence を持つ。
 - `references/note-image-upload-automation-boundary.md` と `scripts/note_image_upload_boundary_check.py` が存在し、画像 upload 境界の残務ゼロを確認できる。
-- `pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py` が通る。
+- 検証コマンドは `package.yaml` の `verification` を正本とし、そこに列挙された
+  公開package検証と必要な developer check が通る。
+- プロジェクト境界と現在地は `PROJECT_SSOT.md` が単独で保持し、
+  内部設計文書や private workspace の path を公開 package へ含めない。

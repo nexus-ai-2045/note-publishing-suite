@@ -4,6 +4,16 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+[Console]::OutputEncoding = $utf8NoBom
+$OutputEncoding = $utf8NoBom
+if (-not $env:PYTHONUTF8) {
+    $env:PYTHONUTF8 = "1"
+}
+if (-not $env:PYTHONIOENCODING) {
+    $env:PYTHONIOENCODING = "utf-8"
+}
+
 $scriptPath = $MyInvocation.MyCommand.Path
 $root = Split-Path -Parent (Split-Path -Parent $scriptPath)
 $skipStandaloneVerifierLane = $env:NOTE_PUBLISHING_SUITE_STANDALONE_VERIFIER_DEPTH -eq "1"
@@ -474,7 +484,6 @@ Test-Contains "references/note-article-provenance-design.md" "source_pack_locked
 Test-Contains "content/drafts/caramel-provenance-label-fixture.md" "provenance-label: user-said"
 Test-Contains "content/drafts/caramel-provenance-label-fixture.md" "provenance-label: external-fact"
 Test-Contains "content/drafts/caramel-provenance-label-fixture.md" "provenance-label: assistant-organized"
-Test-Contains "content/drafts/caramel-provenance-label-fixture.md" "provenance-label: hold"
 Test-Contains "package.yaml" "scripts/github_identity_guard.py"
 Test-Contains "package.yaml" "data/github_identity_guard_policy.example.json"
 Test-Contains ".gitignore" "data/github_identity_guard_policy.local.json"

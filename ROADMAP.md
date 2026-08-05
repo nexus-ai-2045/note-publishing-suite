@@ -4,10 +4,20 @@ type: roadmap
 status: draft-for-human-review
 publication_gate: human_review_required
 external_action: none
-updated: 2026-06-16
+updated: 2026-08-05
 ---
 
 # Note Publishing Suite ロードマップ
+
+## プロジェクト起動
+
+プロダクト正本を `main` の履歴に固定し、境界と現在地は
+[`PROJECT_SSOT.md`](PROJECT_SSOT.md) が単独で保持する。
+private workspace に散在する議論は公開 package 外の索引から追跡し、
+旧コピーを丸ごと同期せず、採用した意味だけを責務別の正本へ吸収する。
+
+最初の運用マイルストーンは、ローカル下書き1本を公開直前停止まで通し、
+再現可能な証跡を残すこととする。公開、予約投稿、告知、外部共有は含まない。
 
 このロードマップは、`note-publishing-suite` をローカル記事運用パッケージから、
 レビュー可能で再現可能な Note 投稿オーケストレーション基盤へ育てるための正本。

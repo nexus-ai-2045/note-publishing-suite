@@ -135,6 +135,10 @@ source pack で確認した外部事実。
 保留: 未確認、追加確認、公開前レビューに戻す項目。
 ```
 
+`user-said`、`external-fact`、`assistant-organized` は必須とする。
+`hold` は未解決事項がある場合だけ置く停止ラベルであり、残っている間は
+公開本文候補を生成しない。
+
 この mode では `scripts/provenance_label_check.py <draft.md> --json` を使い、
 `user-said`、`external-fact`、`assistant-organized`、`hold` の境界が
 崩れていないか確認する。
