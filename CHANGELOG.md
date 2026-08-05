@@ -4,7 +4,7 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
-## 0.2.15
+## 0.2.16
 
 日付: 2026-08-05
 
@@ -14,6 +14,22 @@ GitHub リリースやタグは別の公開操作として扱い、ここには�
 検証:
 - `python -m pytest scripts/test_skill_integration.py tests -q`
 - `README renderer contract tests`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
+## 0.2.15
+
+日付: 2026-08-05
+
+変更:
+- 内部のドキュメント同期設計を公開パッケージからProjects側の設計正本へ移し、パッケージには実装済みの契約だけを置く境界へ修正した。
+- 0.2.14のREADME改善と0.2.13のGitHub公開名義修正は維持した。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `sh scripts/verify_public_package.sh`
 
 公開境界:
 - Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
@@ -45,22 +61,6 @@ GitHub リリースやタグは別の公開操作として扱い、ここには�
 - `python -m pytest scripts/test_skill_integration.py -q`（34件）
 - `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1`（265項目）
 - `public-readiness readiness_scan.py`（人間レビュー前の停止条件を確認）
-
-公開境界:
-- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
-- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
-
-## 0.2.12
-
-日付: 2026-08-02
-
-変更:
-- PR単位のドキュメント同期設計を追加し、生成物と手書き文書の更新漏れをread-only CIで検出する方針を定義した。
-- PR #9のmerge後の状態へ設計前提を更新し、docs-sync実装を別PRへ分離した。
-
-検証:
-- `python -m pytest scripts/test_skill_integration.py tests -q`
-- `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1`
 
 公開境界:
 - Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
