@@ -1,6 +1,6 @@
 ---
 name: note-draft-production
-description: "Use inside note-publishing-suite when creating skeletons, Note drafts, top-image ideas, and tag candidates from approved local materials."
+description: "Use inside note-publishing-suite when the user asks to create or revise an article/draft from approved local materials, conversation, or notes, including Japanese requests such as 記事を書いて, 文章にまとめて, 会話を記事に, メモを記事に, or 下書きを直して."
 ---
 
 # note-draft-production
@@ -36,6 +36,15 @@ description: "Use inside note-publishing-suite when creating skeletons, Note dra
 9. frontmatter に `article_lane`、`source_mode`、`based_on`、
    `allowed_use`、`not_allowed`、`editor_test_allowed`、
    `publication_gate: human_review_required`、`external_action: none` を置く。
+10. 各本文ブロックの直前へローカル管理用の `<!-- provenance ... -->` を置き、
+    `kind`、`source`、`review` を記録する。AI が補った未確認の主張は
+    `kind: hold` とし、本人発言として補完しない。
+11. `provenance_label_check.py`、`note_preview.py --review-provenance` の順に実行し、
+    ローカル Markdown とレビュー HTML を人間レビューへ渡す。
+12. 会話での修正は内部 ID を要求せず、見出しまたは本文の短い引用で対象を特定する。
+    修正後は検査とレビュー HTML を再生成する。
+13. `hold` を解消し検査が通った後だけ `--public-output` を使う。公開、投稿、
+    共有は引き続き別の明示承認まで行わない。
 
 ## 境界
 

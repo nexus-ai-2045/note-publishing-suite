@@ -40,7 +40,3 @@ source pack に固定された公開情報だけを根拠にする。
 <!-- provenance-label: assistant-organized; source: assistant_transition -->
 次の章では、概要、できること、向いている読者、注意点の順で並べる。
 この並び替えは説明設計であり、外部事実や本人発言を増やすものではない。
-
-<!-- provenance-label: hold; source: needs_review_hold -->
-保留: 価格、公開日、競合比較、利用制限は source pack の最新版確認が必要。
-未確認のまま公開本文へ移さず、人間レビューで追加確認する。

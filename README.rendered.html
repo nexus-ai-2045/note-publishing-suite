@@ -110,7 +110,7 @@
 <p><strong>書くところまで自動化。公開は、人が決める。</strong></p>
 <p><code>素材</code> → <code>記事候補</code> → <code>下書き</code> → <code>QA</code> → <code>Note 下書き保存</code> → <strong>人間の公開判断</strong></p>
 <p>ローカル素材から Note の下書きを作り、検査し、エディタへ反映する Codex 向けパッケージです。公開・予約投稿・SNS 共有は自動で行わず、 必ず公開直前で止まります。</p>
-<p>パッケージ版: <code>0.2.17</code></p>
+<p>パッケージ版: <code>0.2.18</code></p>
 <p><a href="#3分で始める">3分で始める</a> · <a href="#安全設計">安全設計</a> · <a href="#入口と詳しい資料">詳しい資料</a></p>
 <h2>できること</h2>
 <div class="table-wrap"><table>
@@ -158,6 +158,19 @@ sh scripts/verify_public_package.sh</code></pre>
 </ul>
 <p>根拠ラベルの確認:</p>
 <pre><code>python scripts/provenance_label_check.py &lt;draft.md&gt; --json</code></pre>
+<p>AI 作文を含む下書きは、次の順でローカルレビューします。</p>
+<pre><code>python scripts/provenance_label_check.py &lt;draft.md&gt; --json
+python scripts/note_preview.py &lt;draft.md&gt; --review-provenance -o &lt;review.html&gt;
+python scripts/provenance_label_check.py &lt;draft.md&gt; --public-output &lt;public-body.md&gt;</code></pre>
+<ul>
+<li>「記事を書いて」「文章にまとめて」「会話を記事に」「メモを記事に」</li>
+<p>「下書きを直して」も下書き制作の自動発火対象です。</p>
+<li>レビュー HTML では、ユーザー発言、確認済み外部事実、AI による整理・</li>
+<p>言い換え、未確認・人間判断待ちを色分けします。</p>
+<li>修正対象は内部 ID ではなく、見出しまたは本文の短い引用で指定できます。</li>
+<li><code>hold</code> が残る間は公開本文候補を書き出しません。公開本文候補では</li>
+<p>ローカル管理用の由来コメントを除去します。</p>
+</ul>
 <details>
 <summary>Note エディタの詳しい境界</summary>
 <h2>Note エディタの境界</h2>
@@ -176,6 +189,7 @@ sh scripts/verify_public_package.sh</code></pre>
 <div class="table-wrap"><table>
 <thead><tr><th>目的</th><th>参照先</th></tr></thead>
 <tbody>
+<tr><td>プロジェクト境界と現在地</td><td><a href="PROJECT_SSOT.md">PROJECT_SSOT.md</a></td></tr>
 <tr><td>Codex から使う</td><td><a href="SKILL.md">SKILL.md</a></td></tr>
 <tr><td>機械可読の契約</td><td><a href="package.yaml">package.yaml</a></td></tr>
 <tr><td>今後の計画</td><td><a href="ROADMAP.md">ROADMAP.md</a></td></tr>

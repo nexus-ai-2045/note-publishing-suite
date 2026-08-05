@@ -782,10 +782,10 @@ def test_provenance_label_checker_contract_present(tmp_path: Path):
     assert result.returncode == 0, result.stdout + result.stderr
     payload = json.loads(result.stdout)
     assert payload["ok"] is True
+    assert payload["publication_ready"] is True
     assert payload["labels_seen"] == [
         "assistant-organized",
         "external-fact",
-        "hold",
         "user-said",
     ]
 
@@ -1006,6 +1006,8 @@ def test_public_package_verifier_runs_from_standalone_clone_fixture(tmp_path: Pa
     env = {
         **os.environ,
         "NOTE_PUBLISHING_SUITE_STANDALONE_VERIFIER_DEPTH": "1",
+        "PYTHONUTF8": "1",
+        "PYTHONIOENCODING": "utf-8",
     }
     if shutil.which("sh"):
         command = ["sh", "scripts/verify_public_package.sh", "--json"]
@@ -1025,6 +1027,7 @@ def test_public_package_verifier_runs_from_standalone_clone_fixture(tmp_path: Pa
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        encoding="utf-8",
         env=env,
         check=False,
     )

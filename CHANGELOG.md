@@ -4,6 +4,23 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
+## 0.2.18
+
+日付: 2026-08-05
+
+変更:
+- プロジェクト正本境界をPROJECT_SSOT.mdへ集約し、内部設計文書を公開packageから分離した。根拠ラベル対応の下書きレビュー経路を取り込んだ。
+- 版はpatchに留める。`0.3.0`はrelease判断と同時に別レビューで扱う。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `pwsh -NoProfile -File scripts/verify_public_package.ps1`
+- `python scripts/docs_sync_check.py --base-ref origin/main`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.2.17
 
 日付: 2026-08-05

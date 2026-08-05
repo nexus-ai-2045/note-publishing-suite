@@ -17,10 +17,17 @@ ALLOWED_LABELS = {
     "assistant-organized",
     "hold",
 }
-REQUIRED_LABELS = ALLOWED_LABELS
+REQUIRED_LABELS = {"user-said", "external-fact", "assistant-organized"}
 
 SOURCE_HINTS = {
-    "user-said": ("user", "speech", "transcript", "confirmed"),
+    "user-said": (
+        "user",
+        "speech",
+        "transcript",
+        "confirmed",
+        "conversation",
+        "current-conversation",
+    ),
     "external-fact": ("external", "official", "public", "source_pack", "source-pack"),
     "assistant-organized": ("assistant", "structure", "synthesis", "transition", "outline"),
     "hold": ("hold", "unresolved", "needs_review", "needs-review"),
@@ -49,6 +56,19 @@ class Block:
     source: str
     line: int
     text: str
+    review: str = ""
+    heading: str = ""
+    quote: str = ""
+
+
+MULTILINE_LABEL_RE = re.compile(
+    r"^\s*<!--\s*provenance\s*\n(?P<meta>.*?)\n\s*-->\s*$",
+    re.M | re.S,
+)
+PROVENANCE_COMMENT_RE = re.compile(
+    r"^\s*<!--\s*(?:provenance-label:.*?-->|provenance\s*\n.*?\n\s*-->)\s*$",
+    re.M | re.S,
+)
 
 
 def split_frontmatter(text: str) -> tuple[dict[str, object], str, int]:
@@ -99,22 +119,38 @@ def parse_blocks(body: str, start_line: int) -> tuple[list[Block], list[dict[str
     findings: list[dict[str, object]] = []
     current_label: str | None = None
     current_source = ""
+    current_review = ""
     current_start = start_line
     current_lines: list[str] = []
 
     def flush() -> None:
-        nonlocal current_lines, current_label, current_source, current_start
+        nonlocal current_lines, current_label, current_source, current_review, current_start
         text = "\n".join(current_lines).strip()
         if text and current_label:
+            heading = ""
+            quote = ""
+            for content_line in text.splitlines():
+                stripped = content_line.strip()
+                if not heading and re.match(r"^#{1,6}\s+", stripped):
+                    heading = re.sub(r"^#{1,6}\s+", "", stripped)
+                elif stripped and not stripped.startswith("#"):
+                    quote = stripped[:80]
+                    break
             blocks.append(
                 Block(
                     label=current_label,
                     source=current_source.strip(),
                     line=current_start,
                     text=text,
+                    review=current_review.strip(),
+                    heading=heading,
+                    quote=quote,
                 )
             )
-        elif text:
+        elif text and not all(
+            not line.strip() or re.match(r"^#\s+\S", line.strip())
+            for line in text.splitlines()
+        ):
             findings.append(
                 {
                     "severity": "error",
@@ -125,27 +161,61 @@ def parse_blocks(body: str, start_line: int) -> tuple[list[Block], list[dict[str
             )
         current_lines = []
 
-    for offset, line in enumerate(body.splitlines(), start=0):
+    lines = body.splitlines()
+    offset = 0
+    while offset < len(lines):
+        line = lines[offset]
         line_no = start_line + offset
         match = LABEL_RE.match(line)
+        consumed = 1
+        metadata: dict[str, str] = {}
+        if not match and re.match(r"^\s*<!--\s*provenance\s*$", line):
+            comment_lines = [line]
+            cursor = offset + 1
+            while cursor < len(lines):
+                comment_lines.append(lines[cursor])
+                if re.match(r"^\s*-->\s*$", lines[cursor]):
+                    break
+                cursor += 1
+            comment = "\n".join(comment_lines)
+            multiline = MULTILINE_LABEL_RE.match(comment)
+            if multiline:
+                for raw in multiline.group("meta").splitlines():
+                    if ":" in raw:
+                        key, value = raw.split(":", 1)
+                        metadata[key.strip()] = value.strip()
+                consumed = len(comment_lines)
         if match:
             flush()
             current_label = match.group("html_label") or match.group("bracket_label") or ""
             current_source = match.group("html_source") or match.group("bracket_source") or ""
+            current_review = ""
             current_start = line_no + 1
-            if current_label not in ALLOWED_LABELS:
-                findings.append(
-                    {
-                        "severity": "error",
-                        "code": "unknown_label",
-                        "line": line_no,
-                        "message": f"Unknown provenance label: {current_label}",
-                    }
-                )
-            continue
-        current_lines.append(line)
+        elif metadata:
+            flush()
+            current_label = metadata.get("kind", "")
+            current_source = metadata.get("source", "")
+            current_review = metadata.get("review", "")
+            current_start = line_no + consumed
+        else:
+            current_lines.append(line)
+        if (match or metadata) and current_label not in ALLOWED_LABELS:
+            findings.append(
+                {
+                    "severity": "error",
+                    "code": "unknown_label",
+                    "line": line_no,
+                    "message": f"Unknown provenance label: {current_label}",
+                }
+            )
+        offset += consumed
     flush()
     return blocks, findings
+
+
+def strip_provenance_comments(text: str) -> str:
+    """Remove local provenance metadata before producing a public-body candidate."""
+    return re.sub(r"\n{3,}", "\n\n", PROVENANCE_COMMENT_RE.sub("", text)).strip() + "\n"
 
 
 def source_hint_matches(label: str, source: str) -> bool:
@@ -211,6 +281,16 @@ def validate_blocks(blocks: list[Block]) -> list[dict[str, object]]:
                     "message": "Hold block must keep an explicit review or unresolved cue.",
                 }
             )
+        if block.label == "hold":
+            findings.append(
+                {
+                    "severity": "error",
+                    "code": "hold_present",
+                    "line": block.line,
+                    "label": block.label,
+                    "message": "Hold block requires human review before public-body export.",
+                }
+            )
     return findings
 
 
@@ -241,6 +321,20 @@ def check_draft(path: Path) -> dict[str, object]:
         "source_mode": source_mode,
         "labels_seen": labels_seen,
         "block_count": len(blocks),
+        "publication_ready": not findings and not any(
+            block.label == "hold" for block in blocks
+        ),
+        "blocks": [
+            {
+                "kind": block.label,
+                "source": block.source,
+                "review": block.review,
+                "line": block.line,
+                "heading": block.heading,
+                "quote": block.quote,
+            }
+            for block in blocks
+        ],
         "findings": findings,
         "external_actions_performed": [],
         "publication_actions_performed": [],
@@ -251,12 +345,25 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("draft", type=Path)
     parser.add_argument("--json", action="store_true")
+    parser.add_argument(
+        "--public-output",
+        type=Path,
+        help="検査が通った場合だけ、由来コメントを除いた公開本文候補を書き出す。",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
     result = check_draft(args.draft)
+    if args.public_output and result["ok"] and result.get("publication_ready"):
+        args.public_output.parent.mkdir(parents=True, exist_ok=True)
+        args.public_output.write_text(
+            strip_provenance_comments(args.draft.read_text(encoding="utf-8")),
+            encoding="utf-8",
+            newline="\n",
+        )
+        result["public_output"] = str(args.public_output)
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
     elif result["ok"]:
