@@ -101,6 +101,13 @@
       border: 1px solid var(--line);
     }
     pre code { padding: 0; background: transparent; color: var(--text); }
+    img {
+      display: block;
+      width: 100%;
+      height: auto;
+      margin: 20px 0 24px;
+      border-radius: 8px;
+    }
   </style>
 </head>
 <body>
@@ -108,9 +115,9 @@
     <article>
 <h1>Note Publishing Suite</h1>
 <p><strong>書くところまで自動化。公開は、人が決める。</strong></p>
-<p><code>素材</code> → <code>記事候補</code> → <code>下書き</code> → <code>QA</code> → <code>Note 下書き保存</code> → <strong>人間の公開判断</strong></p>
+<p><img src="assets/note-publishing-workflow.svg" alt="素材からNote下書き保存までは自動化し、公開直前で停止して人が判断するワークフロー" loading="lazy"></p>
 <p>ローカル素材から Note の下書きを作り、検査し、エディタへ反映する Codex 向けパッケージです。公開・予約投稿・SNS 共有は自動で行わず、 必ず公開直前で止まります。</p>
-<p>パッケージ版: <code>0.2.18</code></p>
+<p>パッケージ版: <code>0.2.19</code></p>
 <p><a href="#3分で始める">3分で始める</a> · <a href="#安全設計">安全設計</a> · <a href="#入口と詳しい資料">詳しい資料</a></p>
 <h2>できること</h2>
 <div class="table-wrap"><table>

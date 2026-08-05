@@ -56,6 +56,7 @@ def test_required_files_exist():
         "SKILL.md",
         "package.yaml",
         "README.md",
+        "assets/note-publishing-workflow.svg",
         "CHANGELOG.md",
         "PUBLIC_RELEASE_CHECKLIST.md",
         ".github/pull_request_template.md",
@@ -247,6 +248,20 @@ def test_render_readme_supports_safe_links_and_strong_text():
     assert '<a href="ROADMAP.md">ROADMAP</a>' in rendered
     assert "javascript:alert(1)" in rendered
     assert '<a href="javascript:alert(1)">' not in rendered
+
+
+def test_render_readme_supports_safe_images():
+    render_readme = load_render_readme_module()
+    rendered = render_readme.inline(
+        "![公開直前で停止する工程](assets/note-publishing-workflow.svg) "
+        "![unsafe](javascript:alert(1))"
+    )
+
+    assert (
+        '<img src="assets/note-publishing-workflow.svg" '
+        'alt="公開直前で停止する工程" loading="lazy">'
+    ) in rendered
+    assert '<img src="javascript:alert(1)"' not in rendered
 
 
 def test_render_readme_supports_safe_collapsible_details():
