@@ -50,7 +50,6 @@ repository visibility 変更は、現在会話の人間レビューと明示承�
 - visibility: public（fork 0 / star 0）
 - default branch: `main`（実測確定）
 - `main` head: `6de2d573a40b20b1f709589fa293f463c5e33bf6`
-- パッケージ版: `0.2.17`
 - open pull request: #13 相当の README 系は取り込み済み。残る open は別 branch 由来
 - CI: `test` / `Push on main` / CodeQL いずれも成功
 - open issue: 0 件（追跡は `issue-drafts.md` 側で継続）

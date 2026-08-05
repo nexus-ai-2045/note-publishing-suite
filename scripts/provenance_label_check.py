@@ -36,7 +36,7 @@ SOURCE_HINTS = {
 LABEL_RE = re.compile(
     r"^\s*(?:"
     r"<!--\s*provenance-label:\s*(?P<html_label>[a-z-]+)"
-    r"(?:\s*;\s*source:\s*(?P<html_source>[^;>]+?))?\s*-->"
+    r"(?:\s*;\s*source:\s*(?P<html_source>[^;>]+?))?\s*--!?>"
     r"|"
     r"\[provenance-label:\s*(?P<bracket_label>[a-z-]+)"
     r"(?:\s*;\s*source:\s*(?P<bracket_source>[^\]]+))?\]"
@@ -62,11 +62,11 @@ class Block:
 
 
 MULTILINE_LABEL_RE = re.compile(
-    r"^\s*<!--\s*provenance\s*\n(?P<meta>.*?)\n\s*-->\s*$",
+    r"^\s*<!--\s*provenance\s*\n(?P<meta>.*?)\n\s*--!?>\s*$",
     re.M | re.S,
 )
 PROVENANCE_COMMENT_RE = re.compile(
-    r"^\s*<!--\s*(?:provenance-label:.*?-->|provenance\s*\n.*?\n\s*-->)\s*$",
+    r"^\s*<!--\s*(?:provenance-label:.*?--!?>|provenance\s*\n.*?\n\s*--!?>)\s*$",
     re.M | re.S,
 )
 
@@ -174,7 +174,7 @@ def parse_blocks(body: str, start_line: int) -> tuple[list[Block], list[dict[str
             cursor = offset + 1
             while cursor < len(lines):
                 comment_lines.append(lines[cursor])
-                if re.match(r"^\s*-->\s*$", lines[cursor]):
+                if re.match(r"^\s*--!?>\s*$", lines[cursor]):
                     break
                 cursor += 1
             comment = "\n".join(comment_lines)
@@ -358,8 +358,9 @@ def main() -> int:
     result = check_draft(args.draft)
     if args.public_output and result["ok"] and result.get("publication_ready"):
         args.public_output.parent.mkdir(parents=True, exist_ok=True)
+        _, public_body, _ = split_frontmatter(args.draft.read_text(encoding="utf-8"))
         args.public_output.write_text(
-            strip_provenance_comments(args.draft.read_text(encoding="utf-8")),
+            strip_provenance_comments(public_body),
             encoding="utf-8",
             newline="\n",
         )

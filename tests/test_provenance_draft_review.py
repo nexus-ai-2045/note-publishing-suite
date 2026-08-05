@@ -110,6 +110,18 @@ review: decide
     assert "AI による整理" in public_text
 
 
+def test_public_markdown_strips_html_comment_bang_end_tag():
+    checker = load_script("provenance_label_check")
+    text = """<!-- provenance-label: user-said; source: user-speech --!>
+本文。
+"""
+
+    public_text = checker.strip_provenance_comments(text)
+
+    assert "provenance-label" not in public_text
+    assert public_text == "本文。\n"
+
+
 def test_review_preview_renders_visible_japanese_provenance_labels():
     preview = load_script("note_preview")
     rendered = preview.render_markdown(sample_draft(), review_provenance=True)
@@ -169,6 +181,51 @@ def test_public_output_cli_writes_only_after_hold_is_resolved(tmp_path: Path):
     )
     assert blocked.returncode == 1
     assert not output.exists()
+
+
+def test_public_output_cli_omits_draft_frontmatter(tmp_path: Path):
+    draft = tmp_path / "draft.md"
+    output = tmp_path / "public.md"
+    draft.write_text(
+        sample_draft().replace(
+            """<!-- provenance
+kind: hold
+source: needs-review
+review: decide
+-->
+## 未確認
+
+要確認の AI 推測は保留する。
+""",
+            "",
+        ),
+        encoding="utf-8",
+    )
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "provenance_label_check.py"),
+            str(draft),
+            "--public-output",
+            str(output),
+        ],
+        cwd=ROOT,
+        check=False,
+    )
+
+    assert completed.returncode == 0
+    public_text = output.read_text(encoding="utf-8")
+    assert not public_text.startswith("---")
+    assert "article_lane:" not in public_text
+    assert "source_mode:" not in public_text
+    assert "AI による整理" in public_text
+
+
+def test_project_ssot_does_not_duplicate_package_version():
+    ssot = (ROOT / "PROJECT_SSOT.md").read_text(encoding="utf-8")
+
+    assert "パッケージ版:" not in ssot
 
 
 def test_skills_broaden_article_draft_auto_trigger_and_hide_internal_ids():
