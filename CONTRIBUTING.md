@@ -15,6 +15,30 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
 python scripts/docs_sync_check.py --base-ref origin/main
 ```
 
+## NPS 運用スモーク（公開なし）
+
+動画なし・公開なしで「使える」ことをローカルで証明する最短経路。
+新規スクリプトは増やさず、既存 checker / installer だけを使う。
+
+```powershell
+# 1) package 契約
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
+python -m pytest scripts/test_skill_integration.py tests -q
+
+# 2) ローカル QA 一気通貫（fixture・公開停止）
+python scripts/run_local_draft_qa_proof.py --json
+
+# 3) Codex pointer を一時先へ install（ホームは汚さない）
+$tmp = Join-Path $env:TEMP ("nps-skills-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
+pwsh -NoProfile -File adapters/codex/install.ps1 `
+  -PackageRoot (Resolve-Path .) `
+  -WorkspaceRoot (Resolve-Path .) `
+  -DestinationRoot $tmp
+python scripts/skill_pointer_check.py --installed-root $tmp --json
+```
+
+公開・予約・SNS・本番 Note 操作は含めない。
+
 ## 安全上の注意
 
 - Cookie、token、非公開URL、個人の絶対パス、実記事の非公開本文、実運用台帳をcommitしません。

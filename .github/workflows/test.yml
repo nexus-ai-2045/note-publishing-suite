@@ -5,16 +5,23 @@ on:
     branches: ["master", "main"]
     tags: ["v*"]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: ["master", "main"]
   release:
     types: [published]
   workflow_dispatch:
+
+# Keep PR required check package-smoke from being starved by overlapping runs.
+concurrency:
+  group: test-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
   package-smoke:
+    name: package-smoke
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -37,6 +44,9 @@ jobs:
         run: python scripts/skill_pointer_check.py --json
 
       - name: Run package version bump guard
+        env:
+          # PR では base と HEAD の版差を検査する。dispatch/push ではスキップ可。
+          VERSION_BUMP_BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
         run: python scripts/check_version_bump.py
 
       - name: Run Note editor prepublish observation checker
@@ -91,6 +101,7 @@ jobs:
         run: python scripts/engagement_tracker.py report --json
 
   windows-installer-smoke:
+    name: windows-installer-smoke
     runs-on: windows-latest
     steps:
       - name: Check out repository
@@ -115,6 +126,9 @@ jobs:
         run: .\scripts\verify_public_package.ps1
 
   docs-sync:
+    name: docs-sync
+    # PR 専用。push/dispatch では不要で、並列キャンセルの誤 fail を避ける。
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
