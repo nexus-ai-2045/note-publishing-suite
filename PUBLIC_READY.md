@@ -1,7 +1,7 @@
 ---
 title: note-publishing-suite 公開準備確認
 type: 公開準備確認
-status: v0.2.20 main・tag・Release 反映済み
+status: v0.2.20 Release 済み。文書追随は 0.2.21
 ---
 
 # 公開準備確認

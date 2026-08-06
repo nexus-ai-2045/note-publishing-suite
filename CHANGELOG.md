@@ -4,14 +4,28 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
-## 0.2.20
+## 0.2.21
 
 日付: 2026-08-06
 
-リリース後の文書追随（同一版・コード変更なし）:
+変更:
+- PUBLIC_READY を v0.2.20 Release 反映済みの状態へ更新し、外部追加スキャナ候補（旧 CHINJU 記載）を採用しない方針に整理した。
+- 話題統合台帳の停止線と worktree 方針を現状に合わせ、status 語彙検査を現行軸に追随した。
 
-- `PUBLIC_READY.md` を main / tag `v0.2.20` / GitHub Release 反映済みの状態に更新した。
-- 外部追加スキャナ候補（旧 CHINJU 記載）を採用しない方針に整理し、正本検証は package 内 gate に閉じた。
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `python -m pytest tests/test_topic_status_check.py -q`
+- `python scripts/topic_status_check.py --json`
+- `python scripts/check_version_bump.py`
+- `pwsh -NoProfile -File scripts/verify_public_package.ps1`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- 追加の GitHub リリース作成、tag 作成、リポジトリ公開範囲変更は未実行。
+
+## 0.2.20
+
+日付: 2026-08-06
 
 変更:
 - 問答・著者性・短縮防止・改行・図版・Browser復旧ゲートとWindows Codex配布経路を追加した。
