@@ -31,7 +31,7 @@ updated: 2026-08-06
 | axis-3 | Note editor live 引き継ぎ確認 | open | package + human | editor skills / PDCA ledger / image upload boundary。実 UI と公開は human 承認後 |
 | axis-4 | 壁打ちから複数コンテンツへの制作展開 | open | package | provenance / authorship / interview。wall_bang を事実出典にする fail 検査は未実装 |
 | axis-5 | 型付き agent 運用・eval・observability | deferred | package | worker deny 契約と focused checker のみ。eval harness は後回し |
-| axis-6 | 0.2.20 release | blocked_human | human | PUBLIC_READY / PR #17。Draft 解除・merge・tag・Release は明示承認必須 |
+| axis-6 | 0.2.20 release | done | human | PR #17 merge + tag `v0.2.20` + GitHub Release 済み。追加 tag/Release は別承認 |
 
 ## 吸収済み（active TODO から除外）
 
@@ -53,17 +53,14 @@ updated: 2026-08-06
 
 | class | 扱い |
 |---|---|
-| PR #17 worktree `note-publishing-suite-windows-runtime-20260806` | KEEP。Draft 解除と human review まで削除しない |
-| dirty `capability-candidates-20260805` | PRESERVE until human delete approval。固有製品差分なし、patch 退避後に削除候補 |
-| clean merged PR worktrees (pr9/pr10/pr16/ssot 等) | SAFE_REMOVE_CANDIDATE。`git worktree remove` + ローカル branch `-d` は人間確認後 |
-| nested non-git `nexus_ai/note-publishing-suite` (0.2.0) | STALE_COPY。正本にしない。PDCA ledger 回収後は archive 候補 |
+| 主 clone `.repos/.../note-publishing-suite` (main) | KEEP。正本 |
+| PR #17 / capability / pr9 / pr10 / pr16 / ssot / public-sync / nested 0.2.0 | **削除済み**（2026-08-06）。patch/bundle は private reports に退避 |
 | Projects リポの `nps-project-*` | WRONG_REPO。本 package の branch 整理対象外 |
 
-削除・force push・remote branch 削除は本 ledger の検査成功だけでは実行しない。
+force push は明示承認なしに実行しない。
 
 ## 停止線
 
-- Note 公開 / 予約 / SNS / 外部告知
-- PR Draft 解除、merge、`v0.2.20` tag、GitHub Release
+- Note 公開 / 予約 / SNS / 外部告知（未承認）
+- 追加の tag / GitHub Release
 - repository visibility 変更
-- dirty worktree の無確認削除
