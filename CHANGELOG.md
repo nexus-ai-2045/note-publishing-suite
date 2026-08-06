@@ -4,6 +4,21 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
+## 0.2.22
+
+日付: 2026-08-06
+
+変更:
+- NPSとして使う導線をREADMEに整理し、使い方動画の置き場 assets/demo を追加した。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `python scripts/render_readme.py; python -m pytest scripts/test_skill_integration.py tests/test_topic_status_check.py -q; pwsh -NoProfile -File scripts/verify_public_package.ps1`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.2.21
 
 日付: 2026-08-06

@@ -6,19 +6,121 @@ created: 2026-06-08
 publication_gate: human_review_required
 ---
 
-# Note Publishing Suite
+# Note Publishing Suite（NPS）
 
 **書くところまで自動化。公開は、人が決める。**
 
 ![素材からNote下書き保存までは自動化し、公開直前で停止して人が判断するワークフロー](assets/note-publishing-workflow.svg)
 
 ローカル素材から Note の下書きを作り、検査し、エディタへ反映する
-Codex 向けパッケージです。公開・予約投稿・SNS 共有は自動で行わず、
-必ず公開直前で止まります。
+**NPS（Note Publishing Suite）** です。Codex / Claude Code から使えます。
+公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。
 
-パッケージ版: `0.2.21`
+パッケージ版: `0.2.22`
 
-[3分で始める](#3分で始める) · [安全設計](#安全設計) · [詳しい資料](#入口と詳しい資料)
+| すぐやる | あとで読む |
+| --- | --- |
+| [NPS として使う](#nps-として使う3分) | [できること](#できること) |
+| [使い方動画](#使い方動画) | [安全設計](#安全設計) |
+| [基本ワークフロー](#基本ワークフロー) | [入口と詳しい資料](#入口と詳しい資料) |
+
+## NPS として使う（3分）
+
+必要なものは POSIX sh、Python、git です。
+
+### 1. 取る・確かめる
+
+```bash
+git clone https://github.com/nexus-ai-2045/note-publishing-suite.git
+cd note-publishing-suite
+sh scripts/verify_public_package.sh
+```
+
+Windows では PowerShell verifier も使えます。
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
+```
+
+`-ExecutionPolicy Bypass` はこのプロセスだけに適用されます。
+この verifier は Python と git も使って各 checker を実行するため、
+先に利用可能か確認してください。
+検証は公開操作を行わず、`embedded copy` と `standalone clone` の契約を確認します。
+
+### 2. Codex に登録する（Windows 推奨）
+
+installer は実体を複製せず、package を指す pointer だけを置きます。
+
+```powershell
+pwsh -NoProfile -File adapters/codex/install.ps1 `
+  -PackageRoot (Resolve-Path .) `
+  -WorkspaceRoot (Resolve-Path .)
+```
+
+既定の配置先は `$env:CODEX_HOME\skills`、未設定なら `$HOME\.codex\skills` です。
+
+Claude Code の場合は `adapters/claude-code/install.sh` を使います。
+
+### 3. 最初の依頼例
+
+Codex / Claude に、だいたい次のように頼むと NPS が起動しやすいです。
+
+```text
+note-publishing-suite で進めて。
+読んでよい素材フォルダは <ここだけ>。
+公開・予約・SNSはしない。下書き保存の手前まで。
+```
+
+| やりたいこと | 言うこと（例） |
+| --- | --- |
+| 記事のネタ出し | 「このフォルダから note 記事候補を3つ」 |
+| 下書き | 「候補1で note 下書きを作って」 |
+| 検査 | 「prepublish QA して」 |
+| エディタ反映 | 「Note editor に反映。公開はしない」 |
+| 公開判断 | 「publication gate で止まって」 |
+
+固定の `ネタ帳.md` は使いません。入力は、ユーザーが最初に指定した
+「読んでよい素材フォルダ」だけです。
+
+## 使い方動画
+
+README に使い方動画を載せられます。いまは **枠だけ用意** してあり、
+実ファイルを置くとすぐ表示できます。
+
+### いまの表示（サムネ）
+
+[![NPS 使い方動画 — 置き方と台本](assets/demo/usage-walkthrough-thumb.svg)](assets/demo/README.md)
+
+↑ いまは **置き方ガイド** にリンクしています。  
+`assets/demo/usage-walkthrough.mp4` を置いたら、リンク先を mp4 に差し替えるだけで再生導線になります。
+
+```markdown
+[![NPS 使い方動画を再生](assets/demo/usage-walkthrough-thumb.svg)](assets/demo/usage-walkthrough.mp4)
+```
+
+### いちばん簡単（推奨）
+
+1. 画面録画で 1〜3 分のデモを撮る（clone → verify → install → 最初の依頼）
+2. `assets/demo/usage-walkthrough.mp4` に置く（目安 10〜30MB）
+3. 上の Markdown のリンク先を `usage-walkthrough.mp4` に変更する
+
+**置き場所の契約:** [`assets/demo/README.md`](assets/demo/README.md)
+
+GitHub 上ではサムネをクリックすると動画（またはガイド）が開きます。
+README 内のインライン自動再生は環境差があるため、**サムネ → ファイル** 方式が安定です。
+
+### ほかの載せ方
+
+| 方式 | 向き | メモ |
+| --- | --- | --- |
+| repo 内 mp4 + サムネ | 短尺デモ | 上の方式。git が重くなるので短く |
+| YouTube / Stream | 長尺・音声付き | サムネ画像 → 外部 URL リンク |
+| GitHub 添付 URL | PR 説明・Issue | `user-attachments` の動画 URL は埋め込みやすいが README では差あり |
+| GitHub Pages | 本格埋め込み | README から Pages へ誘導 |
+
+> **まだ動画ファイルが無いとき**  
+> 上の図（ワークフロー SVG）が「全体像の1枚絵」です。  
+> 録画ができたら `assets/demo/` に置くだけで README に載せられます。
 
 ## できること
 
@@ -33,41 +135,7 @@ Codex 向けパッケージです。公開・予約投稿・SNS 共有は自動�
 | Browser切断やtimeoutを分類し、安全な復旧経路へ戻す | processの一括終了や無制限retry |
 
 公開操作には、対象と操作を特定した人間レビューと明示承認が必要です。
-
-## 3分で始める
-
-必要なものは POSIX sh、Python、git です。
-
-```bash
-git clone https://github.com/nexus-ai-2045/note-publishing-suite.git
-cd note-publishing-suite
-sh scripts/verify_public_package.sh
-```
-
-Windows では PowerShell verifier も使えます。
-
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
-```
-
-Codexへローカル登録する場合は、検証後にWindows用installerを明示実行します。
-installerは実体を複製せず、現在のpackageとworkspaceを指す通常ファイル形式の
-pointerを原子的に配置し、配置後に参照切れを検査します。
-
-```powershell
-pwsh -NoProfile -File adapters/codex/install.ps1 `
-  -PackageRoot (Resolve-Path .) `
-  -WorkspaceRoot (Resolve-Path .)
-```
-
-既定の配置先は `$env:CODEX_HOME\skills`、`CODEX_HOME`が未設定なら
-`$HOME\.codex\skills`です。ホーム実行版への書込みは、対象と操作を確認してから
-行ってください。
-
-`-ExecutionPolicy Bypass` はこのプロセスだけに適用されます。
-この verifier は Python と git も使って各 checker を実行するため、
-先に利用可能か確認してください。
-検証は公開操作を行わず、`embedded copy` と `standalone clone` の契約を確認します。
+`publication_gate: human_review_required`
 
 ## 基本ワークフロー
 
@@ -75,23 +143,29 @@ pwsh -NoProfile -File adapters/codex/install.ps1 `
 素材を指定 → 記事候補 → 下書き → ローカル検査 → Note 下書き保存 → 公開直前で停止
 ```
 
-| 段階 | 入口 |
-| --- | --- |
-| 記事候補 | [`note-idea-intake`](skills/note-idea-intake/SKILL.md) |
-| 下書き | [`note-draft-production`](skills/note-draft-production/SKILL.md) |
-| 投稿前QA | [`note-prepublish-qa`](skills/note-prepublish-qa/SKILL.md) |
-| エディタ反映 | [`note-editor-prepublish`](skills/note-editor-prepublish/SKILL.md) |
-| 公開停止線 | [`note-publication-gate`](skills/note-publication-gate/SKILL.md) |
-| 公開後台帳 | [`note-postpublish-ledger`](skills/note-postpublish-ledger/SKILL.md) |
-
-固定の `ネタ帳.md` は使いません。入力は、ユーザーが最初に指定した
-「読んでよい素材フォルダ」だけです。
+| 段階 | 入口 | 典型コマンド / skill |
+| --- | --- | --- |
+| 記事候補 | [`note-idea-intake`](skills/note-idea-intake/SKILL.md) | 素材フォルダを指定して候補出し |
+| 下書き | [`note-draft-production`](skills/note-draft-production/SKILL.md) | 問答packet → 本文 |
+| 投稿前QA | [`note-prepublish-qa`](skills/note-prepublish-qa/SKILL.md) | preview / pre_publish / fact |
+| エディタ反映 | [`note-editor-prepublish`](skills/note-editor-prepublish/SKILL.md) | 下書き保存まで |
+| 公開停止線 | [`note-publication-gate`](skills/note-publication-gate/SKILL.md) | 公開ボタン手前で停止 |
+| 公開後台帳 | [`note-postpublish-ledger`](skills/note-postpublish-ledger/SKILL.md) | URL 確認後のみ |
 
 下書き前には問答packetで本人の言葉、判断、避けたい断言、残したい脱線を確認し、
 `voice_profile`と`shortening_budget`を固定します。詳しくは
 [`note-draft-authority-and-layout-contract.md`](references/note-draft-authority-and-layout-contract.md)。
 
 ## 安全設計
+
+要点だけ先に:
+
+1. 読んでよい素材は、ユーザーが指定したフォルダだけ
+2. 公開・予約・SNS は明示承認なしに押さない
+3. 根拠ラベル（本人の言葉 / 外部事実 / AI整理）を混ぜない
+
+<details>
+<summary>根拠ラベル・provenance（詳細）</summary>
 
 - 根拠は `source_database` / `source_pack`、構成案は `series_plot`、
   `article_plot`、`skeleton`、`wall_bang` として分離します。
@@ -127,6 +201,8 @@ python scripts/provenance_label_check.py <draft.md> --public-output <public-body
 - `hold` が残る間は公開本文候補を書き出しません。公開本文候補では
   ローカル管理用の由来コメントを除去します。
 
+</details>
+
 <details>
 <summary>Note エディタの詳しい境界</summary>
 
@@ -159,8 +235,10 @@ Noteログイン、常時接続、画像アップロードの完全自動化は�
 | 公開前の準備 | [PUBLIC_READY.md](PUBLIC_READY.md) / [PUBLIC_RELEASE_CHECKLIST.md](PUBLIC_RELEASE_CHECKLIST.md) |
 | セキュリティ | [SECURITY.md](SECURITY.md) |
 | 変更履歴 | [CHANGELOG.md](CHANGELOG.md) |
+| 使い方動画の置き場 | [assets/demo/README.md](assets/demo/README.md) |
 
-主な補助ツール:
+<details>
+<summary>主な補助ツール一覧</summary>
 
 - `scripts/note_preview.py`: ローカルプレビュー。
 - `scripts/review_draft.py`: `build-context-card` と `review-draft`。
@@ -172,10 +250,12 @@ Noteログイン、常時接続、画像アップロードの完全自動化は�
 - `scripts/note_authorship_gate.py`: 本人発言にない作文や無断短縮を検査。
 - `scripts/note_linebreak_gate.py` / `scripts/note_figure_structure_gate.py`: 改行、図、captionを検査。
 - `scripts/note_browser_transport_recovery.py` / `scripts/note_editor_timeout_recovery.py`: Browser切断とtimeoutを分類。前者はread-only復旧計画専用で、process終了や人間承認の真正性確認は行わない。
-- `scripts/note_editor_pdca_failure_check.py`: Note editor 失敗パターン台帳 (`data/note_editor_pdca_failure_patterns.json`) を検査。
-- `scripts/topic_status_check.py`: 話題統合台帳 (`references/topic-consolidation-ledger.md`) と吸収済み課題の配線を検査。
-- `scripts/package_consistency_check.py`: 宣言したスクリプトの実在と、必要時の配布コピー一致を検査。
+- `scripts/note_editor_pdca_failure_check.py`: Note editor 失敗パターン台帳を検査。
+- `scripts/topic_status_check.py`: 話題統合台帳の配線を検査。
+- `scripts/package_consistency_check.py`: 宣言したスクリプトの実在を検査。
 - `adapters/codex/install.ps1`: WindowsのCodex skill pointerを配置し、参照切れを検査。
+
+</details>
 
 ## PRごとのドキュメント同期
 

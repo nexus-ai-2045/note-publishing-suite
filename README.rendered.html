@@ -113,12 +113,69 @@
 <body>
   <main>
     <article>
-<h1>Note Publishing Suite</h1>
+<h1>Note Publishing Suite（NPS）</h1>
 <p><strong>書くところまで自動化。公開は、人が決める。</strong></p>
 <p><img src="assets/note-publishing-workflow.svg" alt="素材からNote下書き保存までは自動化し、公開直前で停止して人が判断するワークフロー" loading="lazy"></p>
-<p>ローカル素材から Note の下書きを作り、検査し、エディタへ反映する Codex 向けパッケージです。公開・予約投稿・SNS 共有は自動で行わず、 必ず公開直前で止まります。</p>
-<p>パッケージ版: <code>0.2.21</code></p>
-<p><a href="#3分で始める">3分で始める</a> · <a href="#安全設計">安全設計</a> · <a href="#入口と詳しい資料">詳しい資料</a></p>
+<p>ローカル素材から Note の下書きを作り、検査し、エディタへ反映する <strong>NPS（Note Publishing Suite）</strong> です。Codex / Claude Code から使えます。 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。</p>
+<p>パッケージ版: <code>0.2.22</code></p>
+<div class="table-wrap"><table>
+<thead><tr><th>すぐやる</th><th>あとで読む</th></tr></thead>
+<tbody>
+<tr><td><a href="#nps-として使う3分">NPS として使う</a></td><td><a href="#できること">できること</a></td></tr>
+<tr><td><a href="#使い方動画">使い方動画</a></td><td><a href="#安全設計">安全設計</a></td></tr>
+<tr><td><a href="#基本ワークフロー">基本ワークフロー</a></td><td><a href="#入口と詳しい資料">入口と詳しい資料</a></td></tr>
+</tbody></table></div>
+<h2>NPS として使う（3分）</h2>
+<p>必要なものは POSIX sh、Python、git です。</p>
+<h3>1. 取る・確かめる</h3>
+<pre><code>git clone https://github.com/nexus-ai-2045/note-publishing-suite.git
+cd note-publishing-suite
+sh scripts/verify_public_package.sh</code></pre>
+<p>Windows では PowerShell verifier も使えます。</p>
+<pre><code>pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1</code></pre>
+<p><code>-ExecutionPolicy Bypass</code> はこのプロセスだけに適用されます。 この verifier は Python と git も使って各 checker を実行するため、 先に利用可能か確認してください。 検証は公開操作を行わず、<code>embedded copy</code> と <code>standalone clone</code> の契約を確認します。</p>
+<h3>2. Codex に登録する（Windows 推奨）</h3>
+<p>installer は実体を複製せず、package を指す pointer だけを置きます。</p>
+<pre><code>pwsh -NoProfile -File adapters/codex/install.ps1 `
+  -PackageRoot (Resolve-Path .) `
+  -WorkspaceRoot (Resolve-Path .)</code></pre>
+<p>既定の配置先は <code>$env:CODEX_HOME\skills</code>、未設定なら <code>$HOME\.codex\skills</code> です。</p>
+<p>Claude Code の場合は <code>adapters/claude-code/install.sh</code> を使います。</p>
+<h3>3. 最初の依頼例</h3>
+<p>Codex / Claude に、だいたい次のように頼むと NPS が起動しやすいです。</p>
+<pre><code>note-publishing-suite で進めて。
+読んでよい素材フォルダは &lt;ここだけ&gt;。
+公開・予約・SNSはしない。下書き保存の手前まで。</code></pre>
+<div class="table-wrap"><table>
+<thead><tr><th>やりたいこと</th><th>言うこと（例）</th></tr></thead>
+<tbody>
+<tr><td>記事のネタ出し</td><td>「このフォルダから note 記事候補を3つ」</td></tr>
+<tr><td>下書き</td><td>「候補1で note 下書きを作って」</td></tr>
+<tr><td>検査</td><td>「prepublish QA して」</td></tr>
+<tr><td>エディタ反映</td><td>「Note editor に反映。公開はしない」</td></tr>
+<tr><td>公開判断</td><td>「publication gate で止まって」</td></tr>
+</tbody></table></div>
+<p>固定の <code>ネタ帳.md</code> は使いません。入力は、ユーザーが最初に指定した 「読んでよい素材フォルダ」だけです。</p>
+<h2>使い方動画</h2>
+<p>README に使い方動画を載せられます。いまは <strong>枠だけ用意</strong> してあり、 実ファイルを置くとすぐ表示できます。</p>
+<h3>いまの表示（サムネ）</h3>
+<p><a href="assets/demo/README.md"><img src="assets/demo/usage-walkthrough-thumb.svg" alt="NPS 使い方動画 — 置き方と台本" loading="lazy"></a></p>
+<p>↑ いまは <strong>置き方ガイド</strong> にリンクしています。 <code>assets/demo/usage-walkthrough.mp4</code> を置いたら、リンク先を mp4 に差し替えるだけで再生導線になります。</p>
+<pre><code>[![NPS 使い方動画を再生](assets/demo/usage-walkthrough-thumb.svg)](assets/demo/usage-walkthrough.mp4)</code></pre>
+<h3>いちばん簡単（推奨）</h3>
+<p>1. 画面録画で 1〜3 分のデモを撮る（clone → verify → install → 最初の依頼） 2. <code>assets/demo/usage-walkthrough.mp4</code> に置く（目安 10〜30MB） 3. 上の Markdown のリンク先を <code>usage-walkthrough.mp4</code> に変更する</p>
+<p><strong>置き場所の契約:</strong> <a href="assets/demo/README.md"><code>assets/demo/README.md</code></a></p>
+<p>GitHub 上ではサムネをクリックすると動画（またはガイド）が開きます。 README 内のインライン自動再生は環境差があるため、<strong>サムネ → ファイル</strong> 方式が安定です。</p>
+<h3>ほかの載せ方</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>方式</th><th>向き</th><th>メモ</th></tr></thead>
+<tbody>
+<tr><td>repo 内 mp4 + サムネ</td><td>短尺デモ</td><td>上の方式。git が重くなるので短く</td></tr>
+<tr><td>YouTube / Stream</td><td>長尺・音声付き</td><td>サムネ画像 → 外部 URL リンク</td></tr>
+<tr><td>GitHub 添付 URL</td><td>PR 説明・Issue</td><td><code>user-attachments</code> の動画 URL は埋め込みやすいが README では差あり</td></tr>
+<tr><td>GitHub Pages</td><td>本格埋め込み</td><td>README から Pages へ誘導</td></tr>
+</tbody></table></div>
+<p>&gt; <strong>まだ動画ファイルが無いとき</strong> &gt; 上の図（ワークフロー SVG）が「全体像の1枚絵」です。 &gt; 録画ができたら <code>assets/demo/</code> に置くだけで README に載せられます。</p>
 <h2>できること</h2>
 <div class="table-wrap"><table>
 <thead><tr><th>できる</th><th>自動では行わない</th></tr></thead>
@@ -131,35 +188,25 @@
 <tr><td>無断短縮、改行、図・キャプション、目次、埋め込みを構造検査する</td><td>UI依存操作が常に成功すると断定する</td></tr>
 <tr><td>Browser切断やtimeoutを分類し、安全な復旧経路へ戻す</td><td>processの一括終了や無制限retry</td></tr>
 </tbody></table></div>
-<p>公開操作には、対象と操作を特定した人間レビューと明示承認が必要です。</p>
-<h2>3分で始める</h2>
-<p>必要なものは POSIX sh、Python、git です。</p>
-<pre><code>git clone https://github.com/nexus-ai-2045/note-publishing-suite.git
-cd note-publishing-suite
-sh scripts/verify_public_package.sh</code></pre>
-<p>Windows では PowerShell verifier も使えます。</p>
-<pre><code>pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1</code></pre>
-<p>Codexへローカル登録する場合は、検証後にWindows用installerを明示実行します。 installerは実体を複製せず、現在のpackageとworkspaceを指す通常ファイル形式の pointerを原子的に配置し、配置後に参照切れを検査します。</p>
-<pre><code>pwsh -NoProfile -File adapters/codex/install.ps1 `
-  -PackageRoot (Resolve-Path .) `
-  -WorkspaceRoot (Resolve-Path .)</code></pre>
-<p>既定の配置先は <code>$env:CODEX_HOME\skills</code>、<code>CODEX_HOME</code>が未設定なら <code>$HOME\.codex\skills</code>です。ホーム実行版への書込みは、対象と操作を確認してから 行ってください。</p>
-<p><code>-ExecutionPolicy Bypass</code> はこのプロセスだけに適用されます。 この verifier は Python と git も使って各 checker を実行するため、 先に利用可能か確認してください。 検証は公開操作を行わず、<code>embedded copy</code> と <code>standalone clone</code> の契約を確認します。</p>
+<p>公開操作には、対象と操作を特定した人間レビューと明示承認が必要です。 <code>publication_gate: human_review_required</code></p>
 <h2>基本ワークフロー</h2>
 <pre><code>素材を指定 → 記事候補 → 下書き → ローカル検査 → Note 下書き保存 → 公開直前で停止</code></pre>
 <div class="table-wrap"><table>
-<thead><tr><th>段階</th><th>入口</th></tr></thead>
+<thead><tr><th>段階</th><th>入口</th><th>典型コマンド / skill</th></tr></thead>
 <tbody>
-<tr><td>記事候補</td><td><a href="skills/note-idea-intake/SKILL.md"><code>note-idea-intake</code></a></td></tr>
-<tr><td>下書き</td><td><a href="skills/note-draft-production/SKILL.md"><code>note-draft-production</code></a></td></tr>
-<tr><td>投稿前QA</td><td><a href="skills/note-prepublish-qa/SKILL.md"><code>note-prepublish-qa</code></a></td></tr>
-<tr><td>エディタ反映</td><td><a href="skills/note-editor-prepublish/SKILL.md"><code>note-editor-prepublish</code></a></td></tr>
-<tr><td>公開停止線</td><td><a href="skills/note-publication-gate/SKILL.md"><code>note-publication-gate</code></a></td></tr>
-<tr><td>公開後台帳</td><td><a href="skills/note-postpublish-ledger/SKILL.md"><code>note-postpublish-ledger</code></a></td></tr>
+<tr><td>記事候補</td><td><a href="skills/note-idea-intake/SKILL.md"><code>note-idea-intake</code></a></td><td>素材フォルダを指定して候補出し</td></tr>
+<tr><td>下書き</td><td><a href="skills/note-draft-production/SKILL.md"><code>note-draft-production</code></a></td><td>問答packet → 本文</td></tr>
+<tr><td>投稿前QA</td><td><a href="skills/note-prepublish-qa/SKILL.md"><code>note-prepublish-qa</code></a></td><td>preview / pre_publish / fact</td></tr>
+<tr><td>エディタ反映</td><td><a href="skills/note-editor-prepublish/SKILL.md"><code>note-editor-prepublish</code></a></td><td>下書き保存まで</td></tr>
+<tr><td>公開停止線</td><td><a href="skills/note-publication-gate/SKILL.md"><code>note-publication-gate</code></a></td><td>公開ボタン手前で停止</td></tr>
+<tr><td>公開後台帳</td><td><a href="skills/note-postpublish-ledger/SKILL.md"><code>note-postpublish-ledger</code></a></td><td>URL 確認後のみ</td></tr>
 </tbody></table></div>
-<p>固定の <code>ネタ帳.md</code> は使いません。入力は、ユーザーが最初に指定した 「読んでよい素材フォルダ」だけです。</p>
 <p>下書き前には問答packetで本人の言葉、判断、避けたい断言、残したい脱線を確認し、 <code>voice_profile</code>と<code>shortening_budget</code>を固定します。詳しくは <a href="references/note-draft-authority-and-layout-contract.md"><code>note-draft-authority-and-layout-contract.md</code></a>。</p>
 <h2>安全設計</h2>
+<p>要点だけ先に:</p>
+<p>1. 読んでよい素材は、ユーザーが指定したフォルダだけ 2. 公開・予約・SNS は明示承認なしに押さない 3. 根拠ラベル（本人の言葉 / 外部事実 / AI整理）を混ぜない</p>
+<details>
+<summary>根拠ラベル・provenance（詳細）</summary>
 <ul>
 <li>根拠は <code>source_database</code> / <code>source_pack</code>、構成案は <code>series_plot</code>、</li>
 <p><code>article_plot</code>、<code>skeleton</code>、<code>wall_bang</code> として分離します。</p>
@@ -187,6 +234,7 @@ python scripts/provenance_label_check.py &lt;draft.md&gt; --public-output &lt;pu
 <li><code>hold</code> が残る間は公開本文候補を書き出しません。公開本文候補では</li>
 <p>ローカル管理用の由来コメントを除去します。</p>
 </ul>
+</details>
 <details>
 <summary>Note エディタの詳しい境界</summary>
 <h2>Note エディタの境界</h2>
@@ -212,8 +260,10 @@ python scripts/provenance_label_check.py &lt;draft.md&gt; --public-output &lt;pu
 <tr><td>公開前の準備</td><td><a href="PUBLIC_READY.md">PUBLIC_READY.md</a> / <a href="PUBLIC_RELEASE_CHECKLIST.md">PUBLIC_RELEASE_CHECKLIST.md</a></td></tr>
 <tr><td>セキュリティ</td><td><a href="SECURITY.md">SECURITY.md</a></td></tr>
 <tr><td>変更履歴</td><td><a href="CHANGELOG.md">CHANGELOG.md</a></td></tr>
+<tr><td>使い方動画の置き場</td><td><a href="assets/demo/README.md">assets/demo/README.md</a></td></tr>
 </tbody></table></div>
-<p>主な補助ツール:</p>
+<details>
+<summary>主な補助ツール一覧</summary>
 <ul>
 <li><code>scripts/note_preview.py</code>: ローカルプレビュー。</li>
 <li><code>scripts/review_draft.py</code>: <code>build-context-card</code> と <code>review-draft</code>。</li>
@@ -225,11 +275,12 @@ python scripts/provenance_label_check.py &lt;draft.md&gt; --public-output &lt;pu
 <li><code>scripts/note_authorship_gate.py</code>: 本人発言にない作文や無断短縮を検査。</li>
 <li><code>scripts/note_linebreak_gate.py</code> / <code>scripts/note_figure_structure_gate.py</code>: 改行、図、captionを検査。</li>
 <li><code>scripts/note_browser_transport_recovery.py</code> / <code>scripts/note_editor_timeout_recovery.py</code>: Browser切断とtimeoutを分類。前者はread-only復旧計画専用で、process終了や人間承認の真正性確認は行わない。</li>
-<li><code>scripts/note_editor_pdca_failure_check.py</code>: Note editor 失敗パターン台帳 (<code>data/note_editor_pdca_failure_patterns.json</code>) を検査。</li>
-<li><code>scripts/topic_status_check.py</code>: 話題統合台帳 (<code>references/topic-consolidation-ledger.md</code>) と吸収済み課題の配線を検査。</li>
-<li><code>scripts/package_consistency_check.py</code>: 宣言したスクリプトの実在と、必要時の配布コピー一致を検査。</li>
+<li><code>scripts/note_editor_pdca_failure_check.py</code>: Note editor 失敗パターン台帳を検査。</li>
+<li><code>scripts/topic_status_check.py</code>: 話題統合台帳の配線を検査。</li>
+<li><code>scripts/package_consistency_check.py</code>: 宣言したスクリプトの実在を検査。</li>
 <li><code>adapters/codex/install.ps1</code>: WindowsのCodex skill pointerを配置し、参照切れを検査。</li>
 </ul>
+</details>
 <h2>PRごとのドキュメント同期</h2>
 <p><code>package.yaml</code>の<code>docs_sync_contract</code>を正本として、変更pathに対応する文書更新と <code>README.rendered.html</code>の生成差分を検査します。通常検査はrepositoryを変更せず、 不足時は<code>generated_drift</code>、<code>missing_doc_review</code>、<code>missing_required_doc</code>を返します。</p>
 <pre><code>python scripts/docs_sync_check.py --base-ref origin/main</code></pre>
