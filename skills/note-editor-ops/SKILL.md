@@ -17,6 +17,9 @@ Note editor で実際に必要になる低レベル操作を、機能ごとに�
 `../note-editor-constraint-debug/SKILL.md` を読む。
 操作の分割、検証、差し戻しは
 `../../references/note-editor-pdca-orchestration.md` を読む。
+失敗パターン、禁止リトライ、fresh DOM 証跡は
+`../../data/note_editor_pdca_failure_patterns.json` を読み、
+`../../scripts/note_editor_pdca_failure_check.py` で保証する。
 本文の短縮防止、著者性、改行、図、キャプションは
 `../../references/note-draft-authority-and-layout-contract.md` を読む。
 埋め込み、目次、Shift+Enter の live 実測境界は
@@ -54,9 +57,27 @@ Note editor で実際に必要になる低レベル操作を、機能ごとに�
 - Note editor 操作は一括実行せず、Goal / Plan / Do / Check / Act の cycle に分ける。
 - 1 cycle では 1 action だけ行う。例: attach、候補列挙、cursor prep、URL 1件貼り付け、Enter 1回、DOM確認、Undo 1回。
 - 各 cycle の前に、完了条件、非目標、公開/保存/共有 gate、Undo / stopline を決める。
+- 各 cycle は前回の記憶や前回の figure 数から始めない。必ず最新 DOM を読み直し、
+  URL、title、本文 root、figure 数、対象見出し、公開/予約/共有未操作を確認してから始める。
+- 同じ失敗、遅延反映、cursor drift、direct input API 不可などは
+  `note_editor_pdca_failure_patterns.json` の failure ledger に照合し、
+  `note_editor_pdca_failure_check.py` が通る形で禁止リトライと次 action を残す。
 - Main agent は採否、公開 gate、secret/auth、最終報告を保持する。
 - Spark / worker は read-only summary、候補抽出、公式source表化、diff/log圧縮、risk second-pass に限定する。
 - UI 操作の write packet は原則 main agent が担当する。
+- Chrome / Note の操作直前と直後に URL、title、fresh DOM snapshot を取る。
+- locator は role、label、visible text、aria state から作り、候補数が1件の時だけ操作する。
+- navigation、autosave、遅延反映、人間操作を検知したら旧 locator を捨て、read-only attach へ戻る。
+- `公開中`、作成済みURL、送信完了など目的状態が成立済みなら `already-completed` と分類し、
+  重複する作成、投稿、公開 click を行わない。
+
+### 0a. Chrome DOM 基本ループ
+
+1. Plan: 対象タブ、1 action、期待する状態遷移、公開/保存/共有 stopline を決める。
+2. Do-pre: tab inventory、claim、URL / title、fresh DOM snapshot、候補数を取得する。
+3. Do-action: 候補数が1件なら click / fill / upload / navigation の1 actionだけ行う。
+4. Check: URL / title と fresh DOM snapshot を取り直し、表示・状態・結果URLを確認する。
+5. Act: 成功なら次cycle。不一致なら attachへ戻る。成立済みなら `already-completed` として重複操作を止め結果確認へ移る。
 
 ### 1. Browser attach
 

@@ -225,6 +225,8 @@ python scripts/provenance_label_check.py &lt;draft.md&gt; --public-output &lt;pu
 <li><code>scripts/note_authorship_gate.py</code>: 本人発言にない作文や無断短縮を検査。</li>
 <li><code>scripts/note_linebreak_gate.py</code> / <code>scripts/note_figure_structure_gate.py</code>: 改行、図、captionを検査。</li>
 <li><code>scripts/note_browser_transport_recovery.py</code> / <code>scripts/note_editor_timeout_recovery.py</code>: Browser切断とtimeoutを分類。前者はread-only復旧計画専用で、process終了や人間承認の真正性確認は行わない。</li>
+<li><code>scripts/note_editor_pdca_failure_check.py</code>: Note editor 失敗パターン台帳 (<code>data/note_editor_pdca_failure_patterns.json</code>) を検査。</li>
+<li><code>scripts/topic_status_check.py</code>: 話題統合台帳 (<code>references/topic-consolidation-ledger.md</code>) と吸収済み課題の配線を検査。</li>
 <li><code>scripts/package_consistency_check.py</code>: 宣言したスクリプトの実在と、必要時の配布コピー一致を検査。</li>
 <li><code>adapters/codex/install.ps1</code>: WindowsのCodex skill pointerを配置し、参照切れを検査。</li>
 </ul>
@@ -243,6 +245,8 @@ python scripts/note_editor_prepublish_verify.py data/note_editor_prepublish_obse
 python scripts/run_local_draft_qa_proof.py --json
 python scripts/japanese_closeout_language_check.py --json
 python scripts/note_image_upload_boundary_check.py --json
+python scripts/note_editor_pdca_failure_check.py --json
+python scripts/topic_status_check.py --json
 python -m pytest scripts/test_skill_integration.py tests</code></pre>
 <p>包括検証は <code>sh scripts/verify_public_package.sh</code> です。<code>verify:local</code> は、 公開操作なしで構成、安全境界、README表示、公開前停止線を確認します。</p>
 <p>日本語報告の <code>ready for review</code> は下書き解除済み、<code>open PR</code> は未マージPR、 <code>MERGED</code> はマージ済み、<code>mergeable</code> はマージ可能です。これらを英語のまま 報告した場合は文章ミスではなく、構造バグとして出力ゲートを修正します。 コマンド、ファイルパス、URL、SHA、識別子は原文のまま扱います。</p>

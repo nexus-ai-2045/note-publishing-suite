@@ -13,6 +13,12 @@ source_scope: local operation pattern
 note editor 操作を一括実行せず、薄い PDCA cycle で回す。
 画面幅、DOM 変化、カーソル位置、ブラウザ面、AI面が変わるため、
 各操作を小さい work packet に分けて evidence を取ってから次へ進む。
+失敗パターンは `../data/note_editor_pdca_failure_patterns.json` の
+failure ledger に固定し、`../scripts/note_editor_pdca_failure_check.py`
+で検査する。同じ失敗が2回続いた route は閉じ、遅延反映や
+cursor drift は fresh DOM からやり直す。禁止リトライは ledger の
+`stopline` / `next_action` に従う。mutation の action前 URL / title / DOM
+を残し、目的状態が成立済みなら already-completed として重複操作しない。
 
 本文の短縮防止、著者性、改行、図、キャプションは
 `references/note-draft-authority-and-layout-contract.md` を参照する。

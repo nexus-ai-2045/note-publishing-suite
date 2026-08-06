@@ -172,6 +172,8 @@ Noteログイン、常時接続、画像アップロードの完全自動化は�
 - `scripts/note_authorship_gate.py`: 本人発言にない作文や無断短縮を検査。
 - `scripts/note_linebreak_gate.py` / `scripts/note_figure_structure_gate.py`: 改行、図、captionを検査。
 - `scripts/note_browser_transport_recovery.py` / `scripts/note_editor_timeout_recovery.py`: Browser切断とtimeoutを分類。前者はread-only復旧計画専用で、process終了や人間承認の真正性確認は行わない。
+- `scripts/note_editor_pdca_failure_check.py`: Note editor 失敗パターン台帳 (`data/note_editor_pdca_failure_patterns.json`) を検査。
+- `scripts/topic_status_check.py`: 話題統合台帳 (`references/topic-consolidation-ledger.md`) と吸収済み課題の配線を検査。
 - `scripts/package_consistency_check.py`: 宣言したスクリプトの実在と、必要時の配布コピー一致を検査。
 - `adapters/codex/install.ps1`: WindowsのCodex skill pointerを配置し、参照切れを検査。
 
@@ -203,6 +205,8 @@ python scripts/note_editor_prepublish_verify.py data/note_editor_prepublish_obse
 python scripts/run_local_draft_qa_proof.py --json
 python scripts/japanese_closeout_language_check.py --json
 python scripts/note_image_upload_boundary_check.py --json
+python scripts/note_editor_pdca_failure_check.py --json
+python scripts/topic_status_check.py --json
 python -m pytest scripts/test_skill_integration.py tests
 ```
 

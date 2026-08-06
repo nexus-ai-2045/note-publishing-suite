@@ -98,3 +98,26 @@ def test_missing_fresh_dom_evidence_fails_closed(tmp_path):
     returncode, payload = run_checker(tmp_path, ledger)
     assert returncode == 1
     assert any("fresh_dom_observed_at" in item for item in payload["stop_causes"])
+
+
+def test_default_package_ledger_and_docs_pass():
+    """Synthetic path だけ通しても default ledger が欠けると運用保証にならない。"""
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts/note_editor_pdca_failure_check.py"),
+            "--json",
+        ],
+        cwd=ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    assert payload["residual_work_zero"] is True
+    assert payload["external_actions_performed"] == []
+    assert payload["publication_actions_performed"] == []
+    assert "note_editor_pdca_failure_patterns.json" in payload["ledger"]

@@ -358,10 +358,13 @@ $requiredFiles = @(
     "tests/test_review_draft_cli.py",
     "content/drafts/caramel-provenance-label-fixture.md",
     "data/note_editor_prepublish_observation.fixture.json",
+    "data/note_editor_pdca_failure_patterns.json",
     "data/github_identity_guard_policy.example.json",
     "data/note_drafts.json",
     "data/published_notes.json",
-    "data/note_image_upload_automation_policy.json"
+    "data/note_image_upload_automation_policy.json",
+    "references/topic-consolidation-ledger.md",
+    "scripts/topic_status_check.py"
 )
 
 $requiredDirectories = @(
