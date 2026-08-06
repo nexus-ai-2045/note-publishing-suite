@@ -51,14 +51,14 @@ def validate_ledger_text(text: str) -> list[str]:
         if axis_id not in text:
             errors.append(f"ledger missing axis id: {axis_id}")
 
-    for status in ("open", "absorbed", "blocked_human", "deferred"):
+    # Active vocabulary can evolve; require the live set used by current axes.
+    for status in ("open", "absorbed", "deferred", "done"):
         if status not in text:
             errors.append(f"ledger missing status token: {status}")
 
     for needle in (
         "topic_status_check.py",
         "note_editor_pdca_failure_patterns.json",
-        "SAFE_REMOVE_CANDIDATE",
         "fixture",
         "publication_gate: human_review_required",
         "external_action: none",

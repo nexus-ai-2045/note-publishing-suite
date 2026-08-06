@@ -1,7 +1,7 @@
 ---
 title: note-publishing-suite 公開準備確認
 type: 公開準備確認
-status: Draft PR人間レビュー待ち
+status: v0.2.20 Release 済み。文書追随は 0.2.21
 ---
 
 # 公開準備確認
@@ -24,12 +24,15 @@ status: Draft PR人間レビュー待ち
 - シークレット走査済み: はい
 - 個人パス走査済み: はい
 - 公開境界確認済み: はい
-- GitHub へのプッシュ: 人間レビュー用ブランチまで。main反映、tag、Releaseは別承認
-- リポジトリ公開範囲の変更: なし
-- CHINJU CLI 確認: 未実行
-- docs-sync read-only検査: 実装済み・人間レビュー待ち
-- Windows installer CI: 専用jobで検証
-- Browser transport復旧: read-only計画専用。process終了は公開package外
+- GitHub へのプッシュ: main 反映済み（PR #17）
+- tag: `v0.2.20` @ `34befc7` 作成・push 済み
+- GitHub Release: https://github.com/nexus-ai-2045/note-publishing-suite/releases/tag/v0.2.20
+- リポジトリ公開範囲の変更: なし（既に PUBLIC。変更しない）
+- docs-sync read-only検査: 実装済み・CI 成功
+- Windows installer CI: 専用 job で検証
+- Browser transport 復旧: read-only 計画専用。process 終了は公開 package 外
+- 外部追加スキャナ（旧候補含む）: **採用しない**。正本検証は本 package の
+  `verify_public_package` / pytest / docs_sync / provenance 走査に閉じる
 
 ## 検証コマンド
 
@@ -62,16 +65,15 @@ Windows / PowerShell 環境では、等価 gate として
 シークレットらしい値の走査も、この公開リポジトリの作業コピーに対して実行済み。
 トークン、Cookie、パスワード、API キー、シークレットらしい値は検出されていない。
 
-CHINJU CLI は公開前検査の候補として検討したが、ローカル PATH では利用できず、
-公開 CHINJU サイトはクローズドベータ登録と使用例（`chinju`、`/scan`、
-`/regression`）のみを提示していた。認証済みローカル CHINJU CLI 実行が完了するまで、
-CHINJU 検証完了とは扱わない。
-
 ## 公開ゲート
 
-GitHub へのプッシュ、公開リリース、公開リポジトリ作成、リポジトリ公開範囲変更の前に停止し、
-対象操作ごとの明示承認を確認する。公開後は、コミット履歴とファイルがウェブ上で
-見える可能性がある。
+公開リリース済みの版でも、次の操作は対象ごとの明示承認が要る。
 
-docs-sync workflowは`contents: read`のみを使い、検査結果と生成物patchのartifact以外を
-書き込まない。repositoryへのcommit、push、PR編集は行わない。
+- 追加の tag / Release
+- リポジトリ公開範囲の変更
+- Note 投稿、予約投稿、SNS 共有、外部告知
+
+公開後は、コミット履歴とファイルがウェブ上で見える可能性がある。
+
+docs-sync workflow は `contents: read` のみを使い、検査結果と生成物 patch の artifact 以外を
+書き込まない。repository への commit、push、PR 編集は行わない。

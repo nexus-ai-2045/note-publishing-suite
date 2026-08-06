@@ -47,4 +47,5 @@ def test_ledger_marks_fixture_todo_as_non_product():
     )
     assert "fixture" in text
     assert "製品残務ではない" in text
-    assert "SAFE_REMOVE_CANDIDATE" in text
+    assert "WRONG_REPO" in text
+    assert "KEEP" in text
