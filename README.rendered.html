@@ -117,7 +117,7 @@
 <p><strong>書くところまで自動化。公開は、人が決める。</strong></p>
 <p><img src="assets/note-publishing-workflow.svg" alt="素材からNote下書き保存までは自動化し、公開直前で停止して人が判断するワークフロー" loading="lazy"></p>
 <p>ローカル素材から Note の下書きを作り、検査し、エディタへ反映する Codex 向けパッケージです。公開・予約投稿・SNS 共有は自動で行わず、 必ず公開直前で止まります。</p>
-<p>パッケージ版: <code>0.2.19</code></p>
+<p>パッケージ版: <code>0.2.20</code></p>
 <p><a href="#3分で始める">3分で始める</a> · <a href="#安全設計">安全設計</a> · <a href="#入口と詳しい資料">詳しい資料</a></p>
 <h2>できること</h2>
 <div class="table-wrap"><table>
@@ -127,6 +127,9 @@
 <tr><td>プレビュー、投稿前検査、根拠確認を行う</td><td>記事内容が正しいと断定する</td></tr>
 <tr><td>Note エディタへ反映し、下書き保存まで進める</td><td>公開、予約投稿、SNS 共有、外部告知</td></tr>
 <tr><td>公開後の確認内容を台帳更新案にする</td><td>PV、SEO、おすすめ掲載などの成果を保証する</td></tr>
+<tr><td>問答packetと過去文体から、本人の口調・判断を残した下書きを作る</td><td>本人が言っていない感想や結論を作文する</td></tr>
+<tr><td>無断短縮、改行、図・キャプション、目次、埋め込みを構造検査する</td><td>UI依存操作が常に成功すると断定する</td></tr>
+<tr><td>Browser切断やtimeoutを分類し、安全な復旧経路へ戻す</td><td>processの一括終了や無制限retry</td></tr>
 </tbody></table></div>
 <p>公開操作には、対象と操作を特定した人間レビューと明示承認が必要です。</p>
 <h2>3分で始める</h2>
@@ -136,6 +139,11 @@ cd note-publishing-suite
 sh scripts/verify_public_package.sh</code></pre>
 <p>Windows では PowerShell verifier も使えます。</p>
 <pre><code>pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1</code></pre>
+<p>Codexへローカル登録する場合は、検証後にWindows用installerを明示実行します。 installerは実体を複製せず、現在のpackageとworkspaceを指す通常ファイル形式の pointerを原子的に配置し、配置後に参照切れを検査します。</p>
+<pre><code>pwsh -NoProfile -File adapters/codex/install.ps1 `
+  -PackageRoot (Resolve-Path .) `
+  -WorkspaceRoot (Resolve-Path .)</code></pre>
+<p>既定の配置先は <code>$env:CODEX_HOME\skills</code>、<code>CODEX_HOME</code>が未設定なら <code>$HOME\.codex\skills</code>です。ホーム実行版への書込みは、対象と操作を確認してから 行ってください。</p>
 <p><code>-ExecutionPolicy Bypass</code> はこのプロセスだけに適用されます。 この verifier は Python と git も使って各 checker を実行するため、 先に利用可能か確認してください。 検証は公開操作を行わず、<code>embedded copy</code> と <code>standalone clone</code> の契約を確認します。</p>
 <h2>基本ワークフロー</h2>
 <pre><code>素材を指定 → 記事候補 → 下書き → ローカル検査 → Note 下書き保存 → 公開直前で停止</code></pre>
@@ -150,6 +158,7 @@ sh scripts/verify_public_package.sh</code></pre>
 <tr><td>公開後台帳</td><td><a href="skills/note-postpublish-ledger/SKILL.md"><code>note-postpublish-ledger</code></a></td></tr>
 </tbody></table></div>
 <p>固定の <code>ネタ帳.md</code> は使いません。入力は、ユーザーが最初に指定した 「読んでよい素材フォルダ」だけです。</p>
+<p>下書き前には問答packetで本人の言葉、判断、避けたい断言、残したい脱線を確認し、 <code>voice_profile</code>と<code>shortening_budget</code>を固定します。詳しくは <a href="references/note-draft-authority-and-layout-contract.md"><code>note-draft-authority-and-layout-contract.md</code></a>。</p>
 <h2>安全設計</h2>
 <ul>
 <li>根拠は <code>source_database</code> / <code>source_pack</code>、構成案は <code>series_plot</code>、</li>
@@ -212,6 +221,14 @@ python scripts/provenance_label_check.py &lt;draft.md&gt; --public-output &lt;pu
 <li><code>scripts/post_publish.py</code>: 既定はドライランの台帳更新。</li>
 <li><code>scripts/bump_package_version.py</code>: patch / minor / major を自動採番。</li>
 <li><code>scripts/docs_sync_check.py</code>: 生成物と関連文書をread-onlyで同期検査。</li>
+<li><code>scripts/note_interview_packet.py</code>: 低負担な問答packetを生成。</li>
+<li><code>scripts/note_authorship_gate.py</code>: 本人発言にない作文や無断短縮を検査。</li>
+<li><code>scripts/note_linebreak_gate.py</code> / <code>scripts/note_figure_structure_gate.py</code>: 改行、図、captionを検査。</li>
+<li><code>scripts/note_browser_transport_recovery.py</code> / <code>scripts/note_editor_timeout_recovery.py</code>: Browser切断とtimeoutを分類。前者はread-only復旧計画専用で、process終了や人間承認の真正性確認は行わない。</li>
+<li><code>scripts/note_editor_pdca_failure_check.py</code>: Note editor 失敗パターン台帳 (<code>data/note_editor_pdca_failure_patterns.json</code>) を検査。</li>
+<li><code>scripts/topic_status_check.py</code>: 話題統合台帳 (<code>references/topic-consolidation-ledger.md</code>) と吸収済み課題の配線を検査。</li>
+<li><code>scripts/package_consistency_check.py</code>: 宣言したスクリプトの実在と、必要時の配布コピー一致を検査。</li>
+<li><code>adapters/codex/install.ps1</code>: WindowsのCodex skill pointerを配置し、参照切れを検査。</li>
 </ul>
 <h2>PRごとのドキュメント同期</h2>
 <p><code>package.yaml</code>の<code>docs_sync_contract</code>を正本として、変更pathに対応する文書更新と <code>README.rendered.html</code>の生成差分を検査します。通常検査はrepositoryを変更せず、 不足時は<code>generated_drift</code>、<code>missing_doc_review</code>、<code>missing_required_doc</code>を返します。</p>
@@ -228,6 +245,8 @@ python scripts/note_editor_prepublish_verify.py data/note_editor_prepublish_obse
 python scripts/run_local_draft_qa_proof.py --json
 python scripts/japanese_closeout_language_check.py --json
 python scripts/note_image_upload_boundary_check.py --json
+python scripts/note_editor_pdca_failure_check.py --json
+python scripts/topic_status_check.py --json
 python -m pytest scripts/test_skill_integration.py tests</code></pre>
 <p>包括検証は <code>sh scripts/verify_public_package.sh</code> です。<code>verify:local</code> は、 公開操作なしで構成、安全境界、README表示、公開前停止線を確認します。</p>
 <p>日本語報告の <code>ready for review</code> は下書き解除済み、<code>open PR</code> は未マージPR、 <code>MERGED</code> はマージ済み、<code>mergeable</code> はマージ可能です。これらを英語のまま 報告した場合は文章ミスではなく、構造バグとして出力ゲートを修正します。 コマンド、ファイルパス、URL、SHA、識別子は原文のまま扱います。</p>

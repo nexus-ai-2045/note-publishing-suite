@@ -26,6 +26,7 @@ description: "Use inside note-publishing-suite when the user asks to create or r
 1. `../../references/note-article-provenance-design.md` を読み、
    `article_lane`、`source_mode`、source database、source pack、plot、
    skeleton、wall-bang、stance brief を固定する。
+1.1. `../../references/note-draft-authority-and-layout-contract.md` を読み、材料不足時は問答 intake を先に行う。許可済み資料から `voice_profile` を作る場合も、本人の発言にない感想や体験を作文しない。
 2. Plan 表を作る。読者、読後に得るもの、嬉しい解決、入口、公開後 PDCA 指標を 1 行ずつ決める。
 3. plot / skeleton を作る。連載や記事の展開、導入、読者の痛み、主張、根拠、具体例、反論処理、締め、Call To Action（CTA）を含める。
 4. 本文では事実、推定、意見を分ける。根拠が必要な主張は確認対象として残す。
@@ -45,6 +46,14 @@ description: "Use inside note-publishing-suite when the user asks to create or r
     修正後は検査とレビュー HTML を再生成する。
 13. `hold` を解消し検査が通った後だけ `--public-output` を使う。公開、投稿、
     共有は引き続き別の明示承認まで行わない。
+14. `production_candidate` では、問答packetまたは編集前正本を一意に指す
+   `shortening_source` と、許容削減率 `shortening_budget` をfrontmatterへ記録する。
+   CLI と frontmatter で異なる比較元または許容値を指定しない。
+   既定では意味段落、具体例、本人発言、出典、図、キャプションを維持し、省略候補を勝手に削除しない。
+15. 改行と図を含む場合は `note_linebreak_gate.py` と `note_figure_structure_gate.py` の対象を明記する。
+16. production QA では
+   `python scripts/note_authorship_gate.py <draft> --json` を実行する。
+   `shortening.checked=true` と `overall=ok` の両方を確認できなければ完了扱いにしない。
 
 ## 境界
 
@@ -64,6 +73,8 @@ description: "Use inside note-publishing-suite when the user asks to create or r
 - 根拠が必要な主張を確認できない。
 - 権利リスクのある引用や画像が公開前提になっている。
 - ユーザーが求めている記事種別が未確定。
+- `production_candidate` の `shortening_source` または `shortening_budget` がない、
+  比較元が複数に分岐する、あるいは短縮検査が `shortening.checked=true` にならない。
 
 ## Closeout Evidence
 
@@ -72,6 +83,7 @@ description: "Use inside note-publishing-suite when the user asks to create or r
 - 使った source database / source pack / plot / skeleton / wall-bang / stance brief。
 - 残した未確認事項。
 - 次の QA コマンド。
+- 問答 intake の確認事項、`voice_profile` の根拠、`shortening_budget`、図・キャプション・改行の維持結果。
 
 ## ハッシュタグ選定
 

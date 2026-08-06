@@ -4,6 +4,33 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
+## 0.2.20
+
+日付: 2026-08-06
+
+変更:
+- 問答・著者性・短縮防止・改行・図版・Browser復旧ゲートとWindows Codex配布経路を追加した。
+- 問答packet APIの質問数を1〜5件へ制限し、dirty worktreeにだけ残っていた回帰テストを正規候補へ回収した。
+- Browser復旧はread-only計画専用にし、自己申告JSONによるprocess終了機能を公開packageから除外した。
+- Linuxの通常テストとWindows installer smokeをCIで分離し、既存のpointer検査と公開package verifierを再利用した。
+- 初回PR CIで検出したpointer path終端の部分一致と、Windows cloneの生成HTML改行driftを回帰テスト付きで修正した。
+- PDCA failure ledger (`data/note_editor_pdca_failure_patterns.json`) と docs 配線を回収し、default path の運用保証テストを追加した。
+- 話題統合台帳 (`references/topic-consolidation-ledger.md`) と `scripts/topic_status_check.py` で、ローカル話題の chat 化と fixture TODO 混同を止めた。
+- issue-drafts の吸収済み課題 (1〜3 / 埋め込み制約) を ledger と揃えた。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `pwsh -NoProfile -File scripts/verify_public_package.ps1`
+- `python scripts/docs_sync_check.py --base-ref origin/main`
+- `python scripts/package_consistency_check.py --json`
+- `python scripts/note_editor_pdca_failure_check.py --json`
+- `python scripts/topic_status_check.py --json`
+- `python -m pytest tests/test_note_interview_packet.py tests/test_note_browser_transport_recovery.py tests/test_windows_skill_installer.py tests/test_note_editor_pdca_failure_check.py tests/test_topic_status_check.py -q`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.2.19
 
 日付: 2026-08-05

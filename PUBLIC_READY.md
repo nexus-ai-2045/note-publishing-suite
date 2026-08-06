@@ -1,7 +1,7 @@
 ---
 title: note-publishing-suite 公開準備確認
 type: 公開準備確認
-status: 人間レビュー待ち
+status: Draft PR人間レビュー待ち
 ---
 
 # 公開準備確認
@@ -24,10 +24,12 @@ status: 人間レビュー待ち
 - シークレット走査済み: はい
 - 個人パス走査済み: はい
 - 公開境界確認済み: はい
-- GitHub へのプッシュ実行済み: はい。人間レビュー用ブランチまで
+- GitHub へのプッシュ: 人間レビュー用ブランチまで。main反映、tag、Releaseは別承認
 - リポジトリ公開範囲の変更: なし
 - CHINJU CLI 確認: 未実行
 - docs-sync read-only検査: 実装済み・人間レビュー待ち
+- Windows installer CI: 専用jobで検証
+- Browser transport復旧: read-only計画専用。process終了は公開package外
 
 ## 検証コマンド
 

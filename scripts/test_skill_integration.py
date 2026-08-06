@@ -67,6 +67,7 @@ def test_required_files_exist():
         "references/note-article-provenance-design.md",
         "references/note-editor-live-constraint-boundaries.md",
         "references/note-image-upload-automation-boundary.md",
+        "references/note-draft-authority-and-layout-contract.md",
         "skills/note-idea-intake/SKILL.md",
         "skills/note-draft-production/SKILL.md",
         "skills/note-prepublish-qa/SKILL.md",
@@ -109,6 +110,67 @@ def test_required_files_exist():
     ]
     missing = [item for item in required if not (ROOT / item).exists()]
     assert not missing
+
+
+def test_draft_authority_layout_and_recovery_contract_is_wired():
+    docs = {
+        "parent": (ROOT / "SKILL.md").read_text(encoding="utf-8"),
+        "draft": (ROOT / "skills/note-draft-production/SKILL.md").read_text(
+            encoding="utf-8"
+        ),
+        "ops": (ROOT / "skills/note-editor-ops/SKILL.md").read_text(
+            encoding="utf-8"
+        ),
+        "pdca": (
+            ROOT / "references/note-editor-pdca-orchestration.md"
+        ).read_text(encoding="utf-8"),
+    }
+    contract_path = "references/note-draft-authority-and-layout-contract.md"
+    contract = (ROOT / contract_path).read_text(encoding="utf-8")
+
+    for name, text in docs.items():
+        assert contract_path in text, name
+
+    for needle in [
+        "問答 intake",
+        "voice_profile",
+        "本人の発言にない感想や体験を作文しない",
+        "shortening_budget",
+        "省略候補を勝手に削除しない",
+        "note_linebreak_gate.py",
+        "note_figure_structure_gate.py",
+        "図の直前",
+        "キャプション",
+    ]:
+        assert needle in contract, needle
+
+    for needle in [
+        "note_editor_timeout_recovery.py",
+        "note_browser_transport_recovery.py",
+        "recovery_routes_exhausted",
+        "snapshot_digest",
+        "process kill を自動実行しない",
+    ]:
+        assert needle in docs["ops"], needle
+        assert needle in docs["pdca"], needle
+
+
+def test_production_shortening_gate_is_mandatory_and_source_is_unique():
+    parent = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+    draft = (ROOT / "skills/note-draft-production/SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    for name, text in {"parent": parent, "draft": draft}.items():
+        for needle in [
+            "production_candidate",
+            "shortening_source",
+            "shortening_budget",
+            "shortening.checked=true",
+            "note_authorship_gate.py",
+        ]:
+            assert needle in text, f"{name}: {needle}"
+    assert "CLI と frontmatter で異なる比較元" in draft
+    assert "完了扱いにしない" in draft
 
 
 def test_public_package_version_is_current_commit_target():
@@ -1386,3 +1448,26 @@ def test_script_help_smoke():
             check=False,
         )
         assert result.returncode == 0, result.stderr
+
+
+def test_mpc_fde_orchestration_contract_present():
+    skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+    package = (ROOT / "package.yaml").read_text(encoding="utf-8")
+
+    for marker in [
+        "観測",
+        "予測",
+        "局所最適化",
+        "一歩実行",
+        "再観測",
+        "次元の呪い",
+        "FDE",
+    ]:
+        assert marker in skill
+
+    for marker in [
+        "fde_axis_partition",
+        "mpc_feedback_loop",
+        "parent_runtime_integration",
+    ]:
+        assert marker in package

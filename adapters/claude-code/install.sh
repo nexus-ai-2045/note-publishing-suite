@@ -8,11 +8,27 @@ umask 077
 PACKAGE_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 WORKSPACE_ROOT="${1:-$PACKAGE_ROOT}"
 DEST="${CLAUDE_SKILLS_DIR:-$HOME/.claude/skills}"
+PACKAGE_ROOT_POINTER="$PACKAGE_ROOT"
+WORKSPACE_ROOT_POINTER="$WORKSPACE_ROOT"
+DEST_POINTER="$DEST"
+if command -v cygpath >/dev/null 2>&1; then
+  WORKSPACE_ROOT="$(cygpath -u "$WORKSPACE_ROOT")"
+  DEST="$(cygpath -u "$DEST")"
+  PACKAGE_ROOT_POINTER="$(cygpath -w "$PACKAGE_ROOT")"
+  WORKSPACE_ROOT_POINTER="$(cygpath -w "$WORKSPACE_ROOT")"
+  DEST_POINTER="$(cygpath -w "$DEST")"
+elif command -v wslpath >/dev/null 2>&1; then
+  WORKSPACE_ROOT="$(wslpath -u "$WORKSPACE_ROOT")"
+  DEST="$(wslpath -u "$DEST")"
+  PACKAGE_ROOT_POINTER="$PACKAGE_ROOT"
+  WORKSPACE_ROOT_POINTER="$WORKSPACE_ROOT"
+  DEST_POINTER="$DEST"
+fi
 escape_sed_replacement() {
   printf '%s' "$1" | sed 's/[\\&|]/\\&/g'
 }
-PACKAGE_ROOT_SED=$(escape_sed_replacement "$PACKAGE_ROOT")
-WORKSPACE_ROOT_SED=$(escape_sed_replacement "$WORKSPACE_ROOT")
+PACKAGE_ROOT_SED=$(escape_sed_replacement "$PACKAGE_ROOT_POINTER")
+WORKSPACE_ROOT_SED=$(escape_sed_replacement "$WORKSPACE_ROOT_POINTER")
 mkdir -p "$DEST"
 for d in "$PACKAGE_ROOT"/adapters/claude-code/*/; do
   name=$(basename "$d")
@@ -30,6 +46,6 @@ for d in "$PACKAGE_ROOT"/adapters/claude-code/*/; do
   echo "installed: $DEST/$name/SKILL.md"
 done
 python3 "$PACKAGE_ROOT/scripts/skill_pointer_check.py" \
-  --installed-root "$DEST" \
+  --installed-root "$DEST_POINTER" \
   --json
 echo "OK: 次の Claude Code セッションから note 系トリガで発火します"

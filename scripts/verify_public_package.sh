@@ -60,6 +60,10 @@ for item in \
   scripts/verify_public_package.ps1 \
   tests/test_review_draft_cli.py \
   data/note_editor_prepublish_observation.fixture.json \
+  data/note_editor_pdca_failure_patterns.json \
+  references/topic-consolidation-ledger.md \
+  scripts/topic_status_check.py \
+  scripts/note_editor_pdca_failure_check.py \
   content/drafts/sample-note-prepublish-fixture.md
 do
   require_file "$item"

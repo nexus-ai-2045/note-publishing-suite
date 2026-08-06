@@ -31,6 +31,8 @@ Linear、GitHub Issues、Notion、Obsidian、todo.md のどれにも転記でき
 
 ## 課題 1: パッケージ契約を検証する
 
+状態: 吸収済み
+
 概要:
 親スキル、管理情報、README、6子スキルが Note 投稿支援パッケージの契約を満たすことを確認する。
 
@@ -43,6 +45,8 @@ Linear、GitHub Issues、Notion、Obsidian、todo.md のどれにも転記でき
 
 ## 課題 2: 追跡ツールなしの実行互換性を保つ
 
+状態: 吸収済み
+
 概要:
 Linear などの外部追跡ツールや別実行環境が無くても、Codex または Claude Code 単体で実行できる契約を保つ。
 
@@ -53,6 +57,8 @@ Linear などの外部追跡ツールや別実行環境が無くても、Codex �
 - 追跡ツールへの転記は現在会話でユーザーが明示依頼した場合だけ行う。
 
 ## 課題 3: Spark/Sonnet ワーカー加速を任意に保つ
+
+状態: 吸収済み
 
 概要:
 Spark/Sonnet ワーカーは速度改善の任意手段として残し、必須条件にはしない。
@@ -121,8 +127,10 @@ Note エディタ反映段階を公開なしで通し、下書き保存までの
 
 ## 課題: 埋め込み・目次・段落内改行のエディタ制約ドキュメント
 
+状態: 吸収済み
+
 - HTML 貼り付けで再現できない note エディタ機能 (リンクカード埋め込み / 目次 / Shift+Enter の段落内改行) を実測ベースで文書化し、editor-prepublish skill の手動境界リストに反映する。
 - 実測済み: Shift+Enter は同一 `p` 内の `<br>` / URL 埋め込みは URL 単独行の Enter 後に `figure[data-src]` + `iframe.note-embed` / 目次は `table-of-contents` + `toc` 属性 / 大見出しは `H2` / 小見出しは `H3`。
 - 復旧境界: 埋め込み変換後と目次挿入後の `Control+Z` 1回では DOM が残ったため、誤位置は手動削除/復旧確認へ戻す。
 - URL 行が通常リンクのまま残る、または埋め込みカード位置を実測確認できない場合は、本文崩れを避けて手動境界として報告する。
-- 担当: 未割当 / 状態: 未処理
+- 行き先: `references/note-editor-live-constraint-boundaries.md` / linebreak・figure gates / note-editor-ops

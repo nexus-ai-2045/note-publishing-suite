@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 from pathlib import Path
 
@@ -12,7 +13,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 ADAPTER_ROOT = ROOT / "adapters" / "claude-code"
 PACKAGE_TARGET_RE = re.compile(r"\{\{PACKAGE_ROOT\}\}(/[^`\r\n]*SKILL\.md)")
-INSTALLED_TARGET_RE = re.compile(r"(/[^`\r\n]*SKILL\.md)")
+INSTALLED_TARGET_RE = re.compile(
+    r"(?:(?:[A-Za-z]:[\\/])|/)[^`\r\n]*SKILL\.md(?=[`\s]|$)"
+)
+
+
+def normalized_target(raw_target: str) -> Path:
+    """Normalize native Windows and MSYS absolute paths to a native Path."""
+    if os.name == "nt" and re.fullmatch(r"/[A-Za-z]/.*", raw_target):
+        raw_target = f"{raw_target[1]}:{raw_target[2:]}"
+    elif os.name == "nt" and re.fullmatch(r"/mnt/[A-Za-z]/.*", raw_target):
+        raw_target = f"{raw_target[5]}:{raw_target[6:]}"
+    return Path(raw_target).resolve(strict=False)
 
 
 def adapter_names() -> list[str]:
@@ -68,7 +80,8 @@ def validate_installed(installed_root: Path) -> tuple[list[str], list[str]]:
         if not targets:
             errors.append(f"installed pointer has no absolute SSOT target: {pointer}")
             continue
-        parsed_targets = [Path(raw_target) for raw_target in targets]
+        parsed_targets = [normalized_target(raw_target) for raw_target in targets]
+        expected = expected.resolve(strict=False)
         checked.extend(str(target) for target in parsed_targets)
         if len(parsed_targets) == 1 and not parsed_targets[0].is_file():
             errors.append(f"missing installed SSOT target: {parsed_targets[0]}")
