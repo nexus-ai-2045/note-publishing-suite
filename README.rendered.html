@@ -117,14 +117,15 @@
 <p><strong>書くところまで自動化。公開は、人が決める。</strong></p>
 <p><img src="assets/note-publishing-workflow.svg" alt="素材からNote下書き保存までは自動化し、公開直前で停止して人が判断するワークフロー" loading="lazy"></p>
 <p>ローカル素材から Note の下書きを作り、検査し、エディタへ反映する <strong>NPS（Note Publishing Suite）</strong> です。Codex / Claude Code から使えます。 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。</p>
-<p>パッケージ版: <code>0.2.22</code></p>
+<p>パッケージ版: <code>0.2.23</code></p>
 <div class="table-wrap"><table>
 <thead><tr><th>すぐやる</th><th>あとで読む</th></tr></thead>
 <tbody>
 <tr><td><a href="#nps-として使う3分">NPS として使う</a></td><td><a href="#できること">できること</a></td></tr>
-<tr><td><a href="#使い方動画">使い方動画</a></td><td><a href="#安全設計">安全設計</a></td></tr>
-<tr><td><a href="#基本ワークフロー">基本ワークフロー</a></td><td><a href="#入口と詳しい資料">入口と詳しい資料</a></td></tr>
+<tr><td><a href="#基本ワークフロー">基本ワークフロー</a></td><td><a href="#安全設計">安全設計</a></td></tr>
+<tr><td></td><td><a href="#入口と詳しい資料">入口と詳しい資料</a></td></tr>
 </tbody></table></div>
+<p><strong>動画は不要です。</strong> 下の 3 手順だけで NPS として使えます。</p>
 <h2>NPS として使う（3分）</h2>
 <p>必要なものは POSIX sh、Python、git です。</p>
 <h3>1. 取る・確かめる</h3>
@@ -156,26 +157,14 @@ sh scripts/verify_public_package.sh</code></pre>
 <tr><td>公開判断</td><td>「publication gate で止まって」</td></tr>
 </tbody></table></div>
 <p>固定の <code>ネタ帳.md</code> は使いません。入力は、ユーザーが最初に指定した 「読んでよい素材フォルダ」だけです。</p>
-<h2>使い方動画</h2>
-<p>README に使い方動画を載せられます。いまは <strong>枠だけ用意</strong> してあり、 実ファイルを置くとすぐ表示できます。</p>
-<h3>いまの表示（サムネ）</h3>
-<p><a href="assets/demo/README.md"><img src="assets/demo/usage-walkthrough-thumb.svg" alt="NPS 使い方動画 — 置き方と台本" loading="lazy"></a></p>
-<p>↑ いまは <strong>置き方ガイド</strong> にリンクしています。 <code>assets/demo/usage-walkthrough.mp4</code> を置いたら、リンク先を mp4 に差し替えるだけで再生導線になります。</p>
+<p>全体像は上のワークフロー図だけで足ります。動画撮影は必須ではありません。</p>
+<details>
+<summary>任意: 使い方動画を後から載せる場合</summary>
+<p>動画は <strong>なくても運用できます</strong>。人に見せたいときだけ足してください。</p>
+<p>1. 1〜3 分の画面録画を <code>assets/demo/usage-walkthrough.mp4</code> に置く 2. README に次を足す</p>
 <pre><code>[![NPS 使い方動画を再生](assets/demo/usage-walkthrough-thumb.svg)](assets/demo/usage-walkthrough.mp4)</code></pre>
-<h3>いちばん簡単（推奨）</h3>
-<p>1. 画面録画で 1〜3 分のデモを撮る（clone → verify → install → 最初の依頼） 2. <code>assets/demo/usage-walkthrough.mp4</code> に置く（目安 10〜30MB） 3. 上の Markdown のリンク先を <code>usage-walkthrough.mp4</code> に変更する</p>
-<p><strong>置き場所の契約:</strong> <a href="assets/demo/README.md"><code>assets/demo/README.md</code></a></p>
-<p>GitHub 上ではサムネをクリックすると動画（またはガイド）が開きます。 README 内のインライン自動再生は環境差があるため、<strong>サムネ → ファイル</strong> 方式が安定です。</p>
-<h3>ほかの載せ方</h3>
-<div class="table-wrap"><table>
-<thead><tr><th>方式</th><th>向き</th><th>メモ</th></tr></thead>
-<tbody>
-<tr><td>repo 内 mp4 + サムネ</td><td>短尺デモ</td><td>上の方式。git が重くなるので短く</td></tr>
-<tr><td>YouTube / Stream</td><td>長尺・音声付き</td><td>サムネ画像 → 外部 URL リンク</td></tr>
-<tr><td>GitHub 添付 URL</td><td>PR 説明・Issue</td><td><code>user-attachments</code> の動画 URL は埋め込みやすいが README では差あり</td></tr>
-<tr><td>GitHub Pages</td><td>本格埋め込み</td><td>README から Pages へ誘導</td></tr>
-</tbody></table></div>
-<p>&gt; <strong>まだ動画ファイルが無いとき</strong> &gt; 上の図（ワークフロー SVG）が「全体像の1枚絵」です。 &gt; 録画ができたら <code>assets/demo/</code> に置くだけで README に載せられます。</p>
+<p>置き場・台本・禁止事項: <a href="assets/demo/README.md"><code>assets/demo/README.md</code></a> / <a href="assets/demo/storyboard.md"><code>assets/demo/storyboard.md</code></a></p>
+</details>
 <h2>できること</h2>
 <div class="table-wrap"><table>
 <thead><tr><th>できる</th><th>自動では行わない</th></tr></thead>
@@ -260,7 +249,7 @@ python scripts/provenance_label_check.py &lt;draft.md&gt; --public-output &lt;pu
 <tr><td>公開前の準備</td><td><a href="PUBLIC_READY.md">PUBLIC_READY.md</a> / <a href="PUBLIC_RELEASE_CHECKLIST.md">PUBLIC_RELEASE_CHECKLIST.md</a></td></tr>
 <tr><td>セキュリティ</td><td><a href="SECURITY.md">SECURITY.md</a></td></tr>
 <tr><td>変更履歴</td><td><a href="CHANGELOG.md">CHANGELOG.md</a></td></tr>
-<tr><td>使い方動画の置き場</td><td><a href="assets/demo/README.md">assets/demo/README.md</a></td></tr>
+<tr><td>（任意）デモ動画の置き場</td><td><a href="assets/demo/README.md">assets/demo/README.md</a></td></tr>
 </tbody></table></div>
 <details>
 <summary>主な補助ツール一覧</summary>

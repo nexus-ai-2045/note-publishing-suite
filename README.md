@@ -16,13 +16,15 @@ publication_gate: human_review_required
 **NPS（Note Publishing Suite）** です。Codex / Claude Code から使えます。
 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。
 
-パッケージ版: `0.2.22`
+パッケージ版: `0.2.23`
 
 | すぐやる | あとで読む |
 | --- | --- |
 | [NPS として使う](#nps-として使う3分) | [できること](#できること) |
-| [使い方動画](#使い方動画) | [安全設計](#安全設計) |
-| [基本ワークフロー](#基本ワークフロー) | [入口と詳しい資料](#入口と詳しい資料) |
+| [基本ワークフロー](#基本ワークフロー) | [安全設計](#安全設計) |
+| | [入口と詳しい資料](#入口と詳しい資料) |
+
+**動画は不要です。** 下の 3 手順だけで NPS として使えます。
 
 ## NPS として使う（3分）
 
@@ -82,45 +84,23 @@ note-publishing-suite で進めて。
 固定の `ネタ帳.md` は使いません。入力は、ユーザーが最初に指定した
 「読んでよい素材フォルダ」だけです。
 
-## 使い方動画
+全体像は上のワークフロー図だけで足ります。動画撮影は必須ではありません。
 
-README に使い方動画を載せられます。いまは **枠だけ用意** してあり、
-実ファイルを置くとすぐ表示できます。
+<details>
+<summary>任意: 使い方動画を後から載せる場合</summary>
 
-### いまの表示（サムネ）
+動画は **なくても運用できます**。人に見せたいときだけ足してください。
 
-[![NPS 使い方動画 — 置き方と台本](assets/demo/usage-walkthrough-thumb.svg)](assets/demo/README.md)
-
-↑ いまは **置き方ガイド** にリンクしています。  
-`assets/demo/usage-walkthrough.mp4` を置いたら、リンク先を mp4 に差し替えるだけで再生導線になります。
+1. 1〜3 分の画面録画を `assets/demo/usage-walkthrough.mp4` に置く  
+2. README に次を足す  
 
 ```markdown
 [![NPS 使い方動画を再生](assets/demo/usage-walkthrough-thumb.svg)](assets/demo/usage-walkthrough.mp4)
 ```
 
-### いちばん簡単（推奨）
+置き場・台本・禁止事項: [`assets/demo/README.md`](assets/demo/README.md) / [`assets/demo/storyboard.md`](assets/demo/storyboard.md)
 
-1. 画面録画で 1〜3 分のデモを撮る（clone → verify → install → 最初の依頼）
-2. `assets/demo/usage-walkthrough.mp4` に置く（目安 10〜30MB）
-3. 上の Markdown のリンク先を `usage-walkthrough.mp4` に変更する
-
-**置き場所の契約:** [`assets/demo/README.md`](assets/demo/README.md)
-
-GitHub 上ではサムネをクリックすると動画（またはガイド）が開きます。
-README 内のインライン自動再生は環境差があるため、**サムネ → ファイル** 方式が安定です。
-
-### ほかの載せ方
-
-| 方式 | 向き | メモ |
-| --- | --- | --- |
-| repo 内 mp4 + サムネ | 短尺デモ | 上の方式。git が重くなるので短く |
-| YouTube / Stream | 長尺・音声付き | サムネ画像 → 外部 URL リンク |
-| GitHub 添付 URL | PR 説明・Issue | `user-attachments` の動画 URL は埋め込みやすいが README では差あり |
-| GitHub Pages | 本格埋め込み | README から Pages へ誘導 |
-
-> **まだ動画ファイルが無いとき**  
-> 上の図（ワークフロー SVG）が「全体像の1枚絵」です。  
-> 録画ができたら `assets/demo/` に置くだけで README に載せられます。
+</details>
 
 ## できること
 
@@ -235,7 +215,7 @@ Noteログイン、常時接続、画像アップロードの完全自動化は�
 | 公開前の準備 | [PUBLIC_READY.md](PUBLIC_READY.md) / [PUBLIC_RELEASE_CHECKLIST.md](PUBLIC_RELEASE_CHECKLIST.md) |
 | セキュリティ | [SECURITY.md](SECURITY.md) |
 | 変更履歴 | [CHANGELOG.md](CHANGELOG.md) |
-| 使い方動画の置き場 | [assets/demo/README.md](assets/demo/README.md) |
+| （任意）デモ動画の置き場 | [assets/demo/README.md](assets/demo/README.md) |
 
 <details>
 <summary>主な補助ツール一覧</summary>
