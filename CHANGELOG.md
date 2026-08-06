@@ -13,6 +13,7 @@ GitHub リリースやタグは別の公開操作として扱い、ここには�
 - 問答packet APIの質問数を1〜5件へ制限し、dirty worktreeにだけ残っていた回帰テストを正規候補へ回収した。
 - Browser復旧はread-only計画専用にし、自己申告JSONによるprocess終了機能を公開packageから除外した。
 - Linuxの通常テストとWindows installer smokeをCIで分離し、既存のpointer検査と公開package verifierを再利用した。
+- 初回PR CIで検出したpointer path終端の部分一致と、Windows cloneの生成HTML改行driftを回帰テスト付きで修正した。
 
 検証:
 - `python -m pytest scripts/test_skill_integration.py tests -q`

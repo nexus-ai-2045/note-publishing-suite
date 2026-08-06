@@ -27,6 +27,11 @@ def test_contract_is_embedded_and_valid():
     assert contract["generated"][0]["output"] == "README.rendered.html"
 
 
+def test_generated_readme_is_checked_out_with_lf_line_endings():
+    attributes = (ROOT / ".gitattributes").read_text(encoding="utf-8").splitlines()
+    assert "*.html text eol=lf" in attributes
+
+
 def test_generated_readme_is_in_sync_without_repository_write():
     module = load_module()
     before = (ROOT / "README.rendered.html").read_bytes()

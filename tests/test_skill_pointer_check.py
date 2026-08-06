@@ -68,6 +68,14 @@ def test_package_pointer_targets_exist() -> None:
     assert payload["checked_targets"]
 
 
+def test_installed_target_parser_requires_path_boundary() -> None:
+    checker = load_checker_module()
+    assert checker.INSTALLED_TARGET_RE.findall("`/tmp/package/SKILL.md`") == [
+        "/tmp/package/SKILL.md"
+    ]
+    assert checker.INSTALLED_TARGET_RE.findall("`/tmp/package/SKILL.md.missing`") == []
+
+
 def test_installed_pointer_target_disappearance_fails_closed(tmp_path: Path) -> None:
     require_native_posix_bash()
     skills_root = tmp_path / "skills"
@@ -91,6 +99,28 @@ def test_installed_pointer_target_disappearance_fails_closed(tmp_path: Path) -> 
 
     pointer = skills_root / "note-publishing-suite" / "SKILL.md"
     original_target = installed_target(pointer)
+    missing_target = str(Path(original_target).parent / "missing" / "SKILL.md")
+    pointer.write_text(
+        pointer.read_text(encoding="utf-8").replace(
+            original_target, missing_target
+        ),
+        encoding="utf-8",
+    )
+
+    result = run_checker("--installed-root", str(skills_root))
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is False
+    assert any("missing installed SSOT target" in error for error in payload["errors"])
+
+
+def test_installed_pointer_target_suffix_fails_closed(tmp_path: Path) -> None:
+    skills_root = tmp_path / "skills"
+    install = install_pointers(skills_root, tmp_path / "workspace")
+    assert install.returncode == 0, install.stdout + install.stderr
+
+    pointer = skills_root / "note-publishing-suite" / "SKILL.md"
+    original_target = installed_target(pointer)
     pointer.write_text(
         pointer.read_text(encoding="utf-8").replace(
             original_target, f"{original_target}.missing"
@@ -102,7 +132,10 @@ def test_installed_pointer_target_disappearance_fails_closed(tmp_path: Path) -> 
     assert result.returncode == 1
     payload = json.loads(result.stdout)
     assert payload["ok"] is False
-    assert any("missing installed SSOT target" in error for error in payload["errors"])
+    assert any(
+        "installed pointer has no absolute SSOT target" in error
+        for error in payload["errors"]
+    )
 
 
 def install_pointers(skills_root: Path, workspace_root: Path) -> subprocess.CompletedProcess[str]:

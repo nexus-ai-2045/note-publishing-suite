@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ADAPTER_ROOT = ROOT / "adapters" / "claude-code"
 PACKAGE_TARGET_RE = re.compile(r"\{\{PACKAGE_ROOT\}\}(/[^`\r\n]*SKILL\.md)")
 INSTALLED_TARGET_RE = re.compile(
-    r"(?:(?:[A-Za-z]:[\\/])|/)[^`\r\n]*SKILL\.md"
+    r"(?:(?:[A-Za-z]:[\\/])|/)[^`\r\n]*SKILL\.md(?=[`\s]|$)"
 )
 
 
