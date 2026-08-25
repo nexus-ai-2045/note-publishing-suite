@@ -4,6 +4,21 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
+## 0.2.25
+
+日付: 2026-08-25
+
+変更:
+- repo-preflight 整合性ゲートを shadow モードで採用
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `consistency_gate.py --repo . --json => status=pass`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.2.24
 
 日付: 2026-08-06
