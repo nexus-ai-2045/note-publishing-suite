@@ -16,7 +16,7 @@ publication_gate: human_review_required
 **NPS（Note Publishing Suite）** です。Codex / Claude Code から使えます。
 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。
 
-パッケージ版: `0.2.24`
+パッケージ版: `0.2.25`
 
 | すぐやる | あとで読む |
 | --- | --- |
