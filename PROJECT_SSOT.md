@@ -49,7 +49,6 @@ repository visibility 変更は、現在会話の人間レビューと明示承�
 - repository: `nexus-ai-2045/note-publishing-suite`
 - visibility: public
 - default branch: `main`
-- パッケージ版: `0.2.26`
 - open pull request: 本スライス提出時は 1 本（人間レビュー待ち。merge は人間）
 - open issue: 0 件（追跡は `issue-drafts.md` 側で継続）
 - 直近スライス: サンプル下書き1本の着想→QA→公開直前停止を
