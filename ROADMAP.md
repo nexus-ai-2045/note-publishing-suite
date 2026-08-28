@@ -4,7 +4,7 @@ type: roadmap
 status: draft-for-human-review
 publication_gate: human_review_required
 external_action: none
-updated: 2026-08-05
+updated: 2026-08-28
 ---
 
 # Note Publishing Suite ロードマップ
@@ -63,9 +63,10 @@ Codex 単体、または Claude Code 単体でも、着想からローカル完�
 
 ## ロードマップ形状
 
-### 今: 契約と安全境界の基準線
+### 保つ: 契約と安全境界の基準線
 
 目的: 現在のパッケージを安定させ、公開レビューに必要な最小契約を保つ。
+repo-preflight（shadow）、Guarantee Ratchet、FDE 軸分割は継続再利用する。
 
 成果物:
 
@@ -85,14 +86,27 @@ Codex 単体、または Claude Code 単体でも、着想からローカル完�
   シークレットらしい値、個人ローカルパス、日本語完了報告ゲートを確認する。
 - 公開操作と外部操作の実行件数は 0 のまま。
 
-### 次: ローカル下書きの一気通貫証跡
+### 今: ローカル下書きの一気通貫証跡（fixture パッケージ側）
 
 目的: 1つのローカル下書きを着想、下書き、QA、エディタ引き継ぎ停止線まで通し、
 公開投稿なしで証跡化する。
 
+進捗（2026-08-28）:
+
+- 着想: パッケージ内素材（`references/note-article-provenance-design.md` と
+  fixture 契約）から候補を絞り、
+  `content/drafts/sample-note-prepublish-fixture.md` をサンプルとして採用。
+- QA: 既存の `scripts/run_local_draft_qa_proof.py` のみで preview /
+  pre_publish / fact_check / diff を再現。新規 proof script は作らない。
+- 公開直前停止: `data/local_draft_qa_stop_before_publish_evidence.json` に
+  `overall: stopped_before_publish`、`external_actions_performed: []`、
+  `publication_actions_performed: []` を記録。警告は `return_to_draft`。
+- 未完了: Note エディタ live 引き継ぎと実記事1本は axis-3 / 人間承認後。
+
 成果物:
 
-- `content/drafts/<date>-<slug>.md` のサンプル記事を 1 つ選ぶ。
+- `content/drafts/<date>-<slug>.md` のサンプル記事を 1 つ選ぶ
+  （fixture 経路では `sample-note-prepublish-fixture.md` を採用可）。
 - `note_preview.py`、`pre_publish_check.py`、`note_fact_check.py`、
   必要に応じて `note_diff_check.py` を実行する。
 - `run_local_draft_qa_proof.py` で同じ QA 経路を再現し、
