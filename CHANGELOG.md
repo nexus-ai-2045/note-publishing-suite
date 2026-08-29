@@ -4,6 +4,24 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
+## 0.2.26
+
+日付: 2026-08-28
+
+変更:
+- サンプル下書き1本を着想→QA→公開直前停止まで通し、run_local_draft_qa_proof.py の証跡を再生成した（external_actions_performed: []）
+- axis-2 の fixture パッケージ証跡を更新。実記事 live / エディタ引き継ぎは人間作業のまま
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `python scripts/run_local_draft_qa_proof.py --json`
+- `python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_topic_status_check.py -q`
+- `python scripts/topic_status_check.py --json`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.2.25
 
 日付: 2026-08-25

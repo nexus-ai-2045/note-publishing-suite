@@ -4,7 +4,7 @@ type: reference
 status: active
 publication_gate: human_review_required
 external_action: none
-updated: 2026-08-06
+updated: 2026-08-28
 ---
 
 # topic consolidation ledger
@@ -27,7 +27,7 @@ updated: 2026-08-06
 | id | 軸 | status | owner | evidence |
 |---|---|---|---|---|
 | axis-1 | 公式ガイダンス・機能棚卸し | open | package | `skills/note-official-guidance-intake` / `references/note-editor-capability-inventory.md` の未確認節 |
-| axis-2 | 実記事1本のローカル一気通貫証跡 | open | package | `scripts/run_local_draft_qa_proof.py` は fixture 可。実記事 live 証跡は human + 記事作業 |
+| axis-2 | 実記事1本のローカル一気通貫証跡 | open | package | fixture 着想→QA→公開直前停止を 2026-08-28 再証跡（`data/local_draft_qa_stop_before_publish_evidence.json`、`external_actions_performed: []`）。実記事 live は human + 記事作業 |
 | axis-3 | Note editor live 引き継ぎ確認 | open | package + human | editor skills / PDCA ledger / image upload boundary。実 UI と公開は human 承認後 |
 | axis-4 | 壁打ちから複数コンテンツへの制作展開 | open | package | provenance / authorship / interview。wall_bang を事実出典にする fail 検査は未実装 |
 | axis-5 | 型付き agent 運用・eval・observability | deferred | package | worker deny 契約と focused checker のみ。eval harness は後回し |

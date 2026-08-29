@@ -3,11 +3,11 @@ title: Note Publishing Suite プロジェクト正本
 type: project
 status: active
 created: 2026-07-25
-updated: 2026-08-05
+updated: 2026-08-28
 tags: [note, publishing, ssot, project]
 schema_version: project-ssot/v1
-recorded_at: 2026-08-05
-recorded_by: claude-code
+recorded_at: 2026-08-28
+recorded_by: cursor-cloud-agent
 publication_gate: human_review_required
 external_action: none
 ---
@@ -45,15 +45,17 @@ repository visibility 変更は、現在会話の人間レビューと明示承�
 
 ## 現在地
 
-- 記録日: 2026-08-05（Asia/Tokyo）
+- 記録日: 2026-08-28（Asia/Tokyo）
 - repository: `nexus-ai-2045/note-publishing-suite`
-- visibility: public（fork 0 / star 0）
-- default branch: `main`（実測確定）
-- `main` head: `6de2d573a40b20b1f709589fa293f463c5e33bf6`
-- open pull request: #13 相当の README 系は取り込み済み。残る open は別 branch 由来
-- CI: `test` / `Push on main` / CodeQL いずれも成功
+- visibility: public
+- default branch: `main`
+- open pull request: 本スライス提出時は 1 本（人間レビュー待ち。merge は人間）
 - open issue: 0 件（追跡は `issue-drafts.md` 側で継続）
-- 本 SSOT 候補: local branch `codex/note-publishing-suite-ssot-20260805`（`main` 起点）
+- 直近スライス: サンプル下書き1本の着想→QA→公開直前停止を
+  `scripts/run_local_draft_qa_proof.py` で再証跡
+  （`data/local_draft_qa_stop_before_publish_evidence.json`、
+  `external_actions_performed: []`）
+- 再利用: repo-preflight shadow / Guarantee Ratchet / FDE 軸分割（axis-2）
 - 外部操作: 未実行
 - 公開操作: 未実行
 
@@ -62,7 +64,8 @@ repository visibility 変更は、現在会話の人間レビューと明示承�
 1. 散在する議論を private workspace 側の索引から追跡可能にする。
 2. 議論から得た現行契約だけを `SKILL.md`、`package.yaml`、`ROADMAP.md` へ吸収する。
 3. 旧コピーや記事固有記録は履歴として保持し、現行仕様へ自動昇格させない。
-4. 1本のローカル下書きで、公開直前停止までの一気通貫証跡を再現する。
+4. 1本のローカル下書きで、公開直前停止までの一気通貫証跡を再現する
+   （fixture パッケージ側は 2026-08-28 に再証跡済み。実記事 live / エディタは別）。
 
 ## 変更の入口
 

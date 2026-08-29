@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-17T12:35:55.914153+00:00",
+  "generated_at": "2026-08-28T23:38:12.158887+00:00",
   "proof": "one_local_draft_through_qa_and_stop_before_publish",
   "draft": "content/drafts/sample-note-prepublish-fixture.md",
   "preview_html": "content/drafts/sample-note-prepublish-fixture.proof.preview.html",
@@ -43,6 +43,7 @@
     "reason": "note_url_unknown",
     "checks": []
   },
+  "diff_fetch_method": "not_performed",
   "publication_gate": {
     "state": "stopped_before_publish",
     "stop_causes": [
@@ -61,7 +62,7 @@
       "label": "note_preview",
       "command": "python scripts/note_preview.py content/drafts/sample-note-prepublish-fixture.md -o content/drafts/sample-note-prepublish-fixture.proof.preview.html",
       "exit_code": 0,
-      "stdout": "preview_html=content\\drafts\\sample-note-prepublish-fixture.proof.preview.html",
+      "stdout": "preview_html=content/drafts/sample-note-prepublish-fixture.proof.preview.html",
       "stderr": "",
       "parsed_json": null
     },
@@ -69,10 +70,10 @@
       "label": "pre_publish_check",
       "command": "python scripts/pre_publish_check.py content/drafts/sample-note-prepublish-fixture.md --json",
       "exit_code": 0,
-      "stdout": "{\n  \"draft\": \"content\\\\drafts\\\\sample-note-prepublish-fixture.md\",\n  \"overall\": \"warning\",\n  \"issues\": [\n    {\n      \"severity\": \"warning\",\n      \"code\": \"todo_marker\",\n      \"message\": \"todo_marker found\"\n    },\n    {\n      \"severity\": \"warning\",\n      \"code\": \"uncertain_japanese\",\n      \"message\": \"uncertain_japanese found\"\n    }\n  ]\n}",
+      "stdout": "{\n  \"draft\": \"content/drafts/sample-note-prepublish-fixture.md\",\n  \"overall\": \"warning\",\n  \"issues\": [\n    {\n      \"severity\": \"warning\",\n      \"code\": \"todo_marker\",\n      \"message\": \"todo_marker found\"\n    },\n    {\n      \"severity\": \"warning\",\n      \"code\": \"uncertain_japanese\",\n      \"message\": \"uncertain_japanese found\"\n    }\n  ]\n}",
       "stderr": "",
       "parsed_json": {
-        "draft": "content\\drafts\\sample-note-prepublish-fixture.md",
+        "draft": "content/drafts/sample-note-prepublish-fixture.md",
         "overall": "warning",
         "issues": [
           {
@@ -92,10 +93,10 @@
       "label": "note_fact_check",
       "command": "python scripts/note_fact_check.py local content/drafts/sample-note-prepublish-fixture.md --json",
       "exit_code": 0,
-      "stdout": "{\n  \"draft\": \"content\\\\drafts\\\\sample-note-prepublish-fixture.md\",\n  \"mode\": \"local\",\n  \"finding_count\": 3,\n  \"findings\": [\n    {\n      \"line\": 5,\n      \"code\": \"source_provenance_marker\",\n      \"text\": \"source_mode: fixture_only\"\n    },\n    {\n      \"line\": 14,\n      \"code\": \"source_provenance_marker\",\n      \"text\": \"- 実記事の根拠扱い\"\n    },\n    {\n      \"line\": 31,\n      \"code\": \"internal_note\",\n      \"text\": \"Review marker: TODO keep this synthetic marker so pre-publish QA returns a warning.\"\n    }\n  ]\n}",
+      "stdout": "{\n  \"draft\": \"content/drafts/sample-note-prepublish-fixture.md\",\n  \"mode\": \"local\",\n  \"finding_count\": 3,\n  \"findings\": [\n    {\n      \"line\": 5,\n      \"code\": \"source_provenance_marker\",\n      \"text\": \"source_mode: fixture_only\"\n    },\n    {\n      \"line\": 14,\n      \"code\": \"source_provenance_marker\",\n      \"text\": \"- 実記事の根拠扱い\"\n    },\n    {\n      \"line\": 31,\n      \"code\": \"internal_note\",\n      \"text\": \"Review marker: TODO keep this synthetic marker so pre-publish QA returns a warning.\"\n    }\n  ]\n}",
       "stderr": "",
       "parsed_json": {
-        "draft": "content\\drafts\\sample-note-prepublish-fixture.md",
+        "draft": "content/drafts/sample-note-prepublish-fixture.md",
         "mode": "local",
         "finding_count": 3,
         "findings": [

@@ -73,6 +73,8 @@ Spark/Sonnet ワーカーは速度改善の任意手段として残し、必須�
 
 ## 課題 4: 1つのローカル Note 下書きを QA 領域に通す
 
+状態: 吸収済み（fixture パッケージ経路・2026-08-28）
+
 概要:
 任意のローカル下書きを `qa` 段階に通し、Note 投稿前検査の流れが運用可能であることを確認する。
 
@@ -85,6 +87,14 @@ Spark/Sonnet ワーカーは速度改善の任意手段として残し、必須�
 - `scripts/note_fact_check.py local <draft.md>` の要確認候補を記録できる。
 - `scripts/note_diff_check.py` は比較対象がない場合、未実行理由を記録する。
 - 警告が残る場合は `note-draft-production` へ戻る。
+
+証跡:
+- 着想で `content/drafts/sample-note-prepublish-fixture.md` を採用。
+- `python scripts/run_local_draft_qa_proof.py --json` で
+  `data/local_draft_qa_stop_before_publish_evidence.json` を再生成。
+- `overall: stopped_before_publish`、`external_actions_performed: []`、
+  `publication_actions_performed: []`。
+- 実記事 live と Note エディタ引き継ぎは課題 5 / axis-3 側。
 
 ## 課題 5: 公開せずに Note エディタ引き継ぎを確認する
 
