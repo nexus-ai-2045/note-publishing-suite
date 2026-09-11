@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>{{TITLE}} - 仮想 note プレビュー</title>
+<link rel="stylesheet" href="{{EXTRACTED_CSS_HREF}}">
+<style>
+:root {
+  --color-text-primary: #08131a;
+  --color-text-secondary: #767676;
+  --color-border-weak: #f5f8fa;
+  --color-border-strong: #d9d9d9;
+  --color-background-secondary: #f7f8fa;
+  --color-custom-accent: #3a8ee6;
+  --font-size-2xl: 1.75rem;
+  --font-size-xl: 1.25rem;
+  --font-size-lg: 1.125rem;
+  --font-size-base: 1rem;
+  --font-size-sm: 0.875rem;
+  --font-size-xs: 0.75rem;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 0;
+  background: #f7f8fa;
+  color: var(--color-text-primary);
+  font-family: "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", Arial, "Noto Sans JP", Meiryo, sans-serif;
+}
+/* -------------------------------------------------------------
+   ツールバー模擬（preview-constraints.md「ツールバーの位置」節）
+   768px 未満: 下固定 / 768px 以上: 左固定。resize で CSS だけが切り替わる。
+   操作はできないダミー表示。
+--------------------------------------------------------------*/
+.mock-toolbar {
+  position: fixed;
+  z-index: 500;
+  background: #fff;
+  border: 1px solid var(--color-border-strong);
+  box-shadow: 0 4px 18px rgba(0,0,0,0.12);
+  display: flex;
+  gap: 4px;
+  color: var(--color-text-secondary);
+  font-size: 10px;
+}
+.mock-toolbar__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 4px;
+  border-radius: 6px;
+  min-width: 44px;
+  white-space: nowrap;
+  cursor: default;
+}
+.mock-toolbar__item:hover { background: var(--color-background-secondary); }
+.mock-toolbar__icon { font-size: 15px; line-height: 1; margin-bottom: 2px; }
+.mock-toolbar__label { display: none; }
+.mock-toolbar__note {
+  position: fixed;
+  z-index: 500;
+  background: #1f2937;
+  color: #fff;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  opacity: 0.85;
+}
+/* 768px 未満: 下固定・横並び */
+@media (max-width: 767px) {
+  .mock-toolbar {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    flex-direction: row;
+    justify-content: space-around;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    padding: 4px 2px;
+  }
+  .mock-toolbar__note { bottom: 54px; left: 8px; }
+}
+/* 768px 以上: 左固定・縦並び */
+@media (min-width: 768px) {
+  .mock-toolbar {
+    left: 12px;
+    top: 96px;
+    flex-direction: column;
+    border-radius: 10px;
+    padding: 8px 4px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  .mock-toolbar__note { top: 96px; left: 76px; }
+}
+.preview-badge {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: #1f2937;
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  z-index: 999;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+}
+.preview-badge small {
+  display: block;
+  font-weight: 400;
+  opacity: 0.8;
+  font-size: 10px;
+}
+.series-header {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 20px 24px 0;
+}
+.series-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #eef5ff;
+  border: 1px solid #d7e2f0;
+  color: #245a92;
+  font-size: 13px;
+  font-weight: 700;
+}
+.series-meta {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+/* アウトライン（本ツール独自の検証用パネル。note 実物の機能ではない） */
+.outline-panel {
+  margin-top: 16px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 8px;
+  padding: 14px 18px;
+  background: #fff;
+  font-size: 13px;
+}
+.outline-panel__title {
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-bottom: 8px;
+}
+.outline-panel ol {
+  margin: 0;
+  padding-left: 18px;
+}
+.outline-panel li.outline-h3 {
+  list-style: none;
+  margin-left: 14px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.outline-panel .outline-count {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+.outline-panel .outline-rounded {
+  color: #a15c00;
+  font-size: 10px;
+  margin-left: 4px;
+}
+/* TOP 画像 7 案カード（production pack がある場合のみ） */
+.top-image-cards {
+  max-width: 900px;
+  margin: 18px auto 0;
+  padding: 0 24px;
+}
+.top-image-cards__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  margin-bottom: 8px;
+}
+.top-image-cards__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+.top-image-card {
+  border: 1px solid var(--color-border-strong);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: #fff;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.top-image-card__num {
+  display: inline-block;
+  background: #eef5ff;
+  color: #245a92;
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.top-image-card__title { font-weight: 700; margin-bottom: 4px; }
+.top-image-card__concept { color: var(--color-text-secondary); }
+.p-article {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 24px 24px 80px;
+}
+.o-noteEyecatch {
+  margin: 0 0 24px;
+}
+.o-noteEyecatch img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+.o-noteContentHeader__title {
+  font-size: 1.85rem;
+  font-weight: 800;
+  line-height: 1.5;
+  margin: 0 0 16px;
+}
+.o-noteContentHeader__creatorInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--color-border-strong);
+}
+.note-common-styles__textnote-body {
+  overflow: hidden;
+  color: var(--color-text-primary);
+}
+.note-common-styles__textnote-body > h2,
+.note-common-styles__textnote-body > h3,
+.note-common-styles__textnote-body > p,
+.note-common-styles__textnote-body > ul,
+.note-common-styles__textnote-body > ol,
+.note-common-styles__textnote-body > blockquote,
+.note-common-styles__textnote-body > figure,
+.note-common-styles__textnote-body > hr,
+.note-common-styles__textnote-body > .toc-block,
+.note-common-styles__textnote-body > .figure-placeholder,
+.note-common-styles__textnote-body > .embed-card,
+.note-common-styles__textnote-body > .table-warning,
+.note-common-styles__textnote-body > .todo-marker {
+  margin-top: 36px;
+  margin-bottom: 36px;
+}
+.note-common-styles__textnote-body b,
+.note-common-styles__textnote-body strong { font-weight: 700; }
+.note-common-styles__textnote-body h2,
+.note-common-styles__textnote-body h3 {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+}
+.note-common-styles__textnote-body h2 {
+  font-size: var(--font-size-2xl);
+  margin-top: 54px;
+}
+.note-common-styles__textnote-body h3 {
+  font-size: var(--font-size-xl);
+  margin-top: 36px;
+}
+.note-common-styles__textnote-body p,
+.note-common-styles__textnote-body ul li,
+.note-common-styles__textnote-body ol li {
+  font-size: var(--font-size-lg);
+  line-height: 2.0;
+}
+.note-common-styles__textnote-body ul,
+.note-common-styles__textnote-body ol {
+  padding-left: 24px;
+}
+.note-common-styles__textnote-body ul > li { list-style-type: disc; }
+.note-common-styles__textnote-body ol > li { list-style-type: decimal; }
+.note-common-styles__textnote-body ul li,
+.note-common-styles__textnote-body ol li {
+  margin-top: 9px;
+  margin-bottom: 9px;
+}
+.note-common-styles__textnote-body a {
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.note-common-styles__textnote-body a:hover {
+  text-decoration: none;
+}
+.note-common-styles__textnote-body blockquote {
+  padding: 20px 28px;
+  font-size: var(--font-size-base);
+  line-height: 2.0;
+  background-color: var(--color-background-secondary);
+  border-left: none;
+  border-radius: 4px;
+}
+.note-common-styles__textnote-body blockquote p { margin: 0 0 8px; }
+.note-common-styles__textnote-body blockquote p:last-child { margin-bottom: 0; }
+.note-common-styles__textnote-body hr {
+  border: none;
+  border-bottom: 1px solid var(--color-border-strong);
+}
+.note-common-styles__textnote-body p.hr-gap {
+  margin-top: -20px;
+  height: 1px;
+}
+.note-common-styles__textnote-body img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+  border: 1px solid var(--color-border-weak);
+}
+/* 目次ブロック（table-of-contents カスタムタグの近似。note 実物の位置づけ） */
+.toc-block {
+  border: 1px solid var(--color-border-strong);
+  border-radius: 4px;
+  padding: 16px 20px;
+  background: #fafbfc;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+.toc-block::before {
+  content: "目次";
+  display: block;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: 8px;
+}
+.toc-block ol {
+  margin: 0;
+  padding-left: 20px;
+}
+.toc-block li.toc-h3 { list-style: none; margin-left: 12px; font-size: 0.8em; }
+/* 図プレースホルダ（（図: …）行の変換先。.notes.md の挿絵指定を中に表示する） */
+.figure-placeholder {
+  border: 1px dashed #9aa5b1;
+  border-radius: 6px;
+  padding: 24px 22px;
+  color: #3d4650;
+  background: #fcfcfd;
+  font-size: var(--font-size-sm);
+  line-height: 1.7;
+  text-align: left;
+}
+.figure-placeholder__label {
+  font-weight: 700;
+  color: #5a6672;
+  margin-bottom: 10px;
+  font-size: var(--font-size-xs);
+  text-align: center;
+}
+.figure-placeholder__caption {
+  text-align: center;
+  color: #5a6672;
+  margin-bottom: 14px;
+}
+.figure-placeholder__detail {
+  border-top: 1px dashed #d3d9df;
+  padding-top: 10px;
+  margin-top: 10px;
+}
+.figure-placeholder__detail dt {
+  font-weight: 700;
+  font-size: var(--font-size-xs);
+  color: #5a6672;
+  margin-top: 8px;
+}
+.figure-placeholder__detail dt:first-child { margin-top: 0; }
+.figure-placeholder__detail dd {
+  margin: 2px 0 0;
+  font-size: var(--font-size-xs);
+  color: #3d4650;
+}
+.figure-placeholder__missing {
+  font-size: var(--font-size-xs);
+  color: #a15c00;
+  text-align: center;
+}
+/* URL埋め込みカード（figure[data-src] の外部記事カードの近似） */
+.embed-card {
+  display: block;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 8px;
+  padding: 16px 18px;
+  text-decoration: none !important;
+  color: var(--color-text-primary) !important;
+  background: #fff;
+}
+.embed-card__label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-bottom: 4px;
+}
+.embed-card__url {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  word-break: break-all;
+}
+/* 【本人記入】マーカー・本人記入の置き場 */
+.todo-marker {
+  display: block;
+  background: #fff6d8;
+  border: 1px dashed #e0c25a;
+  border-radius: 4px;
+  padding: 4px 8px;
+  color: #7a5c00;
+  font-weight: 700;
+}
+span.todo-marker { display: inline; padding: 0 3px; }
+/* JS 解析の制約に基づく警告（preview-constraints.md） */
+.warn-inline-code,
+.warn-inline-italic {
+  border-bottom: 2px solid #e0c25a;
+  background: #fffbe8;
+  padding: 0 2px;
+  position: relative;
+}
+.warn-note {
+  display: inline-block;
+  font-size: 10px;
+  color: #a15c00;
+  background: #fff6d8;
+  border-radius: 3px;
+  padding: 0 4px;
+  margin-left: 2px;
+  vertical-align: super;
+}
+.table-warning {
+  border: 1px solid #e0a25a;
+  border-radius: 6px;
+  padding: 14px 16px;
+  background: #fff6ea;
+  color: #7a4400;
+  font-size: var(--font-size-sm);
+}
+.table-warning__label { font-weight: 700; margin-bottom: 6px; }
+.table-warning pre {
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: var(--font-size-xs);
+  margin: 0;
+}
+h2 .heading-warn, h3 .heading-warn {
+  font-size: 11px;
+  color: #a15c00;
+  font-weight: 400;
+  letter-spacing: 0;
+  margin-left: 6px;
+}
+.wordcount-footer {
+  max-width: 620px;
+  margin: 40px auto 0;
+  padding: 16px 24px;
+  border-top: 1px solid var(--color-border-strong);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+.wordcount-footer .warn-summary {
+  margin-top: 6px;
+  font-size: 12px;
+}
+</style>
+</head>
+<body>
+<div class="preview-badge">仮想 note プレビュー（未投稿・構造近似）<small>{{GENERATED_AT}}</small></div>
+<div class="mock-toolbar" aria-hidden="true">
+  <div class="mock-toolbar__item"><span class="mock-toolbar__icon">✨</span>AIアシスタント</div>
+  <div class="mock-toolbar__item"><span class="mock-toolbar__icon">≡</span>目次</div>
+  <div class="mock-toolbar__item"><span class="mock-toolbar__icon">?</span>noteのヒント</div>
+  <div class="mock-toolbar__item"><span class="mock-toolbar__icon">📘</span>エディタのガイド</div>
+  <div class="mock-toolbar__item"><span class="mock-toolbar__icon">💾</span>下書き保存</div>
+  <div class="mock-toolbar__item"><span class="mock-toolbar__icon">▶</span>公開に進む</div>
+  <div class="mock-toolbar__item"><span class="mock-toolbar__icon">B</span>太字</div>
+  <div class="mock-toolbar__item"><span class="mock-toolbar__icon">S</span>取り消し線</div>
+  <div class="mock-toolbar__item"><span class="mock-toolbar__icon">≣</span>リスト</div>
+  <div class="mock-toolbar__item"><span class="mock-toolbar__icon">⇔</span>配置</div>
+  <div class="mock-toolbar__item"><span class="mock-toolbar__icon">🔗</span>リンク</div>
+  <div class="mock-toolbar__item"><span class="mock-toolbar__icon">”</span>引用</div>
+  <div class="mock-toolbar__item"><span class="mock-toolbar__icon">&lt;/&gt;</span>コード</div>
+  <div class="mock-toolbar__item"><span class="mock-toolbar__icon">⋯</span>メニュー</div>
+</div>
+<div class="mock-toolbar__note">ツールバー模擬（操作不可・768px で位置切替）</div>
+<div class="series-header">
+{{SERIES_HEADER}}
+{{OUTLINE}}
+</div>
+{{TOP_IMAGE_CARDS}}
+<article class="p-article">
+  <div class="o-noteContentHeader__title">{{TITLE}}</div>
+  <div class="o-noteContentHeader__creatorInfo">nexus_ai ／ 下書きプレビュー</div>
+  <div class="note-common-styles__textnote-body">
+{{BODY}}
+  </div>
+</article>
+<div class="wordcount-footer">{{WORDCOUNT}}<div class="warn-summary">{{WARNING_SUMMARY}}</div></div>
+</body>
+</html>

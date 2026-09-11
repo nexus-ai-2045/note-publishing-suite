@@ -195,11 +195,15 @@ Note editor 実測で見つかった失敗、手動境界、復旧手順、成�
 既存 script をこの順で使う。
 
 ```powershell
-python scripts\note_preview.py <draft.md> -o <preview.html>
+python scripts\note_virtual_preview.py <draft.md> -o <preview.html>
 python scripts\pre_publish_check.py <draft.md>
 python scripts\note_fact_check.py local <draft.md>
 python scripts\note_diff_check.py <note_url> <draft.md> <phrase...> --snapshot-out <local-snapshot.txt> --json
 ```
+
+- `note_virtual_preview.py` は note editor 実物の CSS（`assets/note-preview/`）で見た目確認するプレビュー。
+  旧 `scripts/note_preview.py`（標準ライブラリのみの簡易プレビュー、廃止候補）とは別物で、
+  こちらはリンク色・見出し余白が note 実物と一致する（詳細: README.md 補助ツール節）。
 
 - `scripts/pre_publish_check.py --fix` はファイルを書き換えるため、ユーザーが明示した時だけ使う。
 - `note_diff_check.py` は公開済み URL や editor 反映後の確認対象 phrase がある場合だけ使う。

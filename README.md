@@ -220,7 +220,14 @@ Noteログイン、常時接続、画像アップロードの完全自動化は�
 <details>
 <summary>主な補助ツール一覧</summary>
 
-- `scripts/note_preview.py`: ローカルプレビュー。
+- `scripts/note_preview.py`: ローカルプレビュー（旧・標準ライブラリのみの簡易版。廃止候補）。
+- `scripts/note_virtual_preview.py`: note editor 実物の DOM/CSS 実測（`docs/note-preview/`）に基づく
+  プレビュー。`note_preview.py` と違い、抽出済みの note 本物の CSS（`assets/note-preview/`）を
+  `<link>` で読み込んで見た目を再現する。`note_preview.py` は本文リンクの色や見出しの余白が
+  note 実物と一致しないため、乗り換え先はこちら。目次・アウトライン・（図: …）枠・
+  H1→H2 丸めの警告なども合わせて出す。移植元: nexa-articles
+  `sources/_tools/note-preview/render_note_preview.py`（v2、2026-09-11）。
+  解析文書は `docs/note-preview/` にコピーしてある。
 - `scripts/review_draft.py`: `build-context-card` と `review-draft`。
 - `scripts/note_diff_check.py` / `scripts/fetch_note_body.js`: 公開本文の取得・差分確認。
 - `scripts/post_publish.py`: 既定はドライランの台帳更新。

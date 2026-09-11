@@ -99,3 +99,24 @@ description: "Use inside note-publishing-suite when the user asks to create or r
 - AI が作ってよいもの: skeleton、構成案、要約、タグ候補、画像案。
 - AI が作ってはいけないもの: 本人の一言・体験・判断の代作、原文と一致しない引用 (作文禁止)。
 - 引用はすべて source と突き合わせ、言い換えは間接話法にする。
+
+## 口述モード
+
+`source_mode: source_pack_locked_with_user_speech_priority` の draft で、
+本人が話した内容をそのまま本文化する場合の運用。
+
+- 本文は本人が話した言葉だけを使う。AI が代わりに構成や言い回しを作らない
+  (作文禁止)。AI が整えてよいのは語尾・誤変換・句読点など、意味を変えない
+  範囲だけ。
+- 本文中の数字・固有名詞・日付・URL は `scripts/note_fact_check.py local
+  <draft.md>` で抜き出し、事実確認は本体モデルではなく Sonnet/Haiku 相当の
+  cheaper worker に委譲する (Runtime Guarantee の worker 分担を継承)。
+- 確認できた項目は本文に一次情報へのリンクを付ける。確認できない項目は
+  本文に残さず、`<draft.md>` と対になる `<draft.md>` 相当の notes file
+  (例: `content/drafts/<date>-<slug>.notes.md`) の未確認一覧へ移す。
+  本文には空欄 (`【 】` など) を残してよい。
+- 構成・言い回し・方針の判断は本人がする。AI は案を並べて止まり、
+  正解が一つに決まる事実修正だけを直して報告する。
+- 各段の変更は `<draft.md>` に追記した後、`provenance_label_check.py`
+  で `user-said` / `external-fact` / `assistant-organized` / `hold` の
+  境界を確認し、`note_preview.py` でプレビューを再生成してから本人へ返す。
