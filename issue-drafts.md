@@ -29,6 +29,23 @@ Linear、GitHub Issues、Notion、Obsidian、todo.md のどれにも転記でき
 - `python scripts/pre_publish_check.py <draft.md>`
 - 公開、予約投稿、SNS共有、外部告知は、このパッケージでは実行しない。
 
+## 課題: 3部門設計と編集ツール拡張（クリップボード / 仮想プレビュー / 口述）
+
+状態: 吸収済み（PR #25）
+
+概要:
+編集部の3部門設計を文書化し、note エディタ向けクリップボード橋渡し・仮想プレビュー・口述モードをパッケージに追加する。
+
+受入条件:
+- `docs/design/2026-09-11-three-departments.md` が追加されている。
+- `scripts/clipboard_bridge.py` / `scripts/note_virtual_preview.py` と対応テストがある。
+- `package.yaml` の `existing_scripts` に両スクリプトが宣言されている。
+- パッケージ版が 0.2.27 に上がり CHANGELOG に記録されている。
+- package-smoke / docs-sync が緑。
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は行わない。
+
 ## 課題 1: パッケージ契約を検証する
 
 状態: 吸収済み

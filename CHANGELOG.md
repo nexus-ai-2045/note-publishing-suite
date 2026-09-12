@@ -4,6 +4,24 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
+## 0.2.27
+
+日付: 2026-09-13
+
+変更:
+- 3部門設計ドキュメント、クリップボード橋渡し、仮想noteプレビュー移植、口述モードを追加
+- package.yaml に clipboard_bridge / note_virtual_preview を宣言
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `python scripts/docs_sync_check.py --base-ref origin/main --review-file /tmp/nps-doc-review.txt`
+- `python scripts/package_consistency_check.py --json`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.2.26
 
 日付: 2026-08-28

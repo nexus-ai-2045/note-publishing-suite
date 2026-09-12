@@ -1,5 +1,5 @@
 name: note-publishing-suite
-version: 0.2.26
+version: 0.2.27
 scope: repo-local
 repo_root: .
 entrypoint: SKILL.md
@@ -178,7 +178,9 @@ existing_scripts:
   - scripts/note_editor_toolbar_measurement_check.py
   - scripts/sync_note_public_snapshot.py
   - scripts/package_consistency_check.py
+  - scripts/clipboard_bridge.py
   - scripts/note_preview.py
+  - scripts/note_virtual_preview.py
   - scripts/pre_publish_check.py
   - scripts/note_fact_check.py
   - scripts/note_diff_check.py
