@@ -11,6 +11,8 @@ snapshot/restoreはテキストだけで、画像などの元データ復元を�
 from __future__ import annotations
 
 import argparse
+import ctypes
+import errno
 import getpass
 import hashlib
 import json
@@ -21,6 +23,8 @@ import plistlib
 import time
 import subprocess
 import sys
+import stat
+from contextlib import contextmanager
 import uuid
 from pathlib import Path
 from xml.parsers.expat import ExpatError
@@ -92,7 +96,7 @@ def _principal() -> dict[str, str]:
 
 def _require_consent(action: str, consent_path: str | Path | None = None) -> None:
     try:
-        receipt = json.loads(_consent_path(consent_path).read_text(encoding="utf-8"))
+        receipt = _read_receipt(_consent_path(consent_path))
         now = time.time()
         issued = receipt["issued_at"]
         expires = receipt["expires_at"]
@@ -123,13 +127,136 @@ def _require_consent(action: str, consent_path: str | Path | None = None) -> Non
         )
 
 
+def _validate_darwin_acl(fd: int) -> None:
+    if platform.system() != "Darwin":
+        return
+    # Apple sys/acl.h: EXTENDED=0x100, FIRST=0, NEXT=-1, EXTENDED_DENY=2。
+    # pathnameではなく既に検査中のfdから取得し、既存ACLを変更しない。
+    try:
+        libc = ctypes.CDLL("/usr/lib/libSystem.B.dylib", use_errno=True)
+        libc.acl_get_fd_np.argtypes = [ctypes.c_int, ctypes.c_int]
+        libc.acl_get_fd_np.restype = ctypes.c_void_p
+        libc.acl_valid.argtypes = [ctypes.c_void_p]
+        libc.acl_valid.restype = ctypes.c_int
+        libc.acl_get_entry.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_int,
+            ctypes.POINTER(ctypes.c_void_p),
+        ]
+        libc.acl_get_entry.restype = ctypes.c_int
+        libc.acl_get_tag_type.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_int)]
+        libc.acl_get_tag_type.restype = ctypes.c_int
+        libc.acl_free.argtypes = [ctypes.c_void_p]
+        libc.acl_free.restype = ctypes.c_int
+        acl = libc.acl_get_fd_np(fd, 0x100)
+        if not acl:
+            raise ValueError
+        try:
+            if libc.acl_valid(acl) != 0:
+                raise ValueError
+            entry = ctypes.c_void_p()
+            entry_id = 0
+            for _ in range(129):  # Apple ACL_MAX_ENTRIES=128 + 終端検査
+                ctypes.set_errno(0)
+                result = libc.acl_get_entry(acl, entry_id, ctypes.byref(entry))
+                if result == -1 and ctypes.get_errno() == errno.EINVAL:
+                    return
+                if result != 0 or not entry.value:
+                    raise ValueError
+                tag = ctypes.c_int()
+                if (
+                    libc.acl_get_tag_type(entry, ctypes.byref(tag)) != 0
+                    or tag.value != 2
+                ):
+                    # homeのdeny delete等は許可。allowは読取だけでも保守的に拒否。
+                    raise ValueError
+                entry_id = -1
+            raise ValueError
+        finally:
+            libc.acl_free(acl)
+    except (OSError, AttributeError, ValueError):
+        raise ClipboardBridgeError("同意ファイルのACLを安全と確認できません") from None
+
+
+def _validate_storage_fd(fd: int, *, directory: bool, private: bool = True) -> None:
+    _validate_storage_stat(os.fstat(fd), directory=directory, private=private)
+    _validate_darwin_acl(fd)
+
+
+def _validate_storage_stat(info, *, directory: bool, private: bool = True) -> None:
+    uid = os.getuid()
+    correct_type = (
+        stat.S_ISDIR(info.st_mode) if directory else stat.S_ISREG(info.st_mode)
+    )
+    if not correct_type or info.st_uid not in ({uid} if private else {0, uid}):
+        raise ClipboardBridgeError("同意ファイルの所有者・種別を確認できません")
+    forbidden = 0o077 if private else 0o022
+    # root所有のsticky一時ディレクトリでは他利用者による子の置換はできない。
+    sticky_root = (
+        directory and not private and info.st_uid == 0 and info.st_mode & stat.S_ISVTX
+    )
+    if info.st_mode & forbidden and not sticky_root:
+        raise ClipboardBridgeError("同意ファイルの保存権限が安全ではありません")
+    if not directory and info.st_nlink != 1:
+        raise ClipboardBridgeError("同意ファイルのリンクを許可できません")
+
+
+@contextmanager
+def _receipt_parent(path: Path, *, create: bool = False):
+    # ACLを検査できないWindowsでは発行も読取も拒否する。POSIXはdir_fdで置換競合を防ぐ。
+    if os.name != "posix" or not hasattr(os, "O_NOFOLLOW"):
+        raise ClipboardBridgeError("同意ファイルの保存権限を確認できないOSです")
+    path = path.absolute()
+    if ".." in path.parts:
+        raise ClipboardBridgeError("同意ファイルの保存先を確認できません")
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    fd = os.open(path.anchor, flags)
+    try:
+        _validate_storage_fd(fd, directory=True, private=False)
+        parts = path.parent.parts[1:]
+        for index, part in enumerate(parts):
+            if create:
+                try:
+                    os.mkdir(part, mode=0o700, dir_fd=fd)
+                except FileExistsError:
+                    pass
+            child = os.open(part, flags, dir_fd=fd)
+            os.close(fd)
+            fd = child
+            _validate_storage_fd(fd, directory=True, private=index == len(parts) - 1)
+        if not parts:
+            _validate_storage_fd(fd, directory=True)
+        yield fd, path.name
+    finally:
+        os.close(fd)
+
+
+@contextmanager
+def _receipt_stream(path: Path, *, write: bool = False):
+    with _receipt_parent(path, create=write) as (parent, name):
+        flags = os.O_WRONLY | os.O_CREAT if write else os.O_RDONLY
+        # FIFO/deviceを読まず、symlinkを追わず、検査前に既存ファイルをtruncateしない。
+        fd = os.open(name, flags | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600, dir_fd=parent)
+        try:
+            _validate_storage_fd(fd, directory=False)
+            if write:
+                os.ftruncate(fd, 0)
+            stream = os.fdopen(fd, "w" if write else "r", encoding="utf-8")
+        except BaseException:
+            os.close(fd)
+            raise
+        with stream:
+            yield stream
+
+
+def _read_receipt(path: Path) -> dict:
+    with _receipt_stream(path) as stream:
+        return json.load(stream)
+
+
 def _write_receipt(path: Path, receipt: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    # receiptに本文は保存しない。POSIXでは0600。Windows ACL隔離の保証ではない。
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as stream:
+    with _receipt_stream(path, write=True) as stream:
         json.dump(receipt, stream, ensure_ascii=False, indent=2)
-    path.chmod(0o600)
 
 
 def _grant_consent(path: Path, actions: list[str], hours: float) -> None:

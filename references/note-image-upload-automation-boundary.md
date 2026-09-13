@@ -56,6 +56,10 @@ OSクリップボードは `consented_os_clipboard` に限定して条件付き�
 
 端末はホスト名ではなくmacOSの `IOPlatformUUID` で識別する。識別子を取得できない端末・非対応OSは停止する。旧ホスト名方式の同意ファイルは再利用できず、本人が再同意する。OS提供UUID自体を複製したVMの識別は保証しない。
 
+同意記録の保存先とファイルは本人専用の所有者・権限を検査する。他利用者が書き換え可能な保存先や、通常ファイル以外の同意記録は拒否する。既存の不安全な保存先の権限を自動変更せず、本人専用の保存先で再同意する。
+
+macOS拡張ACLは拒否エントリのみ許可し、許可エントリ・未知の形式・検査不能は保守的に停止する。保存経路のシンボリックリンクも拒否するため、実体のパスを指定する。ACLを含むMac実機検証は別途必要。
+
 ```text
 python scripts/clipboard_bridge.py consent-grant --help
 python scripts/clipboard_bridge.py consent-status
