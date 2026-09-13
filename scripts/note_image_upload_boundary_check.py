@@ -232,6 +232,16 @@ def validate_docs() -> list[str]:
         errors.append(f"missing {BOUNDARY_PATH.relative_to(ROOT)}")
     else:
         boundary = BOUNDARY_PATH.read_text(encoding="utf-8")
+        rows = [
+            [cell.strip() for cell in line.strip().strip("|").split("|")]
+            for line in boundary.splitlines() if line.lstrip().startswith("|")
+        ]
+        for route_id, contract in REQUIRED_ROUTES.items():
+            matches = [row for row in rows if row[0] == route_id]
+            if (len(matches) != 1 or len(matches[0]) != 5
+                    or matches[0][1] != contract["status"]
+                    or not all(matches[0][2:])):
+                errors.append(f"boundary route table invalid: {route_id}")
         for needle in [
             "画面に見えている Windows ファイル選択ダイアログ",
             "Chrome、note API、Cookie、セッション読み取り",

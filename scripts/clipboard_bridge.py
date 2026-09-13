@@ -17,10 +17,13 @@ import json
 import math
 import os
 import platform
+import plistlib
 import time
 import subprocess
 import sys
+import uuid
 from pathlib import Path
+from xml.parsers.expat import ExpatError
 
 
 class ClipboardBridgeError(RuntimeError):
@@ -43,11 +46,42 @@ def _consent_path(consent_path: str | Path | None = None) -> Path:
     )
 
 
+def _device_id() -> str:
+    # ホスト名は複数端末で一致するため使わない。対応済みmacOSのOS提供UUIDに限定する。
+    if platform.system() != "Darwin":
+        raise ClipboardBridgeError("対応する端末識別子を確認できません")
+    try:
+        result = subprocess.run(
+            ["/usr/sbin/ioreg", "-a", "-r", "-d", "1", "-c", "IOPlatformExpertDevice"],
+            check=True,
+            capture_output=True,
+            timeout=5,
+        )
+        entries = plistlib.loads(result.stdout)
+        identifiers = [entry["IOPlatformUUID"] for entry in entries]
+        if len(identifiers) != 1 or not isinstance(identifiers[0], str):
+            raise ValueError("invalid device identifier")
+        identifier = uuid.UUID(identifiers[0])
+        if identifier.int in (0, (1 << 128) - 1):
+            raise ValueError("invalid device identifier")
+        return f"macos-ioplatformuuid:{identifier}"
+    except (
+        OSError,
+        subprocess.SubprocessError,
+        ValueError,
+        KeyError,
+        TypeError,
+        plistlib.InvalidFileException,
+        ExpatError,
+    ):
+        raise ClipboardBridgeError("対応する端末識別子を確認できません") from None
+
+
 def _principal() -> dict[str, str]:
     # 運用上の本人・端末束縛。コード/同意ファイルを編集できる主体への認証sandboxではない。
     user = getpass.getuser()
     uid = str(os.getuid()) if hasattr(os, "getuid") else user
-    machine = platform.node()
+    machine = _device_id()
     if not user or not machine:
         raise ClipboardBridgeError("同意対象のユーザー・端末を確認できません")
     return {

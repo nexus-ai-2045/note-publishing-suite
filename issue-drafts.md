@@ -40,11 +40,20 @@ Linear、GitHub Issues、Notion、Obsidian、todo.md のどれにも転記でき
 - `docs/design/2026-09-11-three-departments.md` が追加されている。
 - `scripts/clipboard_bridge.py` / `scripts/note_virtual_preview.py` と対応テストがある。
 - `package.yaml` の `existing_scripts` に両スクリプトが宣言されている。
-- パッケージ版が 0.2.28 に上がり CHANGELOG に記録されている。
+- パッケージ版が 0.2.27 に上がり CHANGELOG に記録されている。
 - package-smoke / docs-sync が緑。
 
 公開境界:
 - Note 投稿、予約投稿、SNS 共有、外部告知は行わない。
+
+## 課題: OSクリップボードの事前同意（PR #26）
+
+状態: PRレビュー中
+
+0.2.28で利用者・端末・期限・操作範囲の同意ゲートを追加する。
+検証範囲は CHANGELOG の0.2.28、運用契約は
+`references/note-image-upload-automation-boundary.md` を参照する。
+Mac実機確認は別途必要。
 
 ## 課題 1: パッケージ契約を検証する
 

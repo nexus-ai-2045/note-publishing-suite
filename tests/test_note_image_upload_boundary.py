@@ -239,3 +239,16 @@ def test_unapproved_clipboard_prohibition_cannot_be_removed():
     policy = load_policy()
     policy["prohibited_actions"].remove("unapproved_clipboard_injection")
     assert checker.validate_policy(policy)
+
+
+def test_clipboard_table_missing_or_unsafe_fails_closed(tmp_path, monkeypatch):
+    checker = load_checker_module()
+    original = checker.BOUNDARY_PATH.read_text(encoding="utf-8")
+    row = next(line for line in original.splitlines()
+               if line.startswith("| consented_os_clipboard |"))
+    for replacement in ("", row.replace("requires_user_confirmation", "allowed_now"),
+                        row + "\n" + row):
+        boundary = tmp_path / "boundary.md"
+        boundary.write_text(original.replace(row, replacement), encoding="utf-8")
+        monkeypatch.setattr(checker, "BOUNDARY_PATH", boundary)
+        assert "boundary route table invalid: consented_os_clipboard" in checker.validate_docs()

@@ -36,6 +36,7 @@ OSクリップボードは `consented_os_clipboard` に限定して条件付き�
 
 | route | 状態 | 境界 | smoke | rollback |
 |---|---|---|---|---|
+| consented_os_clipboard | requires_user_confirmation | 利用者本人の端末・期限・操作範囲に限定した同意と現在会話の承認 | 利用者・端末一致 / 未失効・未撤回 / 許可操作 / 上書きとテキストのみ復元の制約確認 | 同意不正ならクリップボードへ触れず停止 |
 | manual_user_upload | allowed_now | ユーザーが見えている note editor で手動 upload | 対象 editor / 画像対象 / 公開未クリック | 画像未設定または直前状態で停止 |
 | visible_windows_file_dialog | requires_user_confirmation | 画面に見えている Windows ファイル選択ダイアログだけをユーザー監督下で操作 | ダイアログ可視 / 対象 file 確認 / 公開未クリック | ダイアログをキャンセルして停止 |
 | cmux_dom_file_paste | requires_user_confirmation | cmux browser で画面に見えている active editor と local file を特定し、browser-scoped `File` paste を行う。OS clipboard、Cookie、note API は使わない | visible active editor identity / file name・MIME / paste 前後の画像件数・順序 / 公開未クリック | Undo または直前の検証済み下書き状態へ戻し、復旧不能なら保存せず停止 |
@@ -52,6 +53,8 @@ OSクリップボードは `consented_os_clipboard` に限定して条件付き�
 ### OSクリップボードの事前同意ゲート
 
 全CLI操作とPython関数は、クリップボードを読む・書く前に利用者・端末・期限・許可操作を検証する。同意ファイルは配布物に含めず、未作成・不正・期限切れ・取消・利用者/端末不一致は停止する。
+
+端末はホスト名ではなくmacOSの `IOPlatformUUID` で識別する。識別子を取得できない端末・非対応OSは停止する。旧ホスト名方式の同意ファイルは再利用できず、本人が再同意する。OS提供UUID自体を複製したVMの識別は保証しない。
 
 ```text
 python scripts/clipboard_bridge.py consent-grant --help

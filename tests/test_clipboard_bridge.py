@@ -1,6 +1,7 @@
 """同意ゲートの検証。実クリップボードは触らない。"""
 
 import json
+import plistlib
 import subprocess
 import sys
 import time
@@ -14,6 +15,7 @@ import clipboard_bridge as cb
 
 @pytest.fixture
 def receipt(tmp_path, monkeypatch):
+    monkeypatch.setattr(cb, "_device_id", lambda: "test-device-1")
     path = tmp_path / "consent.json"
     now = time.time()
     data = dict(
@@ -199,4 +201,99 @@ def test_explicit_missing_does_not_fallback(receipt, tmp_path):
     with mock.patch.object(cb.subprocess, "run") as run:
         with pytest.raises(cb.ClipboardBridgeError):
             cb.get_text(consent_path=tmp_path / "missing")
+    run.assert_not_called()
+
+
+def test_copied_receipt_same_user_and_hostname_denied(receipt, monkeypatch):
+    # 同じ利用者名・UID・ホスト名でも、別端末のUUIDならコピーされた同意を拒否する。
+    monkeypatch.setattr(cb.platform, "node", lambda: "identical-hostname")
+    monkeypatch.setattr(cb, "_device_id", lambda: "test-device-2")
+    with mock.patch.object(cb.subprocess, "run") as run:
+        with pytest.raises(cb.ClipboardBridgeError):
+            cb.get_text(consent_path=receipt)
+    run.assert_not_called()
+
+
+def test_unavailable_device_denied_before_clipboard(receipt, monkeypatch):
+    def unavailable():
+        raise cb.ClipboardBridgeError("対応する端末識別子を確認できません")
+
+    monkeypatch.setattr(cb, "_device_id", unavailable)
+    with mock.patch.object(cb.subprocess, "run") as run:
+        with pytest.raises(cb.ClipboardBridgeError):
+            cb.get_text(consent_path=receipt)
+    run.assert_not_called()
+
+
+def test_device_uuid_read_and_normalized(monkeypatch):
+    monkeypatch.setattr(cb.platform, "system", lambda: "Darwin")
+    payload = plistlib.dumps(
+        [{"IOPlatformUUID": "12345678-1234-1234-ABCD-123456789ABC"}]
+    )
+    with mock.patch.object(
+        cb.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, payload)
+    ) as run:
+        assert (
+            cb._device_id()
+            == "macos-ioplatformuuid:12345678-1234-1234-abcd-123456789abc"
+        )
+    assert run.call_args.args[0] == [
+        "/usr/sbin/ioreg",
+        "-a",
+        "-r",
+        "-d",
+        "1",
+        "-c",
+        "IOPlatformExpertDevice",
+    ]
+    assert run.call_args.kwargs["timeout"] == 5
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        b"garbage",
+        b"<?xml version='1.0'?><plist><broken>",
+        plistlib.dumps([]),
+        plistlib.dumps([{}]),
+        plistlib.dumps([{"IOPlatformUUID": ""}]),
+        plistlib.dumps([{"IOPlatformUUID": "00000000-0000-0000-0000-000000000000"}]),
+        plistlib.dumps([{"IOPlatformUUID": "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF"}]),
+        plistlib.dumps([{"IOPlatformUUID": 123}]),
+        plistlib.dumps(
+            [{"IOPlatformUUID": "12345678-1234-1234-abcd-123456789abc"}] * 2
+        ),
+    ],
+)
+def test_device_invalid_response_denied(monkeypatch, payload):
+    monkeypatch.setattr(cb.platform, "system", lambda: "Darwin")
+    with mock.patch.object(
+        cb.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, payload)
+    ):
+        with pytest.raises(cb.ClipboardBridgeError):
+            cb._device_id()
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        OSError("private details"),
+        subprocess.CalledProcessError(1, ["private details"]),
+        subprocess.TimeoutExpired("private details", 5),
+    ],
+)
+def test_device_command_failure_fixed_error(monkeypatch, error):
+    monkeypatch.setattr(cb.platform, "system", lambda: "Darwin")
+    with mock.patch.object(cb.subprocess, "run", side_effect=error):
+        with pytest.raises(cb.ClipboardBridgeError) as raised:
+            cb._device_id()
+    assert "private" not in str(raised.value)
+
+
+@pytest.mark.parametrize("system", ["Windows", "Linux", ""])
+def test_unsupported_platform_no_fallback(monkeypatch, system):
+    monkeypatch.setattr(cb.platform, "system", lambda: system)
+    with mock.patch.object(cb.subprocess, "run") as run:
+        with pytest.raises(cb.ClipboardBridgeError):
+            cb._device_id()
     run.assert_not_called()
