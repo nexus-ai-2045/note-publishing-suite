@@ -71,6 +71,7 @@ force push は明示承認なしに実行しない。
 - 状態: 実装・隔離環境の配布テスト済み。既存利用側workspaceの意味を維持してMacのproject-local pointer 7件へバックアップ付き試用配布済み。記事本文の正本移動は行わない。参照先は修正worktreeであり、main統合・CI・公開・Desktop次セッション実行は未確認。
 - 実測: macOSで全体pytestは172 passed / 10 skipped（Windows固有）。docs_sync_check、pointer checker、差分の空白検査は成功。Codexのworkspace省略・不存在を配布前に拒否するテストも追加。配布担当は次セッション検証を限定受理済み。試用配布後の実パス検査は7件成功。package scriptsとworkspace dataを分離し、workspace側へのコード複製を要求しない。
 - 公開済み記事は `skills/note-postpublish-ledger` の公開snapshotと差分記録を使う。旧草稿を公開本文とみなす独自台帳は追加しない。
+- 配布後確認: 新規agentのスキル一覧にpostpublish skillが現れ、pointer→正本読取り→`post_publish.py --help` がexit 0。記事公開・台帳更新・ネットワーク呼出しなし。Desktop次セッション確認とは区別する。試用参照が残る間、配布元worktreeを削除しない。
 
 - Note 公開 / 予約 / SNS / 外部告知（未承認）
 - 追加の tag / GitHub Release
