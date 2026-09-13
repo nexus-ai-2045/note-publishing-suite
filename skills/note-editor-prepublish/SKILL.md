@@ -99,3 +99,7 @@ Note editor への反映、目次、リンク、画像、埋め込み、タグ�
 - 下書き保存まで完了したか。
 - 手動境界に残した操作。
 - 対象ロック、対象切替の有無、ユーザー確認、失敗分類、再試行回数、fallback。
+
+## OSクリップボードの利用前確認
+
+`consented_os_clipboard` は `scripts/clipboard_bridge.py` の利用者・端末・期限・操作範囲ゲートを通る場合だけ利用する。手順は `references/note-image-upload-automation-boundary.md` を参照（package root基準）。所有者の承認を別利用者へ継承せず、AIが確認文を自動入力したり同意記録を偽造したりしない。公開・送信・editor操作は別承認。画像等のclipboardをテキストrestoreで完全復旧できると扱わない。

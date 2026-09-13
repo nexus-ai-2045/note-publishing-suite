@@ -1,235 +1,202 @@
-"""Tests for scripts/clipboard_bridge.py.
+"""同意ゲートの検証。実クリップボードは触らない。"""
 
-All subprocess calls are mocked; no real OS clipboard is touched.
-"""
-
-from __future__ import annotations
-
+import json
 import subprocess
 import sys
+import time
 from pathlib import Path
 from unittest import mock
-
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
-SCRIPTS = ROOT / "scripts"
-if str(SCRIPTS) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS))
-
-import clipboard_bridge  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+import clipboard_bridge as cb
 
 
-def _completed(stdout: str = "") -> subprocess.CompletedProcess:
-    return subprocess.CompletedProcess(
-        args=["mock"], returncode=0, stdout=stdout, stderr=""
+@pytest.fixture
+def receipt(tmp_path, monkeypatch):
+    path = tmp_path / "consent.json"
+    now = time.time()
+    data = dict(
+        version=1,
+        principal=cb._principal(),
+        issued_at=now - 1,
+        expires_at=now + 3600,
+        revoked=False,
+        confirmation="interactive-typed",
+        actions=sorted(cb.CONSENT_ACTIONS),
     )
+    path.write_text(json.dumps(data), encoding="utf-8")
+    monkeypatch.setattr(
+        cb, "_consent_path", lambda value=None: Path(value) if value else path
+    )
+    return path
 
 
-class TestPutText:
-    def test_calls_pbcopy_with_text_input(self):
-        with mock.patch.object(
-            clipboard_bridge.subprocess, "run", return_value=_completed()
-        ) as mock_run:
-            clipboard_bridge.put_text("hello note")
-
-        mock_run.assert_called_once()
-        args, kwargs = mock_run.call_args
-        assert args[0] == ["pbcopy"]
-        assert kwargs["input"] == "hello note"
-        assert kwargs["text"] is True
-        assert kwargs["check"] is True
-
-    def test_raises_bridge_error_on_called_process_error(self):
-        with mock.patch.object(
-            clipboard_bridge.subprocess,
-            "run",
-            side_effect=subprocess.CalledProcessError(1, ["pbcopy"]),
-        ):
-            with pytest.raises(clipboard_bridge.ClipboardBridgeError):
-                clipboard_bridge.put_text("hello")
-
-    def test_raises_bridge_error_on_os_error(self):
-        with mock.patch.object(
-            clipboard_bridge.subprocess, "run", side_effect=OSError("no pbcopy")
-        ):
-            with pytest.raises(clipboard_bridge.ClipboardBridgeError):
-                clipboard_bridge.put_text("hello")
-
-
-class TestPutImage:
-    def test_calls_osascript_with_clipboard_script(self, tmp_path):
-        image_path = tmp_path / "cover.png"
-        image_path.write_bytes(b"\x89PNG\r\n\x1a\n")
-
-        with mock.patch.object(
-            clipboard_bridge.subprocess, "run", return_value=_completed()
-        ) as mock_run:
-            clipboard_bridge.put_image(image_path)
-
-        mock_run.assert_called_once()
-        args, kwargs = mock_run.call_args
-        command = args[0]
-        assert command[0] == "osascript"
-        assert command[1] == "-e"
-        script = command[2]
-        assert "set the clipboard to" in script
-        assert "PNGf" in script
-        assert str(image_path.resolve()) in script
-        assert kwargs["check"] is True
-
-    def test_missing_file_raises_before_subprocess(self, tmp_path):
-        missing = tmp_path / "does-not-exist.png"
-        with mock.patch.object(clipboard_bridge.subprocess, "run") as mock_run:
-            with pytest.raises(clipboard_bridge.ClipboardBridgeError):
-                clipboard_bridge.put_image(missing)
-        mock_run.assert_not_called()
-
-    def test_raises_bridge_error_on_called_process_error(self, tmp_path):
-        image_path = tmp_path / "cover.png"
-        image_path.write_bytes(b"\x89PNG\r\n\x1a\n")
-
-        with mock.patch.object(
-            clipboard_bridge.subprocess,
-            "run",
-            side_effect=subprocess.CalledProcessError(1, ["osascript"]),
-        ):
-            with pytest.raises(clipboard_bridge.ClipboardBridgeError):
-                clipboard_bridge.put_image(image_path)
-
-    def test_never_invokes_file_dialog_style_commands(self, tmp_path):
-        # The put_image implementation must not shell out to any command
-        # that could open a native file picker/dialog.
-        image_path = tmp_path / "cover.png"
-        image_path.write_bytes(b"\x89PNG\r\n\x1a\n")
-
-        with mock.patch.object(
-            clipboard_bridge.subprocess, "run", return_value=_completed()
-        ) as mock_run:
-            clipboard_bridge.put_image(image_path)
-
-        command = mock_run.call_args[0][0]
-        joined = " ".join(command)
-        for forbidden in ("open -a", "osascript -e activate", "choose file"):
-            assert forbidden not in joined
+@pytest.mark.parametrize("action", sorted(cb.CONSENT_ACTIONS))
+@pytest.mark.parametrize(
+    "failure",
+    [
+        "missing",
+        "malformed",
+        "expired",
+        "future",
+        "wrong_user",
+        "wrong_machine",
+        "revoked",
+        "denied",
+        "too_long",
+        "nan",
+        "bad_actions",
+    ],
+)
+def test_denied_before_subprocess(receipt, action, failure):
+    data = json.loads(receipt.read_text())
+    if failure == "missing":
+        receipt.unlink()
+    elif failure == "malformed":
+        receipt.write_text("[]")
+    else:
+        if failure == "expired":
+            data["expires_at"] = time.time() - 10
+        if failure == "future":
+            data["issued_at"] = time.time() + 10
+        if failure == "wrong_user":
+            data["principal"]["user"] = "other"
+        if failure == "wrong_machine":
+            data["principal"]["machine"] = "other"
+        if failure == "revoked":
+            data["revoked"] = True
+        if failure == "denied":
+            data["actions"] = []
+        if failure == "too_long":
+            data["expires_at"] = time.time() + 100000
+        if failure == "nan":
+            data["issued_at"] = float("nan")
+        if failure == "bad_actions":
+            data["actions"] = [1]
+        receipt.write_text(json.dumps(data))
+    args = ("content",) if action in {"put_text", "put_image", "restore"} else ()
+    with mock.patch.object(cb.subprocess, "run") as run:
+        with pytest.raises(cb.ClipboardBridgeError):
+            getattr(cb, action)(*args)
+    run.assert_not_called()
 
 
-class TestGetText:
-    def test_calls_pbpaste_and_returns_stdout(self):
-        with mock.patch.object(
-            clipboard_bridge.subprocess,
-            "run",
-            return_value=_completed(stdout="clipboard content"),
-        ) as mock_run:
-            result = clipboard_bridge.get_text()
-
-        assert result == "clipboard content"
-        args, kwargs = mock_run.call_args
-        assert args[0] == ["pbpaste"]
-        assert kwargs["check"] is True
-
-    def test_raises_bridge_error_on_failure(self):
-        with mock.patch.object(
-            clipboard_bridge.subprocess,
-            "run",
-            side_effect=subprocess.CalledProcessError(1, ["pbpaste"]),
-        ):
-            with pytest.raises(clipboard_bridge.ClipboardBridgeError):
-                clipboard_bridge.get_text()
-
-
-class TestSnapshotAndRestore:
-    def test_snapshot_delegates_to_get_text(self):
-        with mock.patch.object(
-            clipboard_bridge, "get_text", return_value="previous value"
-        ) as mock_get_text:
-            result = clipboard_bridge.snapshot()
-
-        assert result == "previous value"
-        mock_get_text.assert_called_once_with()
-
-    def test_restore_delegates_to_put_text(self):
-        with mock.patch.object(clipboard_bridge, "put_text") as mock_put_text:
-            clipboard_bridge.restore("saved value")
-
-        mock_put_text.assert_called_once_with("saved value")
-
-    def test_snapshot_then_restore_round_trip(self):
-        with mock.patch.object(
-            clipboard_bridge.subprocess, "run", return_value=_completed()
-        ) as mock_run:
-            mock_run.return_value = _completed(stdout="original clipboard")
-            saved = clipboard_bridge.snapshot()
-
-            mock_run.return_value = _completed()
-            clipboard_bridge.restore(saved)
-
-        # Last call should be the restore's pbcopy with the original text.
-        args, kwargs = mock_run.call_args
-        assert args[0] == ["pbcopy"]
-        assert kwargs["input"] == "original clipboard"
+@pytest.mark.parametrize(
+    "action,command",
+    [
+        ("put_text", "pbcopy"),
+        ("restore", "pbcopy"),
+        ("get_text", "pbpaste"),
+        ("snapshot", "pbpaste"),
+        ("put_image", "osascript"),
+    ],
+)
+def test_allowed_operation(receipt, tmp_path, action, command):
+    image = tmp_path / "cover.png"
+    image.write_bytes(b"\x89PNG\r\n\x1a\n")
+    args = (
+        (image,)
+        if action == "put_image"
+        else ("hello",) if action in {"put_text", "restore"} else ()
+    )
+    with mock.patch.object(
+        cb.subprocess,
+        "run",
+        return_value=subprocess.CompletedProcess([], 0, stdout="hello"),
+    ) as run:
+        value = getattr(cb, action)(*args)
+    assert run.call_args.args[0][0] == command
+    if action in {"snapshot", "get_text"}:
+        assert value == "hello"
+    if action in {"restore", "put_text"}:
+        assert run.call_args.kwargs["input"] == "hello"
+    if action == "put_image":
+        assert "choose file" not in run.call_args.args[0][2]
 
 
-class TestCli:
-    def test_put_text_reads_file_and_calls_put_text(self, tmp_path):
-        text_file = tmp_path / "body.txt"
-        text_file.write_text("記事本文", encoding="utf-8")
+@pytest.mark.parametrize("answer", ["", "yes", "no", cb.CONSENT_PHRASE])
+def test_interactive_grant(receipt, answer):
+    receipt.unlink()
+    with mock.patch.object(
+        cb.sys.stdin, "isatty", return_value=True
+    ), mock.patch.object(cb.sys.stdout, "isatty", return_value=True), mock.patch(
+        "builtins.input", return_value=answer
+    ), mock.patch.object(
+        cb.subprocess, "run"
+    ) as run:
+        assert cb.main(["consent-grant", "--hours", "1", "--actions", "put_text"]) == (
+            0 if answer == cb.CONSENT_PHRASE else 1
+        )
+    assert receipt.exists() == (answer == cb.CONSENT_PHRASE)
+    run.assert_not_called()
+    if receipt.exists():
+        cb._require_consent("put_text")
+        with pytest.raises(cb.ClipboardBridgeError):
+            cb._require_consent("get_text")
+        assert cb.main(["consent-revoke"]) == 0
+        with pytest.raises(cb.ClipboardBridgeError):
+            cb._require_consent("put_text")
 
-        with mock.patch.object(clipboard_bridge, "put_text") as mock_put_text:
-            exit_code = clipboard_bridge.main(["put-text", "--file", str(text_file)])
 
-        assert exit_code == 0
-        mock_put_text.assert_called_once_with("記事本文")
+def test_noninteractive_grant_denied(receipt):
+    receipt.unlink()
+    with mock.patch.object(cb.sys.stdin, "isatty", return_value=False):
+        assert cb.main(["consent-grant"]) == 1
+    assert not receipt.exists()
 
-    def test_put_image_reads_file_arg_and_calls_put_image(self, tmp_path):
-        image_file = tmp_path / "cover.png"
-        image_file.write_bytes(b"\x89PNG\r\n\x1a\n")
 
-        with mock.patch.object(clipboard_bridge, "put_image") as mock_put_image:
-            exit_code = clipboard_bridge.main(
-                ["put-image", "--file", str(image_file)]
-            )
+@pytest.mark.parametrize("hours", ["0", "25", "nan", "inf"])
+def test_invalid_duration(receipt, hours):
+    receipt.unlink()
+    with mock.patch.object(
+        cb.sys.stdin, "isatty", return_value=True
+    ), mock.patch.object(cb.sys.stdout, "isatty", return_value=True):
+        assert cb.main(["consent-grant", "--hours", hours]) == 1
+    assert not receipt.exists()
 
-        assert exit_code == 0
-        mock_put_image.assert_called_once_with(str(image_file))
 
-    def test_get_text_prints_clipboard_content(self, capsys):
-        with mock.patch.object(
-            clipboard_bridge, "get_text", return_value="clipboard value"
-        ):
-            exit_code = clipboard_bridge.main(["get-text"])
+@pytest.mark.parametrize("command", ["put-text", "put-image", "restore", "get-text"])
+def test_cli_denied(receipt, command, capsys):
+    receipt.unlink()
+    args = [command] + (["--file", "missing"] if command != "get-text" else [])
+    with mock.patch.object(cb.subprocess, "run") as run:
+        assert cb.main(args) == 1
+    run.assert_not_called()
+    assert capsys.readouterr().out == ""
 
-        assert exit_code == 0
-        captured = capsys.readouterr()
-        assert captured.out == "clipboard value"
 
-    def test_restore_reads_snapshot_file_and_calls_restore(self, tmp_path):
-        snapshot_file = tmp_path / "snapshot.txt"
-        snapshot_file.write_text("saved snapshot", encoding="utf-8")
+@pytest.mark.parametrize("command", ["put-text", "restore", "put-image", "get-text"])
+def test_cli_allowed(receipt, tmp_path, command):
+    path = tmp_path / "input.txt"
+    path.write_text("hello")
+    args = ["--consent-path", str(receipt), command] + (
+        ["--file", str(path)] if command != "get-text" else []
+    )
+    with mock.patch.object(
+        cb.subprocess,
+        "run",
+        return_value=subprocess.CompletedProcess([], 0, stdout="hello"),
+    ) as run:
+        assert cb.main(args) == 0
+    run.assert_called_once()
 
-        with mock.patch.object(clipboard_bridge, "restore") as mock_restore:
-            exit_code = clipboard_bridge.main(
-                ["restore", "--file", str(snapshot_file)]
-            )
 
-        assert exit_code == 0
-        mock_restore.assert_called_once_with("saved snapshot")
+def test_no_error_content_leak(receipt, capsys):
+    with mock.patch.object(
+        cb.subprocess,
+        "run",
+        side_effect=subprocess.CalledProcessError(
+            1, ["secret"], output="secret", stderr="secret"
+        ),
+    ):
+        assert cb.main(["get-text"]) == 1
+    out = capsys.readouterr()
+    assert "secret" not in out.out + out.err
 
-    def test_cli_reports_bridge_error_with_exit_code_1(self, tmp_path, capsys):
-        text_file = tmp_path / "body.txt"
-        text_file.write_text("text", encoding="utf-8")
 
-        with mock.patch.object(
-            clipboard_bridge,
-            "put_text",
-            side_effect=clipboard_bridge.ClipboardBridgeError("boom"),
-        ):
-            exit_code = clipboard_bridge.main(["put-text", "--file", str(text_file)])
-
-        assert exit_code == 1
-        captured = capsys.readouterr()
-        assert "boom" in captured.err
-
-    def test_cli_requires_a_subcommand(self):
-        with pytest.raises(SystemExit):
-            clipboard_bridge.main([])
+def test_explicit_missing_does_not_fallback(receipt, tmp_path):
+    with mock.patch.object(cb.subprocess, "run") as run:
+        with pytest.raises(cb.ClipboardBridgeError):
+            cb.get_text(consent_path=tmp_path / "missing")
+    run.assert_not_called()

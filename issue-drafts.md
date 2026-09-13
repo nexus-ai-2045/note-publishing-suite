@@ -40,7 +40,7 @@ Linear、GitHub Issues、Notion、Obsidian、todo.md のどれにも転記でき
 - `docs/design/2026-09-11-three-departments.md` が追加されている。
 - `scripts/clipboard_bridge.py` / `scripts/note_virtual_preview.py` と対応テストがある。
 - `package.yaml` の `existing_scripts` に両スクリプトが宣言されている。
-- パッケージ版が 0.2.27 に上がり CHANGELOG に記録されている。
+- パッケージ版が 0.2.28 に上がり CHANGELOG に記録されている。
 - package-smoke / docs-sync が緑。
 
 公開境界:

@@ -97,6 +97,20 @@
       "summary": "Chrome、note API、Cookie、セッション読み取り、隠れた画面操作、OSフォーカス奪取は使わない。",
       "smoke_checks": [],
       "rollback": "not_applicable"
+    },
+    {
+      "route_id": "consented_os_clipboard",
+      "boundary": "local_user_machine_scoped_expiring_consent",
+      "status": "requires_user_confirmation",
+      "requires_current_conversation_approval": true,
+      "summary": "利用者本人が事前同意した端末・利用者・有効期間・操作範囲でのみOSクリップボードを使う。共同利用者へ承認を継承しない。",
+      "smoke_checks": [
+        "consent_matches_user_and_machine",
+        "consent_not_expired_or_revoked",
+        "operation_allowed",
+        "clipboard_overwrite_and_text_only_restore_understood"
+      ],
+      "rollback": "stop_without_clipboard_access_when_consent_invalid"
     }
   ],
   "prohibited_actions": [
@@ -110,7 +124,7 @@
     "offscreen_monitor_operation",
     "os_focus_steal",
     "keystroke_injection",
-    "clipboard_injection",
+    "unapproved_clipboard_injection",
     "publish",
     "schedule_publish",
     "external_share"
@@ -118,6 +132,7 @@
   "guarantee_command": "python scripts/note_image_upload_boundary_check.py --json",
   "human_confirmation_before_expansion": [
     "visible_windows_file_dialog",
-    "cmux_dom_file_paste"
+    "cmux_dom_file_paste",
+    "consented_os_clipboard"
   ]
 }
