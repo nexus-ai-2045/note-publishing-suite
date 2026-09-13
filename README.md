@@ -73,6 +73,7 @@ NOTE_SKILL_RUNTIME=codex bash adapters/claude-code/install.sh /path/to/workspace
 Codexでは作業フォルダの明示が必須です。省略・存在しないフォルダは書込み前に拒否します。存在の検査だけでは記事の正本であることは保証しません。
 既存設定を置き換える場合は先に保存してください。記事・台帳の所有者と workspace を確認してから配布します。
 配布時のパス検査成功と、次のセッションでの発見・実行確認は別です。
+スクリプトはpackageの実装を呼び出し、記事・台帳はworkspaceの既存データを引数で指定します。workspace側にスクリプトの複製を要求しません。
 
 ### 3. 最初の依頼例
 

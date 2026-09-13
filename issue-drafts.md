@@ -12,6 +12,8 @@ tracker_required: false
 
 このファイルは外部追跡ツール非依存の作業分解メモ。
 
+2026-09-13 配布入口の更新: POSIX Codex対応とpackage scripts参照は既存installerへ実装。範囲・配布後の残務は `references/topic-consolidation-ledger.md` に集約し、ここへ二重の完了台帳は作らない。
+
 Linear、GitHub Issues、Notion、Obsidian、todo.md のどれにも転記できるが、
 どれも必須ではない。Codex または Claude Code だけでこのパッケージを使える。
 

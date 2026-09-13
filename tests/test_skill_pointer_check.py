@@ -86,6 +86,9 @@ def test_posix_codex_install_replaces_stale_pointer_and_removes_translation(tmp_
     assert "読み替え" not in body
     assert "/c/missing-package" not in body
     assert "## 作業場所" in body
+    assert f"{ROOT}/scripts" in body
+    assert f"{tmp_path / 'workspace'}/data" in body
+    assert f"{tmp_path / 'workspace'}/scripts" not in body
     assert run_checker("--installed-root", str(destination)).returncode == 0
 
 

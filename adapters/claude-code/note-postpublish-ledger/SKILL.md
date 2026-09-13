@@ -25,7 +25,7 @@ description: "Use inside note-publishing-suite after explicitly approved Note pu
 content/drafts・data 台帳・scripts は package 内の空雛形ではなく既存正本を使う:
 - drafts: `{{WORKSPACE_ROOT}}/content/drafts`
 - data 台帳: `{{WORKSPACE_ROOT}}/data`
-- scripts: `{{WORKSPACE_ROOT}}/scripts`
+- scripts: `{{PACKAGE_ROOT}}/scripts`
 
 ## 公開 gate
 

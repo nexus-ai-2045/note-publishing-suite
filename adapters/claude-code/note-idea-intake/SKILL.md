@@ -29,7 +29,7 @@ description: "Use inside note-publishing-suite when selecting local materials an
 
 - drafts: `{{WORKSPACE_ROOT}}/content/drafts`
 - data 台帳: `{{WORKSPACE_ROOT}}/data`
-- scripts: `{{WORKSPACE_ROOT}}/scripts`
+- scripts: `{{PACKAGE_ROOT}}/scripts`
 
 ## 公開 gate
 
