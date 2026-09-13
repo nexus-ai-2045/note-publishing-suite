@@ -61,6 +61,17 @@ force push は明示承認なしに実行しない。
 
 ## 停止線
 
+### 2026-09-13 POSIX Codex pointer 配布
+
+- 目的: 別OS由来の到達不能な正本パスを手修正で維持せず、既存インストーラーから再生成する。
+- 所有者: package は生成・検査、利用側は workspace の所有者確認・配布先・次セッションの発見と実行を担当する。
+- 正本: `adapters/claude-code/install.sh` と共通テンプレート。`NOTE_SKILL_RUNTIME=codex` を追加し、既存 `scripts/skill_pointer_check.py` で生成前後を検査する。Windows の `adapters/codex/install.ps1` は別OS実装として維持する。
+- 検証: `tests/test_skill_pointer_check.py` に旧参照の置換成功、未知runtimeの書込み前拒否、CODEX_HOME適用を追加。既存の欠落・不一致・symlink拒否も維持する。
+- 完了条件: パッケージ検証に加え、利用側の正しいworkspaceへの配布、次セッションの発見、実行結果を別々に確認する。
+- 状態: 実装・隔離環境の配布テスト済み。利用側workspaceが未確定のため実配布・有効化・次セッション実行は未確認。CI・公開・統合完了とは扱わない。
+- 実測: macOSで全体pytestは172 passed / 10 skipped（Windows固有）。docs_sync_check、pointer checker、差分の空白検査は成功。Codexのworkspace省略・不存在を配布前に拒否するテストも追加。配布担当は再配布と次セッション検証を限定受理済み。入力workspaceの確定と実配布は未完了。
+- 公開済み記事は `skills/note-postpublish-ledger` の公開snapshotと差分記録を使う。旧草稿を公開本文とみなす独自台帳は追加しない。
+
 - Note 公開 / 予約 / SNS / 外部告知（未承認）
 - 追加の tag / GitHub Release
 - repository visibility 変更
