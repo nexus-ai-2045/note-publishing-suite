@@ -4,6 +4,28 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
+## 0.2.28
+
+日付: 2026-09-13
+
+変更:
+- OSクリップボードの全入口に利用者・端末・期限・操作範囲の事前同意ゲートを追加。共同利用者へ承認を継承せず、未確認なら副作用前に停止する。
+- 画像upload境界の文書・policy・checkerを条件付き経路に統一。
+- 同意記録の保存先・ファイルの所有者と権限を検査し、別OS利用者による記録の差し替えを防ぐ。
+
+検証:
+- `python -m pytest -q`（Windows、保存権限修正後: 296 passed / 16 skipped）
+- `python3 -m pytest tests/test_clipboard_bridge.py -q`（Linux: 123 passed / Mac専用2 skipped）
+- `python scripts/note_image_upload_boundary_check.py --json`
+- `python scripts/docs_sync_check.py --base-ref origin/main`
+- `python scripts/package_consistency_check.py --json`
+- `python scripts/check_version_bump.py`（Windowsでは `PYTHONUTF8=1`）
+- Macの実クリップボード操作は未検証。別途利用者が実機確認する。
+
+公開境界:
+- 人間承認後に公開PR #26を作成。マージ・リリース・タグ作成は未実行。
+- Note 投稿、予約投稿、SNS共有、外部告知、同意の代理発行は未実行。
+
 ## 0.2.27
 
 日付: 2026-09-13

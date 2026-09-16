@@ -46,6 +46,15 @@ Linear、GitHub Issues、Notion、Obsidian、todo.md のどれにも転記でき
 公開境界:
 - Note 投稿、予約投稿、SNS 共有、外部告知は行わない。
 
+## 課題: OSクリップボードの事前同意（PR #26）
+
+状態: PRレビュー中
+
+0.2.28で利用者・端末・期限・操作範囲の同意ゲートを追加する。
+検証範囲は CHANGELOG の0.2.28、運用契約は
+`references/note-image-upload-automation-boundary.md` を参照する。
+Mac実機確認は別途必要。
+
 ## 課題 1: パッケージ契約を検証する
 
 状態: 吸収済み

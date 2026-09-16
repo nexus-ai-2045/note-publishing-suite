@@ -209,3 +209,7 @@ Browser / CDP / DOM の timeout、切断、対象タブ消失は `../../scripts/
 - 復旧した失敗と再発防止。
 - target lock / 対象切替 / ユーザー確認 / failure class / retry count / fallback。
 - 未実行の公開、保存、共有、SNS action。
+
+## OSクリップボードの利用前確認
+
+`consented_os_clipboard` は `scripts/clipboard_bridge.py` の利用者・端末・期限・操作範囲ゲートを通る場合だけ利用する。手順は `references/note-image-upload-automation-boundary.md` を参照（package root基準）。所有者の承認を別利用者へ継承せず、AIが確認文を自動入力したり同意記録を偽造したりしない。公開・送信・editor操作は別承認。画像等のclipboardをテキストrestoreで完全復旧できると扱わない。

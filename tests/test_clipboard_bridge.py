@@ -1,235 +1,478 @@
-"""Tests for scripts/clipboard_bridge.py.
+"""同意ゲートの検証。実クリップボードは触らない。"""
 
-All subprocess calls are mocked; no real OS clipboard is touched.
-"""
-
-from __future__ import annotations
-
+import json
+import os
+import stat
+from types import SimpleNamespace
+import plistlib
 import subprocess
 import sys
+import time
 from pathlib import Path
 from unittest import mock
-
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
-SCRIPTS = ROOT / "scripts"
-if str(SCRIPTS) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS))
-
-import clipboard_bridge  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+import clipboard_bridge as cb
 
 
-def _completed(stdout: str = "") -> subprocess.CompletedProcess:
-    return subprocess.CompletedProcess(
-        args=["mock"], returncode=0, stdout=stdout, stderr=""
+@pytest.fixture
+def receipt(tmp_path, monkeypatch):
+    monkeypatch.setattr(cb, "_device_id", lambda: "test-device-1")
+    path = tmp_path.resolve() / "consent.json"
+    if os.name != "posix":
+        # ロジック単体テストのI/O代替。実ストレージ拒否は独立テストで検証する。
+        monkeypatch.setattr(
+            cb, "_read_receipt", lambda p: json.loads(p.read_text(encoding="utf-8"))
+        )
+        monkeypatch.setattr(
+            cb,
+            "_write_receipt",
+            lambda p, data: p.write_text(json.dumps(data), encoding="utf-8"),
+        )
+    now = time.time()
+    data = dict(
+        version=1,
+        principal=cb._principal(),
+        issued_at=now - 1,
+        expires_at=now + 3600,
+        revoked=False,
+        confirmation="interactive-typed",
+        actions=sorted(cb.CONSENT_ACTIONS),
     )
+    path.write_text(json.dumps(data), encoding="utf-8")
+    path.chmod(0o600)
+    monkeypatch.setattr(
+        cb, "_consent_path", lambda value=None: Path(value) if value else path
+    )
+    return path
 
 
-class TestPutText:
-    def test_calls_pbcopy_with_text_input(self):
-        with mock.patch.object(
-            clipboard_bridge.subprocess, "run", return_value=_completed()
-        ) as mock_run:
-            clipboard_bridge.put_text("hello note")
+@pytest.mark.parametrize("action", sorted(cb.CONSENT_ACTIONS))
+@pytest.mark.parametrize(
+    "failure",
+    [
+        "missing",
+        "malformed",
+        "expired",
+        "future",
+        "wrong_user",
+        "wrong_machine",
+        "revoked",
+        "denied",
+        "too_long",
+        "nan",
+        "bad_actions",
+    ],
+)
+def test_denied_before_subprocess(receipt, action, failure):
+    data = json.loads(receipt.read_text())
+    if failure == "missing":
+        receipt.unlink()
+    elif failure == "malformed":
+        receipt.write_text("[]")
+    else:
+        if failure == "expired":
+            data["expires_at"] = time.time() - 10
+        if failure == "future":
+            data["issued_at"] = time.time() + 10
+        if failure == "wrong_user":
+            data["principal"]["user"] = "other"
+        if failure == "wrong_machine":
+            data["principal"]["machine"] = "other"
+        if failure == "revoked":
+            data["revoked"] = True
+        if failure == "denied":
+            data["actions"] = []
+        if failure == "too_long":
+            data["expires_at"] = time.time() + 100000
+        if failure == "nan":
+            data["issued_at"] = float("nan")
+        if failure == "bad_actions":
+            data["actions"] = [1]
+        receipt.write_text(json.dumps(data))
+    args = ("content",) if action in {"put_text", "put_image", "restore"} else ()
+    with mock.patch.object(cb.subprocess, "run") as run:
+        with pytest.raises(cb.ClipboardBridgeError):
+            getattr(cb, action)(*args)
+    run.assert_not_called()
 
-        mock_run.assert_called_once()
-        args, kwargs = mock_run.call_args
-        assert args[0] == ["pbcopy"]
-        assert kwargs["input"] == "hello note"
-        assert kwargs["text"] is True
-        assert kwargs["check"] is True
 
-    def test_raises_bridge_error_on_called_process_error(self):
-        with mock.patch.object(
-            clipboard_bridge.subprocess,
-            "run",
-            side_effect=subprocess.CalledProcessError(1, ["pbcopy"]),
+@pytest.mark.parametrize(
+    "action,command",
+    [
+        ("put_text", "pbcopy"),
+        ("restore", "pbcopy"),
+        ("get_text", "pbpaste"),
+        ("snapshot", "pbpaste"),
+        ("put_image", "osascript"),
+    ],
+)
+def test_allowed_operation(receipt, tmp_path, action, command):
+    image = tmp_path / "cover.png"
+    image.write_bytes(b"\x89PNG\r\n\x1a\n")
+    args = (
+        (image,)
+        if action == "put_image"
+        else ("hello",) if action in {"put_text", "restore"} else ()
+    )
+    with mock.patch.object(
+        cb.subprocess,
+        "run",
+        return_value=subprocess.CompletedProcess([], 0, stdout="hello"),
+    ) as run:
+        value = getattr(cb, action)(*args)
+    assert run.call_args.args[0][0] == command
+    if action in {"snapshot", "get_text"}:
+        assert value == "hello"
+    if action in {"restore", "put_text"}:
+        assert run.call_args.kwargs["input"] == "hello"
+    if action == "put_image":
+        assert "choose file" not in run.call_args.args[0][2]
+
+
+@pytest.mark.parametrize("answer", ["", "yes", "no", cb.CONSENT_PHRASE])
+def test_interactive_grant(receipt, answer):
+    receipt.unlink()
+    with mock.patch.object(
+        cb.sys.stdin, "isatty", return_value=True
+    ), mock.patch.object(cb.sys.stdout, "isatty", return_value=True), mock.patch(
+        "builtins.input", return_value=answer
+    ), mock.patch.object(
+        cb.subprocess, "run"
+    ) as run:
+        assert cb.main(["consent-grant", "--hours", "1", "--actions", "put_text"]) == (
+            0 if answer == cb.CONSENT_PHRASE else 1
+        )
+    assert receipt.exists() == (answer == cb.CONSENT_PHRASE)
+    run.assert_not_called()
+    if receipt.exists():
+        cb._require_consent("put_text")
+        with pytest.raises(cb.ClipboardBridgeError):
+            cb._require_consent("get_text")
+        assert cb.main(["consent-revoke"]) == 0
+        with pytest.raises(cb.ClipboardBridgeError):
+            cb._require_consent("put_text")
+
+
+def test_noninteractive_grant_denied(receipt):
+    receipt.unlink()
+    with mock.patch.object(cb.sys.stdin, "isatty", return_value=False):
+        assert cb.main(["consent-grant"]) == 1
+    assert not receipt.exists()
+
+
+@pytest.mark.parametrize("hours", ["0", "25", "nan", "inf"])
+def test_invalid_duration(receipt, hours):
+    receipt.unlink()
+    with mock.patch.object(
+        cb.sys.stdin, "isatty", return_value=True
+    ), mock.patch.object(cb.sys.stdout, "isatty", return_value=True):
+        assert cb.main(["consent-grant", "--hours", hours]) == 1
+    assert not receipt.exists()
+
+
+@pytest.mark.parametrize("command", ["put-text", "put-image", "restore", "get-text"])
+def test_cli_denied(receipt, command, capsys):
+    receipt.unlink()
+    args = [command] + (["--file", "missing"] if command != "get-text" else [])
+    with mock.patch.object(cb.subprocess, "run") as run:
+        assert cb.main(args) == 1
+    run.assert_not_called()
+    assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize("command", ["put-text", "restore", "put-image", "get-text"])
+def test_cli_allowed(receipt, tmp_path, command):
+    path = tmp_path / "input.txt"
+    path.write_text("hello")
+    args = ["--consent-path", str(receipt), command] + (
+        ["--file", str(path)] if command != "get-text" else []
+    )
+    with mock.patch.object(
+        cb.subprocess,
+        "run",
+        return_value=subprocess.CompletedProcess([], 0, stdout="hello"),
+    ) as run:
+        assert cb.main(args) == 0
+    run.assert_called_once()
+
+
+def test_no_error_content_leak(receipt, capsys):
+    with mock.patch.object(
+        cb.subprocess,
+        "run",
+        side_effect=subprocess.CalledProcessError(
+            1, ["secret"], output="secret", stderr="secret"
+        ),
+    ):
+        assert cb.main(["get-text"]) == 1
+    out = capsys.readouterr()
+    assert "secret" not in out.out + out.err
+
+
+def test_explicit_missing_does_not_fallback(receipt, tmp_path):
+    with mock.patch.object(cb.subprocess, "run") as run:
+        with pytest.raises(cb.ClipboardBridgeError):
+            cb.get_text(consent_path=tmp_path / "missing")
+    run.assert_not_called()
+
+
+def test_copied_receipt_same_user_and_hostname_denied(receipt, monkeypatch):
+    # 同じ利用者名・UID・ホスト名でも、別端末のUUIDならコピーされた同意を拒否する。
+    monkeypatch.setattr(cb.platform, "node", lambda: "identical-hostname")
+    monkeypatch.setattr(cb, "_device_id", lambda: "test-device-2")
+    with mock.patch.object(cb.subprocess, "run") as run:
+        with pytest.raises(cb.ClipboardBridgeError):
+            cb.get_text(consent_path=receipt)
+    run.assert_not_called()
+
+
+def test_unavailable_device_denied_before_clipboard(receipt, monkeypatch):
+    def unavailable():
+        raise cb.ClipboardBridgeError("対応する端末識別子を確認できません")
+
+    monkeypatch.setattr(cb, "_device_id", unavailable)
+    with mock.patch.object(cb.subprocess, "run") as run:
+        with pytest.raises(cb.ClipboardBridgeError):
+            cb.get_text(consent_path=receipt)
+    run.assert_not_called()
+
+
+def test_device_uuid_read_and_normalized(monkeypatch):
+    monkeypatch.setattr(cb.platform, "system", lambda: "Darwin")
+    payload = plistlib.dumps(
+        [{"IOPlatformUUID": "12345678-1234-1234-ABCD-123456789ABC"}]
+    )
+    with mock.patch.object(
+        cb.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, payload)
+    ) as run:
+        assert (
+            cb._device_id()
+            == "macos-ioplatformuuid:12345678-1234-1234-abcd-123456789abc"
+        )
+    assert run.call_args.args[0] == [
+        "/usr/sbin/ioreg",
+        "-a",
+        "-r",
+        "-d",
+        "1",
+        "-c",
+        "IOPlatformExpertDevice",
+    ]
+    assert run.call_args.kwargs["timeout"] == 5
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        b"garbage",
+        b"<?xml version='1.0'?><plist><broken>",
+        plistlib.dumps([]),
+        plistlib.dumps([{}]),
+        plistlib.dumps([{"IOPlatformUUID": ""}]),
+        plistlib.dumps([{"IOPlatformUUID": "00000000-0000-0000-0000-000000000000"}]),
+        plistlib.dumps([{"IOPlatformUUID": "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF"}]),
+        plistlib.dumps([{"IOPlatformUUID": 123}]),
+        plistlib.dumps(
+            [{"IOPlatformUUID": "12345678-1234-1234-abcd-123456789abc"}] * 2
+        ),
+    ],
+)
+def test_device_invalid_response_denied(monkeypatch, payload):
+    monkeypatch.setattr(cb.platform, "system", lambda: "Darwin")
+    with mock.patch.object(
+        cb.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, payload)
+    ):
+        with pytest.raises(cb.ClipboardBridgeError):
+            cb._device_id()
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        OSError("private details"),
+        subprocess.CalledProcessError(1, ["private details"]),
+        subprocess.TimeoutExpired("private details", 5),
+    ],
+)
+def test_device_command_failure_fixed_error(monkeypatch, error):
+    monkeypatch.setattr(cb.platform, "system", lambda: "Darwin")
+    with mock.patch.object(cb.subprocess, "run", side_effect=error):
+        with pytest.raises(cb.ClipboardBridgeError) as raised:
+            cb._device_id()
+    assert "private" not in str(raised.value)
+
+
+@pytest.mark.parametrize("system", ["Windows", "Linux", ""])
+def test_unsupported_platform_no_fallback(monkeypatch, system):
+    monkeypatch.setattr(cb.platform, "system", lambda: system)
+    with mock.patch.object(cb.subprocess, "run") as run:
+        with pytest.raises(cb.ClipboardBridgeError):
+            cb._device_id()
+    run.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "directory,mode,owner,links",
+    [
+        (True, stat.S_IFDIR | 0o755, 1000, 1),
+        (True, stat.S_IFDIR | 0o700, 1001, 1),
+        (False, stat.S_IFREG | 0o644, 1000, 1),
+        (False, stat.S_IFREG | 0o600, 1001, 1),
+        (False, stat.S_IFIFO | 0o600, 1000, 1),
+        (False, stat.S_IFLNK | 0o600, 1000, 1),
+        (False, stat.S_IFREG | 0o600, 1000, 2),
+    ],
+)
+def test_storage_metadata_rejected(monkeypatch, directory, mode, owner, links):
+    monkeypatch.setattr(cb.os, "getuid", lambda: 1000, raising=False)
+    with pytest.raises(cb.ClipboardBridgeError):
+        cb._validate_storage_stat(
+            SimpleNamespace(st_mode=mode, st_uid=owner, st_nlink=links),
+            directory=directory,
+        )
+
+
+def test_non_posix_storage_fails_closed(tmp_path, monkeypatch):
+    path = tmp_path / "receipt.json"
+    monkeypatch.setattr(cb.os, "name", "nt")
+    with pytest.raises(cb.ClipboardBridgeError):
+        cb._write_receipt(path, {"revoked": True})
+    assert not path.exists()
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX permissions and dir_fd required")
+@pytest.mark.parametrize(
+    "attack",
+    ["directory_mode", "file_mode", "symlink", "hardlink", "fifo", "ancestor_symlink"],
+)
+def test_unsafe_storage_rejected_without_clipboard(tmp_path, attack):
+    root = tmp_path.resolve()
+    parent = root / "private"
+    parent.mkdir(mode=0o700)
+    path = parent / "receipt.json"
+    cb._write_receipt(path, {"revoked": True})
+    original = path.read_bytes()
+    if attack == "directory_mode":
+        parent.chmod(0o777)
+    elif attack == "file_mode":
+        path.chmod(0o666)
+    elif attack == "hardlink":
+        os.link(path, parent / "second")
+    elif attack == "ancestor_symlink":
+        (root / "alias").symlink_to(parent, target_is_directory=True)
+        path = root / "alias" / path.name
+    else:
+        path.unlink()
+        if attack == "symlink":
+            target = parent / "target"
+            target.write_bytes(original)
+            path.symlink_to(target)
+        else:
+            os.mkfifo(path, mode=0o600)
+    with mock.patch.object(cb.subprocess, "run") as run:
+        for operation in (
+            lambda: cb.get_text(consent_path=path),
+            lambda: cb._write_receipt(path, {"revoked": False}),
         ):
-            with pytest.raises(clipboard_bridge.ClipboardBridgeError):
-                clipboard_bridge.put_text("hello")
-
-    def test_raises_bridge_error_on_os_error(self):
-        with mock.patch.object(
-            clipboard_bridge.subprocess, "run", side_effect=OSError("no pbcopy")
-        ):
-            with pytest.raises(clipboard_bridge.ClipboardBridgeError):
-                clipboard_bridge.put_text("hello")
-
-
-class TestPutImage:
-    def test_calls_osascript_with_clipboard_script(self, tmp_path):
-        image_path = tmp_path / "cover.png"
-        image_path.write_bytes(b"\x89PNG\r\n\x1a\n")
-
-        with mock.patch.object(
-            clipboard_bridge.subprocess, "run", return_value=_completed()
-        ) as mock_run:
-            clipboard_bridge.put_image(image_path)
-
-        mock_run.assert_called_once()
-        args, kwargs = mock_run.call_args
-        command = args[0]
-        assert command[0] == "osascript"
-        assert command[1] == "-e"
-        script = command[2]
-        assert "set the clipboard to" in script
-        assert "PNGf" in script
-        assert str(image_path.resolve()) in script
-        assert kwargs["check"] is True
-
-    def test_missing_file_raises_before_subprocess(self, tmp_path):
-        missing = tmp_path / "does-not-exist.png"
-        with mock.patch.object(clipboard_bridge.subprocess, "run") as mock_run:
-            with pytest.raises(clipboard_bridge.ClipboardBridgeError):
-                clipboard_bridge.put_image(missing)
-        mock_run.assert_not_called()
-
-    def test_raises_bridge_error_on_called_process_error(self, tmp_path):
-        image_path = tmp_path / "cover.png"
-        image_path.write_bytes(b"\x89PNG\r\n\x1a\n")
-
-        with mock.patch.object(
-            clipboard_bridge.subprocess,
-            "run",
-            side_effect=subprocess.CalledProcessError(1, ["osascript"]),
-        ):
-            with pytest.raises(clipboard_bridge.ClipboardBridgeError):
-                clipboard_bridge.put_image(image_path)
-
-    def test_never_invokes_file_dialog_style_commands(self, tmp_path):
-        # The put_image implementation must not shell out to any command
-        # that could open a native file picker/dialog.
-        image_path = tmp_path / "cover.png"
-        image_path.write_bytes(b"\x89PNG\r\n\x1a\n")
-
-        with mock.patch.object(
-            clipboard_bridge.subprocess, "run", return_value=_completed()
-        ) as mock_run:
-            clipboard_bridge.put_image(image_path)
-
-        command = mock_run.call_args[0][0]
-        joined = " ".join(command)
-        for forbidden in ("open -a", "osascript -e activate", "choose file"):
-            assert forbidden not in joined
+            with pytest.raises((cb.ClipboardBridgeError, OSError)):
+                operation()
+    run.assert_not_called()
+    if attack in {
+        "directory_mode",
+        "file_mode",
+        "hardlink",
+        "ancestor_symlink",
+        "symlink",
+    }:
+        assert path.read_bytes() == original
 
 
-class TestGetText:
-    def test_calls_pbpaste_and_returns_stdout(self):
-        with mock.patch.object(
-            clipboard_bridge.subprocess,
-            "run",
-            return_value=_completed(stdout="clipboard content"),
-        ) as mock_run:
-            result = clipboard_bridge.get_text()
-
-        assert result == "clipboard content"
-        args, kwargs = mock_run.call_args
-        assert args[0] == ["pbpaste"]
-        assert kwargs["check"] is True
-
-    def test_raises_bridge_error_on_failure(self):
-        with mock.patch.object(
-            clipboard_bridge.subprocess,
-            "run",
-            side_effect=subprocess.CalledProcessError(1, ["pbpaste"]),
-        ):
-            with pytest.raises(clipboard_bridge.ClipboardBridgeError):
-                clipboard_bridge.get_text()
+@pytest.mark.skipif(os.name != "posix", reason="POSIX permissions and dir_fd required")
+def test_new_storage_private_under_permissive_umask(tmp_path):
+    path = tmp_path.resolve() / "new" / "receipt.json"
+    previous = os.umask(0)
+    try:
+        cb._write_receipt(path, {"revoked": True})
+    finally:
+        os.umask(previous)
+    assert stat.S_IMODE(path.parent.stat().st_mode) == 0o700
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    assert cb._read_receipt(path) == {"revoked": True}
 
 
-class TestSnapshotAndRestore:
-    def test_snapshot_delegates_to_get_text(self):
-        with mock.patch.object(
-            clipboard_bridge, "get_text", return_value="previous value"
-        ) as mock_get_text:
-            result = clipboard_bridge.snapshot()
+@pytest.mark.parametrize(
+    "tags,error",
+    [
+        ([], None),
+        ([2], None),
+        ([2, 2], None),
+        ([1], "denied"),
+        ([2, 1], "denied"),
+        ([0], "denied"),
+        ([], "load"),
+        ([], "null"),
+        ([], "invalid"),
+        ([], "entry"),
+        ([2], "tag"),
+    ],
+)
+def test_darwin_acl_inspection(monkeypatch, tags, error):
+    monkeypatch.setattr(cb.platform, "system", lambda: "Darwin")
+    library = mock.MagicMock()
+    library.acl_get_fd_np.return_value = None if error == "null" else 123
+    library.acl_valid.return_value = -1 if error == "invalid" else 0
+    position = iter(tags)
+    current = [None]
 
-        assert result == "previous value"
-        mock_get_text.assert_called_once_with()
+    def get_entry(acl, entry_id, output):
+        if error == "entry":
+            cb.ctypes.set_errno(cb.errno.EIO)
+            return -1
+        try:
+            current[0] = next(position)
+            output._obj.value = 456
+            return 0
+        except StopIteration:
+            cb.ctypes.set_errno(cb.errno.EINVAL)
+            return -1
 
-    def test_restore_delegates_to_put_text(self):
-        with mock.patch.object(clipboard_bridge, "put_text") as mock_put_text:
-            clipboard_bridge.restore("saved value")
+    def get_tag(entry, output):
+        output._obj.value = current[0]
+        return -1 if error == "tag" else 0
 
-        mock_put_text.assert_called_once_with("saved value")
+    library.acl_get_entry.side_effect = get_entry
+    library.acl_get_tag_type.side_effect = get_tag
+    loader = mock.Mock(
+        return_value=library, side_effect=OSError() if error == "load" else None
+    )
+    monkeypatch.setattr(cb.ctypes, "CDLL", loader)
+    if error:
+        with pytest.raises(cb.ClipboardBridgeError):
+            cb._validate_darwin_acl(17)
+    else:
+        cb._validate_darwin_acl(17)
+    if error != "load":
+        library.acl_get_fd_np.assert_called_once_with(17, 0x100)
+        if error != "null":
+            library.acl_free.assert_called_once_with(123)
 
-    def test_snapshot_then_restore_round_trip(self):
-        with mock.patch.object(
-            clipboard_bridge.subprocess, "run", return_value=_completed()
-        ) as mock_run:
-            mock_run.return_value = _completed(stdout="original clipboard")
-            saved = clipboard_bridge.snapshot()
 
-            mock_run.return_value = _completed()
-            clipboard_bridge.restore(saved)
-
-        # Last call should be the restore's pbcopy with the original text.
-        args, kwargs = mock_run.call_args
-        assert args[0] == ["pbcopy"]
-        assert kwargs["input"] == "original clipboard"
-
-
-class TestCli:
-    def test_put_text_reads_file_and_calls_put_text(self, tmp_path):
-        text_file = tmp_path / "body.txt"
-        text_file.write_text("記事本文", encoding="utf-8")
-
-        with mock.patch.object(clipboard_bridge, "put_text") as mock_put_text:
-            exit_code = clipboard_bridge.main(["put-text", "--file", str(text_file)])
-
-        assert exit_code == 0
-        mock_put_text.assert_called_once_with("記事本文")
-
-    def test_put_image_reads_file_arg_and_calls_put_image(self, tmp_path):
-        image_file = tmp_path / "cover.png"
-        image_file.write_bytes(b"\x89PNG\r\n\x1a\n")
-
-        with mock.patch.object(clipboard_bridge, "put_image") as mock_put_image:
-            exit_code = clipboard_bridge.main(
-                ["put-image", "--file", str(image_file)]
-            )
-
-        assert exit_code == 0
-        mock_put_image.assert_called_once_with(str(image_file))
-
-    def test_get_text_prints_clipboard_content(self, capsys):
-        with mock.patch.object(
-            clipboard_bridge, "get_text", return_value="clipboard value"
-        ):
-            exit_code = clipboard_bridge.main(["get-text"])
-
-        assert exit_code == 0
-        captured = capsys.readouterr()
-        assert captured.out == "clipboard value"
-
-    def test_restore_reads_snapshot_file_and_calls_restore(self, tmp_path):
-        snapshot_file = tmp_path / "snapshot.txt"
-        snapshot_file.write_text("saved snapshot", encoding="utf-8")
-
-        with mock.patch.object(clipboard_bridge, "restore") as mock_restore:
-            exit_code = clipboard_bridge.main(
-                ["restore", "--file", str(snapshot_file)]
-            )
-
-        assert exit_code == 0
-        mock_restore.assert_called_once_with("saved snapshot")
-
-    def test_cli_reports_bridge_error_with_exit_code_1(self, tmp_path, capsys):
-        text_file = tmp_path / "body.txt"
-        text_file.write_text("text", encoding="utf-8")
-
-        with mock.patch.object(
-            clipboard_bridge,
-            "put_text",
-            side_effect=clipboard_bridge.ClipboardBridgeError("boom"),
-        ):
-            exit_code = clipboard_bridge.main(["put-text", "--file", str(text_file)])
-
-        assert exit_code == 1
-        captured = capsys.readouterr()
-        assert "boom" in captured.err
-
-    def test_cli_requires_a_subcommand(self):
-        with pytest.raises(SystemExit):
-            clipboard_bridge.main([])
+@pytest.mark.skipif(sys.platform != "darwin", reason="Darwin ACL API required")
+@pytest.mark.parametrize("directory", [False, True])
+def test_darwin_real_allow_acl_rejected(tmp_path, directory):
+    # 自分が所有するテスト専用の一時ファイルだけにACLを設定する。
+    path = tmp_path.resolve() / "acl-test"
+    if directory:
+        path.mkdir(mode=0o700)
+    else:
+        path.write_text("unchanged")
+        path.chmod(0o600)
+    subprocess.run(["/bin/chmod", "+a", "everyone allow write", str(path)], check=True)
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        with pytest.raises(cb.ClipboardBridgeError):
+            cb._validate_storage_fd(fd, directory=directory)
+    finally:
+        os.close(fd)

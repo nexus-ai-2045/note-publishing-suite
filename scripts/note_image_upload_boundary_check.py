@@ -15,6 +15,18 @@ POLICY_PATH = ROOT / "data/note_image_upload_automation_policy.json"
 BOUNDARY_PATH = ROOT / "references/note-image-upload-automation-boundary.md"
 
 REQUIRED_ROUTES: dict[str, dict[str, Any]] = {
+    "consented_os_clipboard": {
+        "boundary": "local_user_machine_scoped_expiring_consent",
+        "status": "requires_user_confirmation",
+        "requires_current_conversation_approval": True,
+        "smoke_checks": [
+            "consent_matches_user_and_machine",
+            "consent_not_expired_or_revoked",
+            "operation_allowed",
+            "clipboard_overwrite_and_text_only_restore_understood",
+        ],
+        "rollback": "stop_without_clipboard_access_when_consent_invalid",
+    },
     "manual_user_upload": {
         "status": "allowed_now",
         "requires_current_conversation_approval": True,
@@ -53,7 +65,7 @@ REQUIRED_PROHIBITIONS = {
     "offscreen_monitor_operation",
     "os_focus_steal",
     "keystroke_injection",
-    "clipboard_injection",
+    "unapproved_clipboard_injection",
     "publish",
     "schedule_publish",
     "external_share",
@@ -220,6 +232,16 @@ def validate_docs() -> list[str]:
         errors.append(f"missing {BOUNDARY_PATH.relative_to(ROOT)}")
     else:
         boundary = BOUNDARY_PATH.read_text(encoding="utf-8")
+        rows = [
+            [cell.strip() for cell in line.strip().strip("|").split("|")]
+            for line in boundary.splitlines() if line.lstrip().startswith("|")
+        ]
+        for route_id, contract in REQUIRED_ROUTES.items():
+            matches = [row for row in rows if row[0] == route_id]
+            if (len(matches) != 1 or len(matches[0]) != 5
+                    or matches[0][1] != contract["status"]
+                    or not all(matches[0][2:])):
+                errors.append(f"boundary route table invalid: {route_id}")
         for needle in [
             "画面に見えている Windows ファイル選択ダイアログ",
             "Chrome、note API、Cookie、セッション読み取り",

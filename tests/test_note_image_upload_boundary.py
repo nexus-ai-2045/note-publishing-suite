@@ -220,3 +220,35 @@ def test_duplicate_automation_route_id_fails_closed():
 
     errors = checker.validate_policy(policy)
     assert any("automation_routes duplicate route_id" in error for error in errors)
+
+
+def test_clipboard_cannot_become_unconditionally_allowed():
+    checker = load_checker_module()
+    for key, unsafe in (("status", "allowed_now"),
+                        ("requires_current_conversation_approval", False),
+                        ("smoke_checks", ["skip_consent"])):
+        policy = load_policy()
+        route = next(r for r in policy["automation_routes"]
+                     if r["route_id"] == "consented_os_clipboard")
+        route[key] = unsafe
+        assert checker.validate_policy(policy)
+
+
+def test_unapproved_clipboard_prohibition_cannot_be_removed():
+    checker = load_checker_module()
+    policy = load_policy()
+    policy["prohibited_actions"].remove("unapproved_clipboard_injection")
+    assert checker.validate_policy(policy)
+
+
+def test_clipboard_table_missing_or_unsafe_fails_closed(tmp_path, monkeypatch):
+    checker = load_checker_module()
+    original = checker.BOUNDARY_PATH.read_text(encoding="utf-8")
+    row = next(line for line in original.splitlines()
+               if line.startswith("| consented_os_clipboard |"))
+    for replacement in ("", row.replace("requires_user_confirmation", "allowed_now"),
+                        row + "\n" + row):
+        boundary = tmp_path / "boundary.md"
+        boundary.write_text(original.replace(row, replacement), encoding="utf-8")
+        monkeypatch.setattr(checker, "BOUNDARY_PATH", boundary)
+        assert "boundary route table invalid: consented_os_clipboard" in checker.validate_docs()

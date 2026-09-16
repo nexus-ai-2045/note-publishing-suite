@@ -18,8 +18,8 @@ scope_route: local_note_prep_only
 - 操作部門は note editor / ブラウザ操作を担当し、Computer Use は使わない。
   note の UI 更新は自分で検知して直す PDCA (セレクタの実測 → 差分検知 →
   更新提案) を持つ。
-- 操作部門の入力はクリップボード経由 (`pbcopy` → 貼り付け) を標準関数にする。
-  画像はクリップボードに画像を入れて ProseMirror へ paste する経路を本命とし、
+- 操作部門のクリップボード入力 (`pbcopy` → 貼り付け) は事前同意ゲートを通った場合に限る。
+  画像のOSクリップボード経路も本人の端末別同意を必須とし、
   ファイル選択ダイアログに依存しない。ダイアログを開く操作は禁止する。
   2026-09-11 にダイアログが開いてユーザーの作業を妨げたため。
 - 文書作成部門は素材 → 構成 → 本文 → 制作パック → 仮想 note プレビューを担当する。
@@ -201,28 +201,13 @@ Sonnet/Haiku 相当の worker (Operation 部門と同じ worker 分担方針) �
   のデータを入力にする設計止まり。運用 1 サイクル分の実測はまだない
   (未実測)。
 
-## 既存境界との衝突点
+## OSクリップボードの同意境界
 
-- `references/note-image-upload-automation-boundary.md` と
-  `scripts/note_image_upload_boundary_check.py` は、画面に見えている
-  ファイル選択ダイアログ (`visible_windows_file_dialog`) を
-  `requires_user_confirmation` の許可経路として維持している。
-  一方で `scripts/note_image_upload_boundary_check.py` の
-  `REQUIRED_PROHIBITIONS` は `clipboard_injection` を禁止経路として
-  持っている (OS clipboard 経由の画像挿入は既存 checker 上は禁止扱い)。
-  今回の指示 (クリップボード経由の paste を本命化し、ファイル選択
-  ダイアログを禁止) はこの既存境界と正面から食い違う。この file は
-  設計のみを固定し、既存 checker / reference の書き換えはこのタスクの
-  スコープ外として扱う。次の対応候補を残す。
-  - `note_image_upload_boundary_check.py` の `REQUIRED_ROUTES` /
-    `REQUIRED_PROHIBITIONS` を、`scripts/clipboard_bridge.py` の
-    `put_image` 経路 (browser 外の OS clipboard 経由) を許可経路として
-    追加できるか検討する。
-  - `visible_windows_file_dialog` を禁止経路へ落とすか、
-    「ダイアログを自動で開く操作」と「すでに開いているダイアログを
-    ユーザー監督下で操作する」を区別して残すかを判断する。
-  - どちらも Type1 相当 (安全境界の変更) のため、本人の承認を得てから
-    別 diff で反映する。
+OSクリップボード経路は無条件の標準ではなく、`consented_os_clipboard` の事前同意ゲートを通った場合だけ使う。正本は `references/note-image-upload-automation-boundary.md` と機械可読policy。利用者本人の承認を別利用者・コラボレーターへ継承しない。配布コードに所有者専用の自動許可を入れない。
+
+`clipboard_bridge.py` の全関数とCLIが端末・OSユーザー・期限・操作範囲を確認する。新規利用者は対話型 `consent-grant` で事前確認し、未同意・失効・取消時は副作用前に停止する。退避と復元はテキスト限定であり、元画像や複数形式の完全復旧を保証しない。
+
+このbridgeはダイアログを開かない。既に見えているdialogのユーザー監督下操作は別の既存経路であり、現在会話での個別確認が必要。clipboard同意はeditor操作・公開・送信の承認ではない。
 
 ## 未実装・未実測
 

@@ -32,8 +32,11 @@ note editor の画像アップロードを、できる経路、ユーザー確�
 
 ## 経路
 
+OSクリップボードは `consented_os_clipboard` に限定して条件付きで使える。未承認の `unapproved_clipboard_injection` は禁止する。本人の承認は別利用者・別端末へ引き継がず、所有者を名前で判定して自動許可する例外も設けない。
+
 | route | 状態 | 境界 | smoke | rollback |
 |---|---|---|---|---|
+| consented_os_clipboard | requires_user_confirmation | 利用者本人の端末・期限・操作範囲に限定した同意と現在会話の承認 | 利用者・端末一致 / 未失効・未撤回 / 許可操作 / 上書きとテキストのみ復元の制約確認 | 同意不正ならクリップボードへ触れず停止 |
 | manual_user_upload | allowed_now | ユーザーが見えている note editor で手動 upload | 対象 editor / 画像対象 / 公開未クリック | 画像未設定または直前状態で停止 |
 | visible_windows_file_dialog | requires_user_confirmation | 画面に見えている Windows ファイル選択ダイアログだけをユーザー監督下で操作 | ダイアログ可視 / 対象 file 確認 / 公開未クリック | ダイアログをキャンセルして停止 |
 | cmux_dom_file_paste | requires_user_confirmation | cmux browser で画面に見えている active editor と local file を特定し、browser-scoped `File` paste を行う。OS clipboard、Cookie、note API は使わない | visible active editor identity / file name・MIME / paste 前後の画像件数・順序 / 公開未クリック | Undo または直前の検証済み下書き状態へ戻し、復旧不能なら保存せず停止 |
@@ -46,6 +49,32 @@ note editor の画像アップロードを、できる経路、ユーザー確�
 確実な upload route として扱わない。
 
 ## Windows / Mac 環境差
+
+### OSクリップボードの事前同意ゲート
+
+全CLI操作とPython関数は、クリップボードを読む・書く前に利用者・端末・期限・許可操作を検証する。同意ファイルは配布物に含めず、未作成・不正・期限切れ・取消・利用者/端末不一致は停止する。
+
+端末はホスト名ではなくmacOSの `IOPlatformUUID` で識別する。識別子を取得できない端末・非対応OSは停止する。旧ホスト名方式の同意ファイルは再利用できず、本人が再同意する。OS提供UUID自体を複製したVMの識別は保証しない。
+
+同意記録の保存先とファイルは本人専用の所有者・権限を検査する。他利用者が書き換え可能な保存先や、通常ファイル以外の同意記録は拒否する。既存の不安全な保存先の権限を自動変更せず、本人専用の保存先で再同意する。
+
+macOS拡張ACLは拒否エントリのみ許可し、許可エントリ・未知の形式・検査不能は保守的に停止する。保存経路のシンボリックリンクも拒否するため、実体のパスを指定する。ACLを含むMac実機検証は別途必要。
+
+```text
+python scripts/clipboard_bridge.py consent-grant --help
+python scripts/clipboard_bridge.py consent-status
+python scripts/clipboard_bridge.py consent-revoke
+```
+
+新規利用者は `consent-grant` の対話を自分で確認する。AIが本人に代わって同意文を入力してはいけない。同意済みの所有者についてもローカル同意を検証する入口を省略せず、他利用者用の配布コードへ承認を書き込まない。
+
+このゲートは同じOS権限でコードや同意ファイルを書き換えられる攻撃者に対する認証隔離ではない。通常のCLI/関数呼出しが確認を省略する事故を防ぐ。共有OSアカウントを人間個人として識別できないため、共同利用ではOSアカウントを分ける。
+
+書込みは既存clipboardを上書きする。`snapshot` / `restore` はテキストだけで、画像や他形式の完全復旧は保証しない。同意はこの制約を示して取得する。clipboardバックエンドはmacOS用であり、Windowsで実操作できると主張しない。承認ゲートの検証とMac実機smokeは分ける。
+
+クリップボード同意はnoteへのpaste・保存・公開・外部送信・GUI操作の承認ではない。
+
+端末上の同意ゲートと現在会話の操作承認は別段。`requires_current_conversation_approval` は維持し、期限内のreceiptだけを別会話・別目的の操作指示の代わりにしない。CLIは利用者・端末・期限・操作範囲を機械検査し、会話の承認有無は呼出し元エージェントが確認する。
 
 note 公式の推奨環境は、PC ブラウザでは Windows 10 以上の
 Google Chrome / Microsoft Edge / Mozilla Firefox、macOS 14 以上の
