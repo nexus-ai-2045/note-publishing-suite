@@ -1,5 +1,7 @@
 import importlib.util
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).parents[1]
@@ -39,3 +41,13 @@ def test_zero_counts_are_observations_not_missing_evidence(tmp_path):
     cycle["locator_candidate_count"] = 0
     result = MODULE.check(receipt(tmp_path, {"schema": MODULE.SCHEMA, "state":"completed", "cycles":[cycle]}))
     assert result["ok"] is True
+
+
+def test_cli_accepts_a_final_receipt(tmp_path):
+    path = receipt(tmp_path, {"schema": MODULE.SCHEMA, "state":"completed", "cycles":[valid_cycle()]})
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts/note_editor_pdca_cycle_check.py"), str(path), "--require-final", "--json"],
+        cwd=ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert json.loads(result.stdout)["state"] == "completed"
