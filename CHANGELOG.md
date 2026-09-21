@@ -4,7 +4,24 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
-## 0.2.28
+## 0.2.29
+
+日付: 2026-09-21
+
+変更:
+- Noteエディタ作業の記事ごとPDCA cycle受領JSONを scripts/note_editor_pdca_cycle_check.py で検査する経路を追加した。
+- 1 action・前後DOM証跡・非公開・routeあたり最大2回試行の契約を package.yaml / note-editor-ops / PDCA orchestration に配線した。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `python -m pytest -q tests/test_note_editor_pdca_cycle_check.py`
+- `python scripts/docs_sync_check.py --base-ref origin/main`
+- `VERSION_BUMP_BASE_REF=origin/main python scripts/check_version_bump.py`
+- `python scripts/note_editor_pdca_failure_check.py --json`
+
+公開境界:
+- 人間承認後に公開PR #27を更新。マージ・リリース・タグ作成は未実行。
+- Note 投稿、予約投稿、SNS 共有、外部告知、リポジトリ公開範囲変更は未実行。
 
 日付: 2026-09-13
 

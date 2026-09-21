@@ -117,7 +117,7 @@
 <p><strong>書くところまで自動化。公開は、人が決める。</strong></p>
 <p><img src="assets/note-publishing-workflow.svg" alt="素材からNote下書き保存までは自動化し、公開直前で停止して人が判断するワークフロー" loading="lazy"></p>
 <p>ローカル素材から Note の下書きを作り、検査し、エディタへ反映する <strong>NPS（Note Publishing Suite）</strong> です。Codex / Claude Code から使えます。 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。</p>
-<p>パッケージ版: <code>0.2.28</code></p>
+<p>パッケージ版: <code>0.2.29</code></p>
 <div class="table-wrap"><table>
 <thead><tr><th>すぐやる</th><th>あとで読む</th></tr></thead>
 <tbody>
@@ -267,6 +267,7 @@ python scripts/provenance_label_check.py &lt;draft.md&gt; --public-output &lt;pu
 <li><code>scripts/note_linebreak_gate.py</code> / <code>scripts/note_figure_structure_gate.py</code>: 改行、図、captionを検査。</li>
 <li><code>scripts/note_browser_transport_recovery.py</code> / <code>scripts/note_editor_timeout_recovery.py</code>: Browser切断とtimeoutを分類。前者はread-only復旧計画専用で、process終了や人間承認の真正性確認は行わない。</li>
 <li><code>scripts/note_editor_pdca_failure_check.py</code>: Note editor 失敗パターン台帳を検査。</li>
+<li><code>scripts/note_editor_pdca_cycle_check.py</code>: 記事ごとの PDCA cycle 受領JSONを検査（1 action・前後DOM証跡・非公開・routeあたり最大2回）。</li>
 <li><code>scripts/topic_status_check.py</code>: 話題統合台帳の配線を検査。</li>
 <li><code>scripts/package_consistency_check.py</code>: 宣言したスクリプトの実在を検査。</li>
 <li><code>adapters/codex/install.ps1</code>: WindowsのCodex skill pointerを配置し、参照切れを検査。</li>
@@ -288,6 +289,7 @@ python scripts/run_local_draft_qa_proof.py --json
 python scripts/japanese_closeout_language_check.py --json
 python scripts/note_image_upload_boundary_check.py --json
 python scripts/note_editor_pdca_failure_check.py --json
+python scripts/note_editor_pdca_cycle_check.py &lt;receipt.json&gt; --require-final --json
 python scripts/topic_status_check.py --json
 python -m pytest scripts/test_skill_integration.py tests</code></pre>
 <p>包括検証は <code>sh scripts/verify_public_package.sh</code> です。<code>verify:local</code> は、 公開操作なしで構成、安全境界、README表示、公開前停止線を確認します。</p>

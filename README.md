@@ -16,7 +16,7 @@ publication_gate: human_review_required
 **NPS（Note Publishing Suite）** です。Codex / Claude Code から使えます。
 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。
 
-パッケージ版: `0.2.28`
+パッケージ版: `0.2.29`
 
 | すぐやる | あとで読む |
 | --- | --- |
@@ -238,6 +238,7 @@ Noteログイン、常時接続、画像アップロードの完全自動化は�
 - `scripts/note_linebreak_gate.py` / `scripts/note_figure_structure_gate.py`: 改行、図、captionを検査。
 - `scripts/note_browser_transport_recovery.py` / `scripts/note_editor_timeout_recovery.py`: Browser切断とtimeoutを分類。前者はread-only復旧計画専用で、process終了や人間承認の真正性確認は行わない。
 - `scripts/note_editor_pdca_failure_check.py`: Note editor 失敗パターン台帳を検査。
+- `scripts/note_editor_pdca_cycle_check.py`: 記事ごとの PDCA cycle 受領JSONを検査（1 action・前後DOM証跡・非公開・routeあたり最大2回）。
 - `scripts/topic_status_check.py`: 話題統合台帳の配線を検査。
 - `scripts/package_consistency_check.py`: 宣言したスクリプトの実在を検査。
 - `adapters/codex/install.ps1`: WindowsのCodex skill pointerを配置し、参照切れを検査。
@@ -273,6 +274,7 @@ python scripts/run_local_draft_qa_proof.py --json
 python scripts/japanese_closeout_language_check.py --json
 python scripts/note_image_upload_boundary_check.py --json
 python scripts/note_editor_pdca_failure_check.py --json
+python scripts/note_editor_pdca_cycle_check.py <receipt.json> --require-final --json
 python scripts/topic_status_check.py --json
 python -m pytest scripts/test_skill_integration.py tests
 ```
