@@ -1,5 +1,5 @@
 name: note-publishing-suite
-version: 0.2.28
+version: 0.2.29
 scope: repo-local
 repo_root: .
 entrypoint: SKILL.md
@@ -13,6 +13,7 @@ references:
   note_editor_capability_inventory: references/note-editor-capability-inventory.md
   note_editor_pdca_orchestration: references/note-editor-pdca-orchestration.md
   note_editor_pdca_failure_patterns: data/note_editor_pdca_failure_patterns.json
+  note_editor_pdca_cycle_check: scripts/note_editor_pdca_cycle_check.py
   topic_consolidation_ledger: references/topic-consolidation-ledger.md
   note_editor_live_constraint_boundaries: references/note-editor-live-constraint-boundaries.md
   note_article_provenance_design: references/note-article-provenance-design.md
@@ -173,6 +174,7 @@ existing_scripts:
   - scripts/note_browser_transport_recovery.py
   - scripts/note_editor_timeout_recovery.py
   - scripts/note_editor_pdca_failure_check.py
+  - scripts/note_editor_pdca_cycle_check.py
   - scripts/topic_status_check.py
   - scripts/note_cover_image_upload_check.py
   - scripts/note_editor_toolbar_measurement_check.py
@@ -242,7 +244,7 @@ verification:
       mode: standalone_repository
       purpose: prove github_identity_guard.py and the platform verifier from a standalone public repository clone fixture
   optional_python_developer_checks:
-    - python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py tests/test_review_draft_cli.py
+    - python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_editor_pdca_cycle_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py tests/test_review_draft_cli.py
     - python scripts/provenance_leak_check.py --scope changed --json
     - python scripts/provenance_label_check.py <draft.md> --json
     - python scripts/github_identity_guard.py --json

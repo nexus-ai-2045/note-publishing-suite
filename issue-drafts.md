@@ -48,12 +48,32 @@ Linear、GitHub Issues、Notion、Obsidian、todo.md のどれにも転記でき
 
 ## 課題: OSクリップボードの事前同意（PR #26）
 
-状態: PRレビュー中
+状態: 吸収済み（PR #26）
 
-0.2.28で利用者・端末・期限・操作範囲の同意ゲートを追加する。
+0.2.28で利用者・端末・期限・操作範囲の同意ゲートを追加した。
 検証範囲は CHANGELOG の0.2.28、運用契約は
 `references/note-image-upload-automation-boundary.md` を参照する。
 Mac実機確認は別途必要。
+
+## 課題: Noteエディタ PDCA cycle 受領検査（PR #27）
+
+状態: PRレビュー中（0.2.29）
+
+概要:
+失敗パターン台帳に加え、記事ごとに回した PDCA cycle の受領JSONを
+`scripts/note_editor_pdca_cycle_check.py` で検査する経路を追加する。
+1 action・前後DOM証跡・非公開・routeあたり最大2回の契約を
+`note-editor-ops` / PDCA orchestration / package checks に配線する。
+
+受入条件:
+- cycle 受領 checker と `tests/test_note_editor_pdca_cycle_check.py` がある。
+- package.yaml / note-editor-ops / orchestration から参照できる。
+- パッケージ版が 0.2.29 に上がり CHANGELOG に記録されている。
+- docs-sync / package-smoke が緑。
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は行わない。
+- マージは人間レビュー後。
 
 ## 課題 1: パッケージ契約を検証する
 
