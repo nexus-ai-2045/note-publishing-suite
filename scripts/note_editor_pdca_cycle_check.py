@@ -38,7 +38,12 @@ def check(receipt: Path, require_final: bool = False) -> dict[str, Any]:
         if not isinstance(cycle, dict):
             errors.append(f"cycles[{index}] must be an object")
             continue
-        missing = sorted(key for key in REQUIRED_CYCLE_EVIDENCE if not cycle.get(key))
+        # figure count and locator count can legitimately be zero.  Absence and
+        # an empty observation are failures; a falsy numeric observation is not.
+        missing = sorted(
+            key for key in REQUIRED_CYCLE_EVIDENCE
+            if key not in cycle or cycle[key] is None or cycle[key] == ""
+        )
         if missing:
             errors.append(f"cycles[{index}] missing: {', '.join(missing)}")
         if cycle.get("action_count") != 1:

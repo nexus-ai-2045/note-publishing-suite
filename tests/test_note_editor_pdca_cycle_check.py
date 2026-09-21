@@ -30,3 +30,12 @@ def test_third_same_route_attempt_fails_closed(tmp_path):
 def test_open_receipt_needs_final_when_requested(tmp_path):
     result = MODULE.check(receipt(tmp_path, {"schema": MODULE.SCHEMA, "state":"open", "cycles":[valid_cycle()]}), True)
     assert not result["ok"] and any("final state required" in item for item in result["errors"])
+
+
+def test_zero_counts_are_observations_not_missing_evidence(tmp_path):
+    cycle = valid_cycle()
+    cycle["figure_count_before"] = 0
+    cycle["figure_count_after"] = 0
+    cycle["locator_candidate_count"] = 0
+    result = MODULE.check(receipt(tmp_path, {"schema": MODULE.SCHEMA, "state":"completed", "cycles":[cycle]}))
+    assert result["ok"] is True
