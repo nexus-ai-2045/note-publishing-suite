@@ -20,6 +20,10 @@ cursor drift は fresh DOM からやり直す。禁止リトライは ledger の
 `stopline` / `next_action` に従う。mutation の action前 URL / title / DOM
 を残し、目的状態が成立済みなら already-completed として重複操作しない。
 
+実際に回したcycleは、記事ごとの非公開受領JSONへ残し、
+`python scripts/note_editor_pdca_cycle_check.py <receipt> --require-final --json`
+で検査する。failure ledger の検査だけでは、個々の操作を実行・確認した証拠にはならない。
+
 本文の短縮防止、著者性、改行、図、キャプションは
 `references/note-draft-authority-and-layout-contract.md` を参照する。
 

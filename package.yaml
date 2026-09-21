@@ -13,6 +13,7 @@ references:
   note_editor_capability_inventory: references/note-editor-capability-inventory.md
   note_editor_pdca_orchestration: references/note-editor-pdca-orchestration.md
   note_editor_pdca_failure_patterns: data/note_editor_pdca_failure_patterns.json
+  note_editor_pdca_cycle_check: scripts/note_editor_pdca_cycle_check.py
   topic_consolidation_ledger: references/topic-consolidation-ledger.md
   note_editor_live_constraint_boundaries: references/note-editor-live-constraint-boundaries.md
   note_article_provenance_design: references/note-article-provenance-design.md
@@ -173,6 +174,7 @@ existing_scripts:
   - scripts/note_browser_transport_recovery.py
   - scripts/note_editor_timeout_recovery.py
   - scripts/note_editor_pdca_failure_check.py
+  - scripts/note_editor_pdca_cycle_check.py
   - scripts/topic_status_check.py
   - scripts/note_cover_image_upload_check.py
   - scripts/note_editor_toolbar_measurement_check.py

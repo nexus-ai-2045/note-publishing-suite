@@ -68,6 +68,7 @@ Note editor で実際に必要になる低レベル操作を、機能ごとに�
 - Chrome / Note の操作直前と直後に URL、title、fresh DOM snapshot を取る。
 - locator は role、label、visible text、aria state から作り、候補数が1件の時だけ操作する。
 - navigation、autosave、遅延反映、人間操作を検知したら旧 locator を捨て、read-only attach へ戻る。
+- cycleを完了・停止したら、記事ごとの受領JSONを `scripts/note_editor_pdca_cycle_check.py` で検査する。ledger の存在だけを実行証拠にせず、受領JSONが無い場合は未確認として記事側へ返す。
 - `公開中`、作成済みURL、送信完了など目的状態が成立済みなら `already-completed` と分類し、
   重複する作成、投稿、公開 click を行わない。
 
