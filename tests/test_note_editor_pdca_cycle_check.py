@@ -43,6 +43,66 @@ def test_zero_counts_are_observations_not_missing_evidence(tmp_path):
     assert result["ok"] is True
 
 
+def test_completed_receipt_with_blocked_terminal_cycle_fails(tmp_path):
+    cycle = valid_cycle()
+    cycle["state_transition_classification"] = "blocked"
+    cycle["check_result"] = "blocked"
+    cycle["act_next_step"] = "manual boundary"
+    result = MODULE.check(
+        receipt(tmp_path, {"schema": MODULE.SCHEMA, "state": "completed", "cycles": [cycle]}),
+        True,
+    )
+    assert not result["ok"]
+    assert any("successful terminal state_transition_classification" in item for item in result["errors"])
+
+
+def test_blocked_terminal_cycle_requires_blocked_receipt_state(tmp_path):
+    cycle = valid_cycle()
+    cycle["state_transition_classification"] = "blocked"
+    result = MODULE.check(
+        receipt(tmp_path, {"schema": MODULE.SCHEMA, "state": "open", "cycles": [cycle]})
+    )
+    assert not result["ok"]
+    assert any("requires receipt state blocked" in item for item in result["errors"])
+
+
+def test_blocked_receipt_with_blocked_terminal_passes_require_final(tmp_path):
+    cycle = valid_cycle()
+    cycle["state_transition_classification"] = "blocked"
+    result = MODULE.check(
+        receipt(tmp_path, {"schema": MODULE.SCHEMA, "state": "blocked", "cycles": [cycle]}),
+        True,
+    )
+    assert result["ok"] is True
+
+
+def test_false_empty_container_evidence_fails_closed(tmp_path):
+    cycle = valid_cycle()
+    cycle["goal"] = False
+    cycle["dom_snapshot_before"] = []
+    cycle["url_and_title_after"] = {}
+    cycle["locator_candidate_count"] = False
+    result = MODULE.check(
+        receipt(tmp_path, {"schema": MODULE.SCHEMA, "state": "completed", "cycles": [cycle]})
+    )
+    assert not result["ok"]
+    joined = " ".join(result["errors"])
+    assert "goal" in joined
+    assert "dom_snapshot_before" in joined
+    assert "url_and_title_after" in joined
+    assert "locator_candidate_count" in joined
+
+
+def test_negative_count_evidence_fails_closed(tmp_path):
+    cycle = valid_cycle()
+    cycle["figure_count_after"] = -1
+    result = MODULE.check(
+        receipt(tmp_path, {"schema": MODULE.SCHEMA, "state": "completed", "cycles": [cycle]})
+    )
+    assert not result["ok"]
+    assert any("figure_count_after" in item for item in result["errors"])
+
+
 def test_cli_accepts_a_final_receipt(tmp_path):
     path = receipt(tmp_path, {"schema": MODULE.SCHEMA, "state":"completed", "cycles":[valid_cycle()]})
     result = subprocess.run(

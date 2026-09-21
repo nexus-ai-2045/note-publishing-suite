@@ -17,6 +17,70 @@ except ModuleNotFoundError:  # test/import execution from package root
 
 SCHEMA = "note-editor-pdca-cycle-receipt/v1"
 FINAL_STATES = {"completed", "blocked", "already_completed"}
+SUCCESS_CLASSIFICATIONS = {
+    "unchanged",
+    "state_transition_detected",
+    "already_completed",
+    "recovered",
+}
+VALID_CLASSIFICATIONS = SUCCESS_CLASSIFICATIONS | {"blocked"}
+COUNT_EVIDENCE = {
+    "figure_count_before",
+    "figure_count_after",
+    "locator_candidate_count",
+}
+BOOLEAN_EVIDENCE = {"public_or_schedule_or_share_not_clicked"}
+
+
+def _invalid_evidence(cycle: dict[str, Any]) -> list[str]:
+    """Return evidence keys whose values are missing or unusable."""
+    bad: list[str] = []
+    for key in sorted(REQUIRED_CYCLE_EVIDENCE):
+        if key not in cycle:
+            bad.append(key)
+            continue
+        value = cycle[key]
+        if key in COUNT_EVIDENCE:
+            # bool is a subclass of int; reject True/False explicitly.
+            if type(value) is not int or value < 0:
+                bad.append(key)
+            continue
+        if key in BOOLEAN_EVIDENCE:
+            if value is None:
+                bad.append(key)
+            continue
+        if not isinstance(value, str) or value == "":
+            bad.append(key)
+    return bad
+
+
+def _terminal_cycle(cycles: list[Any]) -> dict[str, Any] | None:
+    for item in reversed(cycles):
+        if isinstance(item, dict):
+            return item
+    return None
+
+
+def _reconcile_receipt_state(
+    state: Any, terminal: dict[str, Any] | None, require_final: bool
+) -> list[str]:
+    """Align top-level receipt state with the terminal cycle classification."""
+    if terminal is None:
+        return []
+    classification = terminal.get("state_transition_classification")
+    if state in {"completed", "already_completed"}:
+        if classification not in SUCCESS_CLASSIFICATIONS:
+            return [
+                "completed/already_completed receipts require a successful "
+                "terminal state_transition_classification"
+            ]
+    elif classification == "blocked" and state != "blocked":
+        return ["blocked terminal cycle requires receipt state blocked"]
+    elif require_final and state == "blocked" and classification != "blocked":
+        return [
+            "blocked receipts require terminal state_transition_classification blocked"
+        ]
+    return []
 
 
 def check(receipt: Path, require_final: bool = False) -> dict[str, Any]:
@@ -38,14 +102,10 @@ def check(receipt: Path, require_final: bool = False) -> dict[str, Any]:
         if not isinstance(cycle, dict):
             errors.append(f"cycles[{index}] must be an object")
             continue
-        # figure count and locator count can legitimately be zero.  Absence and
-        # an empty observation are failures; a falsy numeric observation is not.
-        missing = sorted(
-            key for key in REQUIRED_CYCLE_EVIDENCE
-            if key not in cycle or cycle[key] is None or cycle[key] == ""
-        )
-        if missing:
-            errors.append(f"cycles[{index}] missing: {', '.join(missing)}")
+        # Counts may be zero. false / [] / {} and other unusable values fail closed.
+        bad = _invalid_evidence(cycle)
+        if bad:
+            errors.append(f"cycles[{index}] missing: {', '.join(bad)}")
         if cycle.get("action_count") != 1:
             errors.append(f"cycles[{index}].action_count must be 1")
         if cycle.get("public_or_schedule_or_share_not_clicked") is not True:
@@ -53,7 +113,7 @@ def check(receipt: Path, require_final: bool = False) -> dict[str, Any]:
         route = cycle.get("route_id")
         if isinstance(route, str) and route:
             routes[route] += 1
-        if cycle.get("state_transition_classification") not in {"unchanged", "state_transition_detected", "already_completed", "recovered", "blocked"}:
+        if cycle.get("state_transition_classification") not in VALID_CLASSIFICATIONS:
             errors.append(f"cycles[{index}].state_transition_classification is invalid")
     for route, attempts in routes.items():
         if attempts > 2:
@@ -63,7 +123,14 @@ def check(receipt: Path, require_final: bool = False) -> dict[str, Any]:
         errors.append("state must be open, completed, blocked, or already_completed")
     if require_final and state not in FINAL_STATES:
         errors.append(f"final state required, got {state}")
-    return {"ok": not errors, "state": state if not errors else "blocked", "cycle_count": len(cycles), "external_actions_performed": [], "errors": errors}
+    errors.extend(_reconcile_receipt_state(state, _terminal_cycle(cycles), require_final))
+    return {
+        "ok": not errors,
+        "state": state if not errors else "blocked",
+        "cycle_count": len(cycles),
+        "external_actions_performed": [],
+        "errors": errors,
+    }
 
 
 def main() -> int:

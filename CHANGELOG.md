@@ -11,6 +11,7 @@ GitHub リリースやタグは別の公開操作として扱い、ここには�
 変更:
 - Noteエディタ作業の記事ごとPDCA cycle受領JSONを scripts/note_editor_pdca_cycle_check.py で検査する経路を追加した。
 - 1 action・前後DOM証跡・非公開・routeあたり最大2回試行の契約を package.yaml / note-editor-ops / PDCA orchestration に配線した。
+- cycle受領検査で top-level state と終端 cycle の整合、および証跡の非空文字列/非負整数型を fail-closed にした。
 
 検証:
 - `python -m pytest scripts/test_skill_integration.py tests -q`
