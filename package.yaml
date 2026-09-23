@@ -1,5 +1,5 @@
 name: note-publishing-suite
-version: 0.2.28
+version: 0.2.29
 scope: repo-local
 repo_root: .
 entrypoint: SKILL.md
@@ -242,6 +242,7 @@ verification:
       mode: standalone_repository
       purpose: prove github_identity_guard.py and the platform verifier from a standalone public repository clone fixture
   optional_python_developer_checks:
+    - python -m pytest tests/test_note_fact_check_search.py tests/test_local_qa_search.py -q
     - python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py tests/test_review_draft_cli.py
     - python scripts/provenance_leak_check.py --scope changed --json
     - python scripts/provenance_label_check.py <draft.md> --json

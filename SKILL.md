@@ -319,3 +319,9 @@ python scripts\engagement_tracker.py report
   公開package検証と必要な developer check が通る。
 - プロジェクト境界と現在地は `PROJECT_SSOT.md` が単独で保持し、
   内部設計文書や private workspace の path を公開 package へ含めない。
+
+## 出典検索の実行と回収
+
+出典調査が依頼範囲なら、`note-prepublish-qa` の手順から既存の
+`run_local_draft_qa_proof.py --search-query` を使う。検索先の失敗、
+候補の未検証、未実行を証跡に残し、候補取得で公開gateを解除しない。

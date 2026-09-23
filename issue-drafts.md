@@ -170,3 +170,12 @@ Note エディタ反映段階を公開なしで通し、下書き保存までの
 - 復旧境界: 埋め込み変換後と目次挿入後の `Control+Z` 1回では DOM が残ったため、誤位置は手動削除/復旧確認へ戻す。
 - URL 行が通常リンクのまま残る、または埋め込みカード位置を実測確認できない場合は、本文崩れを避けて手動境界として報告する。
 - 行き先: `references/note-editor-live-constraint-boundaries.md` / linebreak・figure gates / note-editor-ops
+
+## 出典検索の回帰検証
+
+- 所有: `note-prepublish-qa` と既存の一括QAハーネス。
+- 実行入口: `scripts/run_local_draft_qa_proof.py --search-query`。
+- 受入: 指定した検索語だけを送信し、成功・失敗・未確認を既存のQA証跡へ回収する。
+- 回帰検査: `tests/test_note_fact_check_search.py` と `tests/test_local_qa_search.py`。
+  既存CIの `pytest ... tests` で収集し、外部検索なしで検査する。
+- ローカルSearXNGの導入・常駐管理は利用者環境の責務。本文照合は記事ごとの責務。

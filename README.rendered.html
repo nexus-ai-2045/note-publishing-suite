@@ -117,7 +117,7 @@
 <p><strong>書くところまで自動化。公開は、人が決める。</strong></p>
 <p><img src="assets/note-publishing-workflow.svg" alt="素材からNote下書き保存までは自動化し、公開直前で停止して人が判断するワークフロー" loading="lazy"></p>
 <p>ローカル素材から Note の下書きを作り、検査し、エディタへ反映する <strong>NPS（Note Publishing Suite）</strong> です。Codex / Claude Code から使えます。 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。</p>
-<p>パッケージ版: <code>0.2.28</code></p>
+<p>パッケージ版: <code>0.2.29</code></p>
 <div class="table-wrap"><table>
 <thead><tr><th>すぐやる</th><th>あとで読む</th></tr></thead>
 <tbody>
@@ -296,6 +296,10 @@ python -m pytest scripts/test_skill_integration.py tests</code></pre>
 <p>失敗や手動境界は、原因・復旧方法・次回の禁止事項を残します。再発防止できる ものは検査器、契約テスト、スキルへ反映し、UI依存は無理に自動化しません。</p>
 <p>GitHubではこのREADMEをそのまま読めます。ローカル整形版は <code>python scripts/render_readme.py</code> で <code>README.rendered.html</code> に生成できます。</p>
 </details>
+<h2>出典候補の検索を含むQA</h2>
+<p>SearXNGをローカルで起動している場合、既存の一括QAから出典候補を検索できます。</p>
+<pre><code>python scripts/run_local_draft_qa_proof.py draft.md --search-query &quot;公開情報の検索語&quot; --output qa.json --json</code></pre>
+<p>指定した検索語だけが外部検索サービスへ送られます。検索語を指定しなければ 出典検索は実行されません。検索結果は本文未確認・真偽未検証として保存します。 結果なし、一部検索先の失敗、不正応答、時間切れもQA証跡へ回収します。 検索APIの稼働管理は利用者環境の責務です。候補の本文照合は記事ごとに行います。 <code>--dry-run</code> は通信を行わず予定を証跡へ保存します。詳細は <code>skills/note-prepublish-qa/SKILL.md</code> を参照してください。</p>
     </article>
   </main>
 </body>

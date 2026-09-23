@@ -16,7 +16,7 @@ publication_gate: human_review_required
 **NPS（Note Publishing Suite）** です。Codex / Claude Code から使えます。
 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。
 
-パッケージ版: `0.2.28`
+パッケージ版: `0.2.29`
 
 | すぐやる | あとで読む |
 | --- | --- |
@@ -294,3 +294,18 @@ GitHubではこのREADMEをそのまま読めます。ローカル整形版は
 `python scripts/render_readme.py` で `README.rendered.html` に生成できます。
 
 </details>
+
+## 出典候補の検索を含むQA
+
+SearXNGをローカルで起動している場合、既存の一括QAから出典候補を検索できます。
+
+```sh
+python scripts/run_local_draft_qa_proof.py draft.md --search-query "公開情報の検索語" --output qa.json --json
+```
+
+指定した検索語だけが外部検索サービスへ送られます。検索語を指定しなければ
+出典検索は実行されません。検索結果は本文未確認・真偽未検証として保存します。
+結果なし、一部検索先の失敗、不正応答、時間切れもQA証跡へ回収します。
+検索APIの稼働管理は利用者環境の責務です。候補の本文照合は記事ごとに行います。
+`--dry-run` は通信を行わず予定を証跡へ保存します。詳細は
+`skills/note-prepublish-qa/SKILL.md` を参照してください。
