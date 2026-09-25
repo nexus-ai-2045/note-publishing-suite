@@ -48,9 +48,13 @@ jobs:
             echo "consistency base-ref を解決できない → fail-closed" >&2
             exit 1
           fi
-          # dispatch で BASE==HEAD（空 diff）なら落とす。緑の空振りを防ぐ。
-          if [ "$BASE" = "$HEAD" ]; then
-            echo "空diff fail-closed: workflow_dispatch で BASE==HEAD ($HEAD)" >&2
+          # dispatch で実 diff / tree が空なら落とす。
+          # squash 後や空コミットでは BASE!=HEAD でも tree が同じになり得る。
+          BASE_TREE="$(git rev-parse "${BASE}^{tree}")"
+          HEAD_TREE="$(git rev-parse "${HEAD}^{tree}")"
+          if [ "$BASE_TREE" = "$HEAD_TREE" ]; then
+            echo "空diff fail-closed: workflow_dispatch で BASE と HEAD の tree が同一" >&2
+            echo "BASE=$BASE tree=$BASE_TREE HEAD=$HEAD tree=$HEAD_TREE" >&2
             echo "feature 枝を選んで再実行するか、手元で BASE=origin/${DEFAULT_BRANCH} を指定して同等確認してください。" >&2
             exit 1
           fi
