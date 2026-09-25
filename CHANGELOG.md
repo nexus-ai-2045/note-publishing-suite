@@ -4,6 +4,23 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
+## 0.2.30
+
+日付: 2026-09-24
+
+変更:
+- 開発保証スイート（repo-preflight + ai-ratchet-gate）を ai-round-table と同じ吸収パターンで追加。workflow_dispatch のみ。inspection ロジックは持ち込まない。
+- PREFLIGHT.md・.repo-preflight-consistency.json・.ai-ratchet-gate/baseline.txt・requirements-tools.txt・repository-guarantees.yml を追加。
+
+検証:
+- `python -m pip install --require-hashes -r requirements-tools.txt && python -m ai_ratchet_gate --repo .`
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `python scripts/docs_sync_check.py --base-ref origin/main`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.2.29
 
 日付: 2026-09-21

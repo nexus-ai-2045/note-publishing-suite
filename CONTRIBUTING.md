@@ -46,6 +46,13 @@ python scripts/skill_pointer_check.py --installed-root $tmp --json
 - NoteエディタのUI操作は、対象記事と操作面を固定し、失敗時の無断fallbackを行いません。
 - 生成物の差分は自動commitせず、検査結果として人間レビューへ戻します。
 
+## 開発保証ゲート（repo-preflight / ai-ratchet-gate）
+
+検査ロジックは本リポジトリへコピーせず、上流を直接呼びます。手順と契約は
+[`PREFLIGHT.md`](PREFLIGHT.md) を参照してください。GitHub Actions の
+`repository-guarantees` は `workflow_dispatch` のみで、`test.yml` とは別契約です。
+マージは人が行います。
+
 ## プルリクエスト
 
 - 変更内容、検証結果、未確認事項、公開境界を日本語で記載します。

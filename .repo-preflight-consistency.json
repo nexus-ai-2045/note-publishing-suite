@@ -1,7 +1,64 @@
 {
-  "$schema": "https://raw.githubusercontent.com/nexus-ai-2045/repo-preflight/main/schemas/repository-consistency.schema.json",
+  "$schema": "https://raw.githubusercontent.com/nexus-ai-2045/repo-preflight/f825268978228a3cfb2f5ecba16a74d424134b1a/schemas/repository-consistency.schema.json",
   "schema": "repo-preflight.consistency/v1",
   "mode": "shadow",
   "ratchet": {"baseline": []},
-  "markdown": {"include": ["README.md", "docs/**/*.md"]}
+  "markdown": {
+    "include": [
+      "README.md",
+      "CONTRIBUTING.md",
+      "PREFLIGHT.md",
+      "SECURITY.md",
+      "docs/**/*.md"
+    ]
+  },
+  "readme_contracts": {
+    "required_paths": [
+      "scripts/verify_public_package.sh",
+      "scripts/verify_public_package.ps1",
+      "scripts/docs_sync_check.py",
+      "scripts/pre_publish_check.py",
+      "scripts/package_consistency_check.py",
+      "adapters/codex/install.ps1",
+      "adapters/claude-code/install.sh",
+      "skills/note-publication-gate/SKILL.md",
+      "package.yaml",
+      "tests/test_package_consistency_check.py"
+    ],
+    "commands": [
+      {
+        "text": "sh scripts/verify_public_package.sh",
+        "paths": ["scripts/verify_public_package.sh"]
+      },
+      {
+        "text": "python -m pytest scripts/test_skill_integration.py tests",
+        "paths": ["scripts/test_skill_integration.py", "tests"]
+      },
+      {
+        "text": "python scripts/docs_sync_check.py --base-ref origin/main",
+        "paths": ["scripts/docs_sync_check.py"]
+      },
+      {
+        "text": "pwsh -NoProfile -File adapters/codex/install.ps1",
+        "paths": ["adapters/codex/install.ps1"]
+      }
+    ]
+  },
+  "impact_map": [
+    {
+      "change": ["scripts/**", "skills/**", "adapters/**", "tests/**"],
+      "requires_any": ["README.md", "SKILL.md", "docs/**", "tests/**", "CHANGELOG.md"]
+    },
+    {
+      "change": [
+        ".github/workflows/**",
+        ".repo-preflight-consistency.json",
+        ".ai-ratchet-gate/**",
+        "requirements-tools.txt"
+      ],
+      "requires_any": ["README.md", "CONTRIBUTING.md", "PREFLIGHT.md"],
+      "allow_github_action_ref_updates": true
+    }
+  ],
+  "generated_artifacts": []
 }
