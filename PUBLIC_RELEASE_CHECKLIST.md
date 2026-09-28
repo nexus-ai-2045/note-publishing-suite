@@ -49,3 +49,9 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
 - 公開プッシュは、現在の会話で対象リポジトリと可視化される差分を明示してから行う。
 - リポジトリ公開範囲変更は、この確認表とは別にリポジトリ別確認を取る。
 - Note 公開、予約投稿、SNS 共有、外部告知は、このパッケージ更新とは別承認で扱う。
+
+## 末尾選定変更の確認
+
+- [ ] 候補差分の人間レビューとpublic push/PR承認。
+- [ ] 同一HEADのCIと独立レビュー。
+- [ ] 配布先と利用側の有効化、対象記事の実DOM観測（別境界）。

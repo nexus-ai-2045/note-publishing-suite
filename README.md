@@ -16,7 +16,7 @@ publication_gate: human_review_required
 **NPS（Note Publishing Suite）** です。Codex / Claude Code から使えます。
 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。
 
-パッケージ版: `0.2.30`
+パッケージ版: `0.2.31`
 
 | すぐやる | あとで読む |
 | --- | --- |
@@ -296,3 +296,5 @@ GitHubではこのREADMEをそのまま読めます。ローカル整形版は
 `python scripts/render_readme.py` で `README.rendered.html` に生成できます。
 
 </details>
+
+末尾は固定枚数にせず、既存制作計画でリンク・理由・形式・順序・必須/任意を人間レビューします。[制作計画契約](references/note-draft-authority-and-layout-contract.md)とCLIで照合し、成功も供給snapshotの整合性に限定します。

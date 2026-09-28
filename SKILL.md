@@ -320,3 +320,10 @@ python scripts\engagement_tracker.py report
   公開package検証と必要な developer check が通る。
 - プロジェクト境界と現在地は `PROJECT_SSOT.md` が単独で保持し、
   内部設計文書や private workspace の path を公開 package へ含めない。
+
+## 記事ごとの末尾選定
+
+末尾のカード枚数を固定せず、既存制作計画の `footer-selection` を使う。
+契約は `references/note-draft-authority-and-layout-contract.md`、実入口は
+`scripts/note_editor_prepublish_verify.py`。未レビュー・空計画・DOM照合の不一致は停止する。
+観測JSONの一致は供給snapshotの整合性に限り、公開承認や実DOM取得を証明しない。

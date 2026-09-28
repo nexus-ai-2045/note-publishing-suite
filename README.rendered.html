@@ -117,7 +117,7 @@
 <p><strong>書くところまで自動化。公開は、人が決める。</strong></p>
 <p><img src="assets/note-publishing-workflow.svg" alt="素材からNote下書き保存までは自動化し、公開直前で停止して人が判断するワークフロー" loading="lazy"></p>
 <p>ローカル素材から Note の下書きを作り、検査し、エディタへ反映する <strong>NPS（Note Publishing Suite）</strong> です。Codex / Claude Code から使えます。 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。</p>
-<p>パッケージ版: <code>0.2.30</code></p>
+<p>パッケージ版: <code>0.2.31</code></p>
 <div class="table-wrap"><table>
 <thead><tr><th>すぐやる</th><th>あとで読む</th></tr></thead>
 <tbody>
@@ -298,6 +298,7 @@ python -m pytest scripts/test_skill_integration.py tests</code></pre>
 <p>失敗や手動境界は、原因・復旧方法・次回の禁止事項を残します。再発防止できる ものは検査器、契約テスト、スキルへ反映し、UI依存は無理に自動化しません。</p>
 <p>GitHubではこのREADMEをそのまま読めます。ローカル整形版は <code>python scripts/render_readme.py</code> で <code>README.rendered.html</code> に生成できます。</p>
 </details>
+<p>末尾は固定枚数にせず、既存制作計画でリンク・理由・形式・順序・必須/任意を人間レビューします。<a href="references/note-draft-authority-and-layout-contract.md">制作計画契約</a>とCLIで照合し、成功も供給snapshotの整合性に限定します。</p>
     </article>
   </main>
 </body>

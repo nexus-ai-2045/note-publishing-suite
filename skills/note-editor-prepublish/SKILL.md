@@ -103,3 +103,11 @@ Note editor への反映、目次、リンク、画像、埋め込み、タグ�
 ## OSクリップボードの利用前確認
 
 `consented_os_clipboard` は `scripts/clipboard_bridge.py` の利用者・端末・期限・操作範囲ゲートを通る場合だけ利用する。手順は `references/note-image-upload-automation-boundary.md` を参照（package root基準）。所有者の承認を別利用者へ継承せず、AIが確認文を自動入力したり同意記録を偽造したりしない。公開・送信・editor操作は別承認。画像等のclipboardをテキストrestoreで完全復旧できると扱わない。
+
+## 末尾リンクの照合入口
+
+`../../references/note-draft-authority-and-layout-contract.md` の選定契約を使い、
+`python scripts/note_editor_prepublish_verify.py <observation.json> --production-plan <production-pack.md> --json`
+を実行する。観測は末尾全体のDOM順とarticle_id/seriesを保持し、計画と照合する。
+JSONの供給だけをlive DOM証拠に読み替えない。manual_boundaryは停止理由として残す。
+公開後照合は同CLIの `--footer-only`。本文文字列やAPI fallbackはカードDOM証拠にならない。
