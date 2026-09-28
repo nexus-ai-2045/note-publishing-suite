@@ -298,11 +298,7 @@ python -m pytest scripts/test_skill_integration.py tests</code></pre>
 <p>失敗や手動境界は、原因・復旧方法・次回の禁止事項を残します。再発防止できる ものは検査器、契約テスト、スキルへ反映し、UI依存は無理に自動化しません。</p>
 <p>GitHubではこのREADMEをそのまま読めます。ローカル整形版は <code>python scripts/render_readme.py</code> で <code>README.rendered.html</code> に生成できます。</p>
 </details>
-<h2>記事ごとの末尾リンク</h2>
-<p>既存制作パックに <code>footer-selection</code> を記録し、記事の読者・シリーズ・読後行動に合わせて リンクの理由、カード又は文字リンク、順序、必須/任意を人間レビューします。 固定枚数を全記事に強制しません。形式と停止条件は <a href="references/note-draft-authority-and-layout-contract.md">制作計画契約</a>を参照してください。</p>
-<pre><code>python scripts/note_editor_prepublish_verify.py &lt;observation.json&gt; --production-plan &lt;production-pack.md&gt; --json
-python scripts/note_editor_prepublish_verify.py &lt;published-observation.json&gt; --production-plan &lt;production-pack.md&gt; --footer-only --json</code></pre>
-<p>旧 required_urls/figures だけのsnapshotは検査に通りません。新たにDOM順のnodesと計画が必要です。 CLI成功は供給snapshotの整合性だけを示し、ready_for_publishは常にfalseです。 実DOM観測、人間レビュー、公開操作の承認は別途確認します。</p>
+<p>末尾は固定枚数にせず、既存制作計画でリンク・理由・形式・順序・必須/任意を人間レビューします。<a href="references/note-draft-authority-and-layout-contract.md">制作計画契約</a>とCLIで照合し、成功も供給snapshotの整合性に限定します。</p>
     </article>
   </main>
 </body>
