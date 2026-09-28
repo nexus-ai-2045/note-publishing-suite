@@ -190,3 +190,9 @@ Note エディタ反映段階を公開なしで通し、下書き保存までの
 - 復旧境界: 埋め込み変換後と目次挿入後の `Control+Z` 1回では DOM が残ったため、誤位置は手動削除/復旧確認へ戻す。
 - URL 行が通常リンクのまま残る、または埋め込みカード位置を実測確認できない場合は、本文崩れを避けて手動境界として報告する。
 - 行き先: `references/note-editor-live-constraint-boundaries.md` / linebreak・figure gates / note-editor-ops
+
+## 末尾リンク選定の検査
+
+記事ごとの制作計画と供給snapshotの照合を実装。空計画、未レビュー、誤シリーズ、
+欠落、余分、順序、重複、形式の取り違えをCLI試験で検査する。
+実DOM取得・公開承認・runtime配布の有効化はこのfixture試験では保証しない。

@@ -618,38 +618,11 @@ if ($languageExitCode -ne 0) {
     }
 }
 
-$editorObservation = @{
-    title = "Public package fixture"
-    top_image = @{ present = $true }
-    toc_count = 1
-    footer = @{
-        required_urls = @("https://example.com/archive")
-        figures = @("https://example.com/archive")
-        raw_counts = @{
-            "https://example.com/archive" = 0
-        }
-    }
-    magazine = @{
-        target = "Example"
-        added = $true
-    }
-    tags = @("note", "公開前QA")
-    article_type = "無料"
-    final_buttons = @(
-        @{
-            label = "投稿する"
-            clicked = $false
-        }
-    )
-}
-$editorObservationPath = Join-Path ([System.IO.Path]::GetTempPath()) ("note-editor-prepublish-observation-" + [System.Guid]::NewGuid().ToString("N") + ".json")
-$editorObservation | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $editorObservationPath -Encoding UTF8
 Push-Location $root
 try {
-    $editorOutput = & python "scripts/note_editor_prepublish_verify.py" $editorObservationPath "--json" 2>&1
+    $editorOutput = & python "scripts/note_editor_prepublish_verify.py" "data/note_editor_prepublish_observation.fixture.json" "--json" 2>&1
 } finally {
     Pop-Location
-    Remove-Item -LiteralPath $editorObservationPath -ErrorAction SilentlyContinue
 }
 $editorExitCode = $LASTEXITCODE
 if ($editorExitCode -ne 0) {
@@ -657,8 +630,8 @@ if ($editorExitCode -ne 0) {
 } else {
     try {
         $editorResult = ($editorOutput -join "`n") | ConvertFrom-Json
-        if ($editorResult.ok -ne $true -or $editorResult.ready_for_publish -ne $true) {
-            Add-Error "Note editor prepublish observation checker did not return ok=true and ready_for_publish=true"
+        if ($editorResult.ok -ne $true -or $editorResult.ready_for_publish -ne $false -or $editorResult.live_dom_verified -ne $false) {
+            Add-Error "Note editor prepublish observation checker did not return ok=true, ready_for_publish=false and live_dom_verified=false"
         } else {
             Add-Checked "Note editor prepublish observation checker passed"
         }

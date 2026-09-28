@@ -1,5 +1,5 @@
 name: note-publishing-suite
-version: 0.2.30
+version: 0.2.31
 scope: repo-local
 repo_root: .
 entrypoint: SKILL.md
@@ -166,7 +166,15 @@ provenance_label_contract:
 public_policy_examples:
   - data/provenance_leak_policy.example.json
   - data/github_identity_guard_policy.example.json
+footer_selection_contract:
+  plan_location: existing_production_pack
+  review_required: true
+  fixed_card_count: false
+  registry_policy: reuse_existing_registration
+  observation_scope: supplied_snapshot_only
+  manual_boundary_is_pass: false
 existing_scripts:
+  - scripts/note_footer_selection.py
   - scripts/note_authorship_gate.py
   - scripts/note_interview_packet.py
   - scripts/note_linebreak_gate.py

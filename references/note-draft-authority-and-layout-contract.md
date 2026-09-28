@@ -49,3 +49,60 @@ transport切断やtimeoutから復旧しても、古いカーソル、DOM、本�
 - `shortening_budget` と、削除した項目または削除なし。
 - 改行、図、キャプションの検査結果。
 - 未実行の公開、予約、共有、外部送信。
+
+## 記事ごとの末尾リンク選定契約
+
+固定枚数のカードを全記事に要求しない。既存の制作パックの Plan 内に、
+次の `footer-selection` JSON ブロックを一つだけ保持する。別の選定台帳を作らない。
+
+- `article_id`、`reader`、`series`、`reader_action`: 記事、読者、シリーズ、読後行動。
+- `links`: DOM順に並べた採用リンク。各項目は `url`、`registry_ref`、`reason`、
+  `presentation`（`card` または `text_link`）、`required`（真偽値）を持つ。
+- `registry_ref`: 公開記事なら既存 `data/published_notes.json` の該当登録、
+  その他はその記事で承認された既存のリンク登録・資料の参照先。新しい汎用台帳を増やさない。
+  素材登録だけでCTA適合性を承認済みと解釈しない。存在確認と意味の適合性は人間レビューで行う。
+- `review`: `status: approved`、`reviewer`、時差付き `reviewed_at`、`plan_sha256`。
+  ハッシュは review を除く全計画を `json.dumps(ensure_ascii=False, sort_keys=True,
+  separators=(",", ":"))` のUTF-8でSHA256化する。変更後は再レビューを要する。
+
+```footer-selection
+{
+  "article_id": "example-article",
+  "reader": "関連する入門記事を読みたい読者",
+  "series": "example-series",
+  "reader_action": "次の解説を読む",
+  "links": [{
+    "url": "https://example.com/archive",
+    "registry_ref": "既存登録の参照先を人間が確認して記入",
+    "reason": "読後の疑問を次の解説で解消する",
+    "presentation": "card",
+    "required": true
+  }],
+  "review": {"status": "pending", "reviewer": "", "reviewed_at": "", "plan_sha256": ""}
+}
+```
+
+この例は未レビューなので検査に通らない。fixtureの承認記録は人工の試験入力で、
+人間レビューが実施された証明にはしない。意味の適合性や承認の真正性を機械が創作しない。
+空計画、空のlinks、未レビューは停止する。任意リンクは省略できるが、追加時の順序と形式を守る。
+
+公開前の実入口:
+
+```powershell
+python scripts/note_editor_prepublish_verify.py <observation.json> --production-plan <production-pack.md> --json
+```
+
+公開後は同じ照合を `--footer-only` で行う。公開後本文検査のinnerTextやAPI応答だけでは
+カードDOMを確認できない。承認されたブラウザ経路で対象記事の末尾を取得してから照合する。
+検査器はブラウザを操作せず、公開記事も更新しない。
+
+観測は記事ID、シリーズと `footer.nodes` のDOM順配列を保持する。
+FIGUREは `data_src` / `data-src` / `url` または子リンクの `hrefs` から単一URLを解決する。
+公開DOMのFIGUREにdata-srcが無い場合もhrefsで照合できる。複数の異なるURLなら未確定として落とす。
+文字リンクは `tag: A`、`href`、表示文 `text`。URLそのものの表示は未カード化の生URLとして落とす。
+未知node、欠落、余分、順序違い、重複、カードと文字リンクの取り違えは停止する。
+
+`ok` は供給されたsnapshotと計画の整合性だけを示す。
+`verification_scope: supplied_snapshot_only`、`live_dom_verified: false`、
+`ready_for_publish: false` を常に保持する。manual_boundaryは合格にしない。
+実DOM取得の真正性、note名義、記事版、人間レビュー、公開操作の承認は別証拠で確認する。

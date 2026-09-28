@@ -51,30 +51,15 @@ jobs:
 
       - name: Run Note editor prepublish observation checker
         run: |
-          cat > /tmp/note-editor-observation.json <<'JSON'
-          {
-            "title": "Public package fixture",
-            "top_image": {"present": true},
-            "toc_count": 1,
-            "footer": {
-              "required_urls": ["https://example.com/archive"],
-              "figures": ["https://example.com/archive"],
-              "raw_counts": {"https://example.com/archive": 0}
-            },
-            "magazine": {"target": "Example", "added": true},
-            "tags": ["note", "公開前QA"],
-            "article_type": "無料",
-            "final_buttons": [{"label": "投稿する", "clicked": false}]
-          }
-          JSON
-          python scripts/note_editor_prepublish_verify.py /tmp/note-editor-observation.json --json > /tmp/note-editor-result.json
+          python scripts/note_editor_prepublish_verify.py data/note_editor_prepublish_observation.fixture.json --json > /tmp/note-editor-result.json
           python - <<'PY'
           import json
           from pathlib import Path
 
           result = json.loads(Path("/tmp/note-editor-result.json").read_text(encoding="utf-8"))
           assert result["ok"] is True, result
-          assert result["ready_for_publish"] is True, result
+          assert result["ready_for_publish"] is False
+          assert result["live_dom_verified"] is False, result
           assert result["external_actions_performed"] == [], result
           assert result["publication_actions_performed"] == [], result
           PY

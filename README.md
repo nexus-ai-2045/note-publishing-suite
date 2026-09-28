@@ -16,7 +16,7 @@ publication_gate: human_review_required
 **NPS（Note Publishing Suite）** です。Codex / Claude Code から使えます。
 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。
 
-パッケージ版: `0.2.30`
+パッケージ版: `0.2.31`
 
 | すぐやる | あとで読む |
 | --- | --- |
@@ -296,3 +296,19 @@ GitHubではこのREADMEをそのまま読めます。ローカル整形版は
 `python scripts/render_readme.py` で `README.rendered.html` に生成できます。
 
 </details>
+
+## 記事ごとの末尾リンク
+
+既存制作パックに `footer-selection` を記録し、記事の読者・シリーズ・読後行動に合わせて
+リンクの理由、カード又は文字リンク、順序、必須/任意を人間レビューします。
+固定枚数を全記事に強制しません。形式と停止条件は
+[制作計画契約](references/note-draft-authority-and-layout-contract.md)を参照してください。
+
+```powershell
+python scripts/note_editor_prepublish_verify.py <observation.json> --production-plan <production-pack.md> --json
+python scripts/note_editor_prepublish_verify.py <published-observation.json> --production-plan <production-pack.md> --footer-only --json
+```
+
+旧 required_urls/figures だけのsnapshotは検査に通りません。新たにDOM順のnodesと計画が必要です。
+CLI成功は供給snapshotの整合性だけを示し、ready_for_publishは常にfalseです。
+実DOM観測、人間レビュー、公開操作の承認は別途確認します。

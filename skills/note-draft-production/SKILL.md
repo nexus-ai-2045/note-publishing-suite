@@ -120,3 +120,11 @@ description: "Use inside note-publishing-suite when the user asks to create or r
 - 各段の変更は `<draft.md>` に追記した後、`provenance_label_check.py`
   で `user-said` / `external-fact` / `assistant-organized` / `hold` の
   境界を確認し、`note_preview.py` でプレビューを再生成してから本人へ返す。
+
+## 末尾リンク選定
+
+Planに読者・シリーズ・読後行動を固定し、採用リンクの登録参照、理由、カード又は文字リンク、
+順序、必須/任意を記録する。既存制作パック内の `footer-selection` ブロックを使う。
+固定5枚などの記事固有案を汎用規則にしない。
+形式は `../../references/note-draft-authority-and-layout-contract.md` の末尾リンク選定契約に従う。
+意味の適合性と既存登録の確認を人間がレビューするまで未承認を維持する。

@@ -77,3 +77,8 @@ Windows / PowerShell 環境では、等価 gate として
 
 docs-sync workflow は `contents: read` のみを使い、検査結果と生成物 patch の artifact 以外を
 書き込まない。repository への commit、push、PR 編集は行わない。
+
+## 末尾選定契約の候補変更
+
+記事ごとの選定計画とDOM順snapshotの照合を追加。fixture試験はlive観測や公開承認を代替しない。
+この変更のpublic push・PR・runtime配布は別の人間確認が必要。
