@@ -29,6 +29,14 @@ cursor drift は fresh DOM からやり直す。禁止リトライは ledger の
 
 ## 最小サイクル
 
+空段落へのURL1件pasteは `../scripts/note_editor_guarded_input.mjs` が
+fresh内部読取→検証→単一paste→全block再照合を行う。
+呼出しは `../skills/note-editor-ops/SKILL.md` の「URLの単一入力入口」を使う。
+`note_editor_pdca_cycle_check.py` と `note_editor_prepublish_verify.py` は事後検査であり、
+入力APIを遮断する入口ではない。pendingなら再pasteせずread-only reconcile、
+blockedなら後続入力・自動Undo・本文再投入を停止する。
+以下のEnter/Undo例は、この入口の提供操作ではない。実GUI保証と承認は別に確認する。
+
 ### 1. Goal
 
 - 今回の 1 cycle で何を確認/変更するかを 1 文で決める。

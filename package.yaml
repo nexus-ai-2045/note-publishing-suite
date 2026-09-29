@@ -1,5 +1,5 @@
 name: note-publishing-suite
-version: 0.2.31
+version: 0.2.32
 scope: repo-local
 repo_root: .
 entrypoint: SKILL.md
@@ -174,6 +174,7 @@ footer_selection_contract:
   observation_scope: supplied_snapshot_only
   manual_boundary_is_pass: false
 existing_scripts:
+  - scripts/note_editor_guarded_input.mjs
   - scripts/note_footer_selection.py
   - scripts/note_authorship_gate.py
   - scripts/note_interview_packet.py
@@ -252,6 +253,7 @@ verification:
       mode: standalone_repository
       purpose: prove github_identity_guard.py and the platform verifier from a standalone public repository clone fixture
   optional_python_developer_checks:
+    - node --test tests/note_editor_guarded_input.test.mjs
     - python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_editor_pdca_cycle_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py tests/test_review_draft_cli.py
     - python scripts/provenance_leak_check.py --scope changed --json
     - python scripts/provenance_label_check.py <draft.md> --json

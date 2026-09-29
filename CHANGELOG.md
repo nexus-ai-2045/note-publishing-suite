@@ -4,6 +4,21 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
+## 0.2.32
+
+日付: 2026-09-29
+
+変更:
+- 空段落への単一URL入力に内部fresh DOM検証と全block差分照合を実装。pending再入力と異常後続入力を止め、既存editor手順から呼出す。実GUI・runtime強制・公開は未保証。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `node --test tests/note_editor_guarded_input.test.mjs`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.2.31
 
 日付: 2026-09-29

@@ -16,7 +16,14 @@ publication_gate: human_review_required
 **NPS（Note Publishing Suite）** です。Codex / Claude Code から使えます。
 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。
 
-パッケージ版: `0.2.31`
+パッケージ版: `0.2.32`
+
+空段落へのURL1件入力には、直前のDOMを入口自身が確認し、入力後に本文全体を
+照合する [入力入口](scripts/note_editor_guarded_input.mjs) を用意しています。
+手順は [Noteエディタ操作](skills/note-editor-ops/SKILL.md) を参照してください。
+未反映時は再入力せず、異常時は後続を停止します。隔離試験は
+`node --test tests/note_editor_guarded_input.test.mjs`（Node.js 22以降）で実行できます。
+実ブラウザ互換性や全runtimeの入力遮断を保証するものではありません。
 
 | すぐやる | あとで読む |
 | --- | --- |

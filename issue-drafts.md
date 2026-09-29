@@ -25,6 +25,9 @@ Linear、GitHub Issues、Notion、Obsidian、todo.md のどれにも転記でき
 - `data/published_notes.json` は公開済み一次台帳。
 
 現在の検証根拠:
+- 単一URL入力入口: `node --test tests/note_editor_guarded_input.test.mjs`。
+  fake Tabのwrite spyと、DOM取得関数そのものを実行する隔離DOMで検証する。
+  実GUIでの読込・カード変換、runtime配布、公開は別の確認境界。
 - `python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py`
 - `python scripts/pre_publish_check.py <draft.md>`
 - 公開、予約投稿、SNS共有、外部告知は、このパッケージでは実行しない。

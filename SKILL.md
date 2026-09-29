@@ -216,6 +216,7 @@ python scripts\note_diff_check.py <note_url> <draft.md> <phrase...> --snapshot-o
 - 既存 global skill `note-editor-prepublish` を参照して、Note editor 反映、目次、リンク、画像、埋め込み、タグ確認、下書き保存を行う。
 - 低レベルの Browser 操作、埋め込み、DOM確認、Undo復旧、checkerラチェットは `skills/note-editor-ops/SKILL.md` を読む。
 - 実際に回した PDCA cycle は記事ごとの受領JSONへ残し、`scripts/note_editor_pdca_cycle_check.py` で 1 action・前後DOM証跡・非公開・routeあたり最大2回を検査する。ledger の存在だけを実行証拠にしない。
+- 空段落への単一URL入力は `scripts/note_editor_guarded_input.mjs` を `note-editor-ops` の呼出し手順で使う。毎回内部fresh DOMを検証し、入力後に全blockを照合する。pendingはread-only再照合、blockedは後続停止。事後checkerの成功だけで直接入力を許可しない。実GUI互換性と全runtime強制は未保証。
 - note editor、埋め込み、URL単独行、Enter変換、DOM確認、figure/data-src、Undo、固定座標、CUA/Playwright、投稿確定後台帳のいずれかが出たら `note-editor-ops` を自動参照する。
 - in-app Browser を優先する。attach/inspect できない場合は停止し、Chrome や Computer Use へ無断で切り替えない。
 - 画像アップロード、目次位置、カーソル操作は実測確認し、うまくいかない場合は手動境界として報告する。画像 upload 境界の運用保証は `references/note-image-upload-automation-boundary.md` と `scripts/note_image_upload_boundary_check.py` で確認する。

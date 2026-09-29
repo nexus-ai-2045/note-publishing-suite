@@ -54,6 +54,9 @@ Note editor への反映、目次、リンク、画像、埋め込み、タグ�
 
 ## 埋め込み
 
+- 空段落へのURL1件入力は `../note-editor-ops/SKILL.md` の「URLの単一入力入口」から
+  `../../scripts/note_editor_guarded_input.mjs` を呼ぶ。事後checkerの成功宣言だけで
+  直接paste/pressKeyを許可しない。pending/blockedなら入力・自動Undo・本文再投入を停止する。
 - note 公式ヘルプでは、外部サービス URL の貼り付けで埋め込みまたはカード化され、URL 貼り付け後に Enter / Return が必要な場合がある。
 - この suite の local policy として、Markdown リンクや HTML 貼り付けではなく、URL を独立段落に入力して変換を確認する。
 - URL 行が通常リンクのまま残る、またはカード位置が意図した段落直下に入らない場合は、本文崩れを避けて手動境界として報告する。
