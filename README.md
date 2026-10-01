@@ -132,6 +132,8 @@ note-publishing-suite で進めて。
 | 公開停止線 | [`note-publication-gate`](skills/note-publication-gate/SKILL.md) | 公開ボタン手前で停止 |
 | 公開後台帳 | [`note-postpublish-ledger`](skills/note-postpublish-ledger/SKILL.md) | URL 確認後のみ |
 
+公開済み記事を扉絵・本文だけ更新した場合は、元下書きを仮作成せず、[`verify_published_update.py`](scripts/verify_published_update.py)で公開APIの現在値を照合します。手順は[`post-publish-context-proof.md`](references/post-publish-context-proof.md)を参照してください。
+
 下書き前には問答packetで本人の言葉、判断、避けたい断言、残したい脱線を確認し、
 `voice_profile`と`shortening_budget`を固定します。詳しくは
 [`note-draft-authority-and-layout-contract.md`](references/note-draft-authority-and-layout-contract.md)。

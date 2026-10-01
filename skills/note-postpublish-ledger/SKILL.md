@@ -12,7 +12,7 @@ description: "Use inside note-publishing-suite after explicitly approved Note pu
 ## 入力
 
 - note 公開 URL または予約完了 URL。
-- local draft path。
+- local draft path（初回公開で存在する場合）。
 - 公開/予約の完了表示。
 - Note 表示日時。ユーザー手動確認値があれば優先。
 - tags、image_url、source、plain_status の記録値。
@@ -24,6 +24,7 @@ description: "Use inside note-publishing-suite after explicitly approved Note pu
 python scripts\post_publish.py --url <note_url> --draft <draft.md> --dry-run
 python scripts\note_diff_check.py <note_url> <draft.md> <phrase...> --snapshot-out <local-snapshot.txt> --json
 python scripts\engagement_tracker.py report
+python scripts\verify_published_update.py --url <note_url> --expected-title <title> --expected-eyecatch-url <image_url> --contains <new_phrase> --absent <old_phrase> --ledger <private-published_notes.json>
 ```
 
 ## 手順
@@ -34,6 +35,8 @@ python scripts\engagement_tracker.py report
 4. 必要 phrase を指定して `note_diff_check.py` を実行し、公開本文 snapshot と SHA-256 を残す。
 5. `data/published_notes.json` と `data/note_drafts.json` の更新案を作る。記事データを package 外で管理する場合は `post_publish.py --ledger-dir <dir>` を使い、scripts を複製しない。
 6. 実更新する場合も、X 投稿 option は使わない。
+
+公開済み記事の扉絵・本文を再更新した場合は、`references/post-publish-context-proof.md` の更新記事ルートを使う。公開APIの現在値で記事ID・所有者・公開状態・題名・アイキャッチ素材IDと必要な本文句を照合する。元draftがなければ仮のdraftを作らず、`post_publish.py` のdraft遷移も使わない。台帳は利用側の既存writer/RSS経路で更新し、`--ledger`で同じ記事の1行を読み取り再照合する。検査器はファイルを書き出さない。
 
 ## 記事データと実行コードの分離
 

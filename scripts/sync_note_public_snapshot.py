@@ -15,7 +15,7 @@ def quote(value: str) -> str:
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def fetch_published_text(url: str) -> str:
+def fetch_published_data(url: str) -> dict:
     match = re.search(r"note\.com/[^/]+/n/([A-Za-z0-9_-]+)", url)
     if match is None:
         raise ValueError("note URL から note_id を抽出できません")
@@ -25,7 +25,10 @@ def fetch_published_text(url: str) -> str:
     )
     with urllib.request.urlopen(request, timeout=20) as response:
         payload = json.load(response)
-    data = payload["data"]
+    return payload["data"]
+
+
+def extract_published_text(data: dict) -> str:
     if data.get("status") != "published":
         raise ValueError("note記事がpublishedではありません")
     body = str(data.get("body") or "")
@@ -33,6 +36,10 @@ def fetch_published_text(url: str) -> str:
     text = re.sub(r"</(?:p|h[1-6]|li|blockquote)>", "\n", text, flags=re.IGNORECASE)
     text = html.unescape(re.sub(r"<[^>]+>", "", text))
     return re.sub(r"\n{3,}", "\n\n", text).strip()
+
+
+def fetch_published_text(url: str) -> str:
+    return extract_published_text(fetch_published_data(url))
 
 
 def main(argv: list[str] | None = None) -> int:
