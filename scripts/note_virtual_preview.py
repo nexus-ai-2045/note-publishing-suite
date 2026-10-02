@@ -26,6 +26,7 @@ Usage:
 import argparse
 import datetime
 import html
+import importlib.util
 import os
 import re
 import sys
@@ -37,7 +38,6 @@ REPO_ROOT = SCRIPT_DIR.parent
 DEFAULT_TEMPLATE_PATH = REPO_ROOT / "assets" / "note-preview" / "template.html"
 DEFAULT_CSS_PATH = REPO_ROOT / "assets" / "note-preview" / "note-textnote-body.extracted.css"
 
-FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.S)
 MD_LINK_RE = re.compile(r"\[([^\]]+)\]\((https?://[^\s)]+)\)")
 BARE_URL_LINE_RE = re.compile(r"^\s*(https?://\S+)\s*$")
 FIGURE_LINE_RE = re.compile(r"^\s*（図[:：]\s*(.+?)\s*）\s*$")
@@ -65,34 +65,27 @@ def reset_warnings() -> None:
 # frontmatter / series header
 # ---------------------------------------------------------------------------
 
+def split_draft(md_text: str) -> tuple[dict, str]:
+    spec = importlib.util.spec_from_file_location(
+        "provenance_label_check", SCRIPT_DIR / "provenance_label_check.py"
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("provenance_label_check.py を読み込めません")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    meta, body, _ = module.split_frontmatter(md_text)
+    meta = {key: value for key, value in meta.items() if isinstance(value, str) and value}
+    body = re.sub(r"<!--.*?(?:--!?>|\Z)", "", body, flags=re.S)
+    return meta, body
+
+
 def parse_frontmatter(md_text: str) -> dict:
-    """先頭の YAML frontmatter を簡易パースする（依存追加を避けるための最小実装）。"""
-    m = FRONTMATTER_RE.match(md_text)
-    if not m:
-        return {}
-    raw = m.group(1)
-    meta: dict = {}
-    for line in raw.splitlines():
-        if not line.strip() or line.strip().startswith("#"):
-            continue
-        if line.startswith(" ") or line.startswith("-"):
-            # リストや sources: の子要素はここでは無視（このツールで使わない）
-            continue
-        if ":" not in line:
-            continue
-        key, _, value = line.partition(":")
-        key = key.strip()
-        value = value.strip().strip('"').strip("'")
-        if value:
-            meta[key] = value
-    return meta
+    return split_draft(md_text)[0]
 
 
 def strip_frontmatter(md_text: str) -> str:
-    m = FRONTMATTER_RE.match(md_text)
-    if not m:
-        return md_text
-    return md_text[m.end():]
+    return split_draft(md_text)[1]
 
 
 def lookup_series_registry(series_registry_path: Optional[Path]) -> dict:
@@ -391,8 +384,8 @@ def convert_links(text: str) -> str:
     """[text](url) を note 実測どおりの属性で <a> に変換する。"""
 
     def _sub(m: "re.Match[str]") -> str:
-        label = html.escape(m.group(1))
-        url = html.escape(m.group(2), quote=True)
+        label = html.escape(html.unescape(m.group(1)))
+        url = html.escape(html.unescape(m.group(2)), quote=True)
         return f'<a href="{url}" target="_blank" rel="noopener nofollow">{label}</a>'
 
     return MD_LINK_RE.sub(_sub, text)
@@ -652,11 +645,11 @@ def render(
     template_path: Path,
     css_path: Path,
     series_registry_path: Optional[Path],
+    diagnostics: bool = False,
 ) -> Tuple[str, dict]:
     reset_warnings()
-    meta = parse_frontmatter(md_text)
-    title = extract_title(md_text, meta)
-    body_md = strip_frontmatter(md_text)
+    meta, body_md = split_draft(md_text)
+    title = extract_title(body_md, meta)
 
     # 本文冒頭のタイトル単独行（frontmatterのtitleと重複する平文行）は本文から除く
     body_lines = body_md.splitlines()
@@ -667,12 +660,12 @@ def render(
 
     notes_path = find_notes_path(input_path, meta)
     figure_details: Dict[int, dict] = {}
-    if notes_path:
+    if diagnostics and notes_path:
         figure_details = parse_notes_figures(notes_path.read_text(encoding="utf-8"))
 
     pack_path = find_production_pack_path(input_path)
     top_image_cards: List[dict] = []
-    if pack_path:
+    if diagnostics and pack_path:
         top_image_cards = parse_top_image_cards(pack_path.read_text(encoding="utf-8"))
 
     body_html = md_body_to_note_html(body_md, figure_details)
@@ -704,6 +697,10 @@ def render(
     title_plain = html.escape(title)
 
     template = template_path.read_text(encoding="utf-8")
+    if not diagnostics:
+        template = re.sub(r"<!-- DIAGNOSTICS_START -->.*?<!-- DIAGNOSTICS_END -->", "", template, flags=re.S)
+        body_html = re.sub(r'<span class="(?:heading-warn|warn-note)">.*?</span>', "", body_html, flags=re.S)
+
 
     output_dir = input_path.parent
     css_href = os.path.relpath(css_path, output_dir)
@@ -752,6 +749,7 @@ def main() -> None:
         default=None,
         help="シリーズ名を引く表（Markdown table）のパス（既定: 参照しない）",
     )
+    parser.add_argument("--diagnostics", action="store_true", help="編集診断の枠・字数・警告を表示する")
     args = parser.parse_args()
 
     input_path = Path(args.input)
@@ -772,7 +770,7 @@ def main() -> None:
     series_registry_path = Path(args.series_registry) if args.series_registry else None
 
     md_text = input_path.read_text(encoding="utf-8")
-    output_html, stats = render(md_text, input_path, template_path, css_path, series_registry_path)
+    output_html, stats = render(md_text, input_path, template_path, css_path, series_registry_path, diagnostics=args.diagnostics)
 
     if args.output:
         output_path = Path(args.output)

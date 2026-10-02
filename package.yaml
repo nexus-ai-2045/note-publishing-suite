@@ -1,5 +1,5 @@
 name: note-publishing-suite
-version: 0.2.32
+version: 0.2.33
 scope: repo-local
 repo_root: .
 entrypoint: SKILL.md
@@ -190,6 +190,7 @@ existing_scripts:
   - scripts/package_consistency_check.py
   - scripts/clipboard_bridge.py
   - scripts/note_preview.py
+  # 読書用が既定。編集診断は --diagnostics、由来レビューは note_preview.py。
   - scripts/note_virtual_preview.py
   - scripts/pre_publish_check.py
   - scripts/note_fact_check.py

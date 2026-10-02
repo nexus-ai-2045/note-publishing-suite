@@ -10,6 +10,8 @@ tracker_required: false
 
 # 課題下書き: Note Publishing Suite
 
+読書表示と由来レビューの分離はローカル回帰テストで確認する。公開・配布は人間レビュー後の別操作。
+
 このファイルは外部追跡ツール非依存の作業分解メモ。
 
 Linear、GitHub Issues、Notion、Obsidian、todo.md のどれにも転記できるが、

@@ -19,7 +19,8 @@ description: "Use inside note-publishing-suite to run local preview, pre-publish
 ## Commands
 
 ```powershell
-python scripts\note_preview.py <draft.md> -o <preview.html>
+python scripts\note_virtual_preview.py <draft.md> -o <preview.html>
+python scripts\note_preview.py <draft.md> --review-provenance -o <review.html>
 python scripts\pre_publish_check.py <draft.md>
 python scripts\note_fact_check.py local <draft.md>
 python scripts\note_diff_check.py <note_url> <draft.md> <phrase...>
@@ -27,7 +28,9 @@ python scripts\note_diff_check.py <note_url> <draft.md> <phrase...>
 
 ## 手順
 
-1. preview HTML を作る。
+1. 読書用は `note_virtual_preview.py`、由来の本人レビュー用は `note_preview.py --review-provenance` で作る。
+   編集診断の枠・字数・警告が必要な時だけ `note_virtual_preview.py --diagnostics` を使う。
+   読書用は `frontmatter` と `HTML` コメントを除くが、原稿と公開前検査・本人確認の停止条件は変えない。
 2. pre-publish check を実行する。
 3. local fact check を実行する。
 4. Note URL がある場合だけ diff check を実行する。

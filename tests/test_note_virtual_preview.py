@@ -46,6 +46,7 @@ def render_fixture(nvp, tmp_path: Path, body_md: str, filename: str = "fixture-d
         template_path=TEMPLATE_PATH,
         css_path=CSS_PATH,
         series_registry_path=None,
+        diagnostics=True,
     )
     return html_out, stats
 
@@ -121,3 +122,50 @@ def test_single_heading_does_not_generate_toc_block(nvp, tmp_path):
     html_out, _ = render_fixture(nvp, tmp_path, body_md)
 
     assert 'class="toc-block"' not in html_out
+
+
+@pytest.mark.parametrize("newline", ["\n", "\r\n"])
+def test_reading_view_hides_metadata_comments_and_diagnostics(nvp, tmp_path, newline):
+    source = newline.join([
+        "---", 'title: 読書用', "status: human_review_required", "---",
+        "<!-- internal: secret -->", "本文の前半。<!--", "非公開のメモ", "-->本文の後半。",
+        "【本人確認待ち】", "---", "続き。",
+    ])
+    path = tmp_path / "draft.md"
+    path.write_text(source, encoding="utf-8")
+    output, stats = nvp.render(source, path, TEMPLATE_PATH, CSS_PATH, None)
+    for hidden in ("human_review_required", "非公開のメモ", "secret", "字数（", 'class="mock-toolbar"', "生成:"):
+        assert hidden not in output
+    assert "本文の前半。本文の後半。" in output
+    assert "本人確認待ち" in output
+    assert "<hr>" in output
+    assert path.read_bytes() == source.encode("utf-8")
+    assert "warnings" in stats
+
+
+def test_frontmatter_closing_at_eof_and_unclosed_comment(nvp, tmp_path):
+    assert nvp.strip_frontmatter("---\ntitle: 題名\n---") == ""
+    output, _ = render_fixture(nvp, tmp_path, "本文。\n<!-- 隠す未完のメモ")
+    assert "隠す未完のメモ" not in output
+    assert "本文。" in output
+
+
+def test_alternative_comment_end_preserves_following_body(nvp, tmp_path):
+    output, _ = render_fixture(nvp, tmp_path, "前半。\n<!-- 内部 --!>\n後半。")
+    assert "後半。" in output
+    assert "内部" not in output
+
+
+def test_empty_or_list_metadata_does_not_crash(nvp, tmp_path):
+    source = "---\ntitle: 題名\nseries:\nnotes:\nseries_name_working:\n- 項目\n---\n本文。"
+    output, _ = render_fixture(nvp, tmp_path, source)
+    assert "本文。" in output
+    assert "題名" in output
+
+
+def test_link_query_and_label_are_escaped_once(nvp, tmp_path):
+    import html
+    output, _ = render_fixture(nvp, tmp_path, "---\ntitle: リンク検証\n---\n[A&B](https://example.com/?a=1&b=2)")
+    href = re.search(r'<a href="([^"]+)"', output).group(1)
+    assert html.unescape(href) == "https://example.com/?a=1&b=2"
+    assert ">A&amp;B</a>" in output
