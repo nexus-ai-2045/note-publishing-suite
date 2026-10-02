@@ -4,6 +4,22 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
+## 0.2.36
+
+日付: 2026-10-02
+
+変更:
+- 内部ブラウザ指定を最初の接続確認から保持し、内部Playwrightと外部MCPを区別。内部限定時のChrome切替質問を候補から除外。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `python3 scripts/note_editor_pdca_failure_check.py --json`
+- `独立担当による操作手順差分レビュー。ブラウザ実行による再発防止は未実測。`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.2.35
 
 日付: 2026-10-02
