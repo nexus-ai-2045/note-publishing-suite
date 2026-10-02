@@ -16,7 +16,7 @@ publication_gate: human_review_required
 **NPS（Note Publishing Suite）** です。Codex / Claude Code から使えます。
 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。
 
-パッケージ版: `0.2.36`
+パッケージ版: `0.2.37`
 
 読書用プレビューは `note_virtual_preview.py`、編集診断は同コマンドの `--diagnostics`、由来レビューは `note_preview.py --review-provenance` を使います。原稿の本人確認・保留は検査で維持します。
 
@@ -237,7 +237,7 @@ Noteログイン、常時接続、画像アップロードの完全自動化は�
 - `scripts/docs_sync_check.py`: 生成物と関連文書をread-onlyで同期検査。
 - `scripts/note_interview_packet.py`: 低負担な問答packetを生成。
 - `scripts/note_authorship_gate.py`: 本人発言にない作文や無断短縮を検査。
-- `scripts/note_linebreak_gate.py` / `scripts/note_figure_structure_gate.py`: 改行、図、captionを検査。
+- `scripts/note_linebreak_gate.py` / `scripts/note_figure_structure_gate.py`: 改行、図、captionを検査。改行gateは段落順の期待・観測soft-break配列を照合できる。プレビューは空行で段落を分け、同じ段落内の改行を `<br>` にする。
 - `scripts/note_browser_transport_recovery.py` / `scripts/note_editor_timeout_recovery.py`: Browser切断とtimeoutを分類。前者はread-only復旧計画専用で、process終了や人間承認の真正性確認は行わない。
 - `scripts/note_editor_pdca_failure_check.py`: Note editor 失敗パターン台帳を検査。
 - `scripts/note_editor_pdca_cycle_check.py`: 記事ごとの PDCA cycle 受領JSONを検査（1 action・前後DOM証跡・非公開・routeあたり最大2回）。

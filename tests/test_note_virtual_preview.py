@@ -124,6 +124,39 @@ def test_single_heading_does_not_generate_toc_block(nvp, tmp_path):
     assert 'class="toc-block"' not in html_out
 
 
+def test_source_linebreaks_keep_semantic_paragraphs(nvp):
+    body = "最初の文。\n[出典](https://example.com/source)を読む。\n続く文。\n\n次の話題。\nその続き。\n"
+    output = nvp.md_body_to_note_html(body, {})
+    assert output == (
+        '<p>最初の文。<br><a href="https://example.com/source" target="_blank" '
+        'rel="noopener nofollow">出典</a>を読む。<br>続く文。</p>\n'
+        '<p>次の話題。<br>その続き。</p>'
+    )
+
+
+def test_soft_break_group_stops_at_special_blocks(nvp):
+    body = (
+        "前半。\n続き。\n## 見出し\n- 項目\n1. 番号\n"
+        "（図: 図解）\nhttps://example.com/article\n"
+        "後半。\n終わり。\n"
+    )
+    output = nvp.md_body_to_note_html(body, {})
+    assert output.startswith('<p>前半。<br>続き。</p>\n<h2>見出し</h2>')
+    assert '<ul><li>項目</li></ul>' in output
+    assert '<ol><li>番号</li></ol>' in output
+    assert 'class="figure-placeholder"' in output
+    assert 'class="embed-card"' in output
+    assert output.endswith('<p>後半。<br>終わり。</p>')
+
+
+def test_inline_image_is_preserved_in_soft_break_paragraph(nvp):
+    output = nvp.md_body_to_note_html("説明。\n図 ![説明図](image.png) を参照。\n\n次の説明。", {})
+    assert output == (
+        '<p>説明。<br>図 <img src="image.png" alt="説明図" loading="lazy"> を参照。</p>\n'
+        '<p>次の説明。</p>'
+    )
+
+
 @pytest.mark.parametrize("newline", ["\n", "\r\n"])
 def test_reading_view_hides_metadata_comments_and_diagnostics(nvp, tmp_path, newline):
     source = newline.join([
@@ -211,3 +244,21 @@ def test_emphasis_can_span_links_while_preserving_image_alt(nvp, tmp_path):
     assert 'rel="noopener nofollow">参照</a> 後</em>' in output
     assert 'alt="**代替** *説明*"' in output
     assert stats['warnings']['italic'] == 1
+
+
+@pytest.mark.parametrize("separator", ["---", "***", "___"])
+def test_soft_break_group_stops_at_horizontal_rule(nvp, separator):
+    output = nvp.md_body_to_note_html(f"前。\n{separator}\n後。", {})
+    assert output == '<p>前。</p>\n<hr>\n<p class="hr-gap">&nbsp;</p>\n<p>後。</p>'
+
+
+def test_special_prefix_plain_text_does_not_stall(nvp):
+    output = nvp.md_body_to_note_html("#通常の文\n---続く文\n| 表ではない |\n次の文", {})
+    assert output == '<p>#通常の文<br>---続く文<br>| 表ではない |<br>次の文</p>'
+
+
+def test_soft_break_group_stops_at_table_and_quote(nvp):
+    output = nvp.md_body_to_note_html("前。\n| A | B |\n| --- | --- |\n| 一 | 二 |\n> 引用。\n後。", {})
+    assert output.startswith('<p>前。</p>\n<div class="table-warning">')
+    assert '<blockquote><p>引用。</p></blockquote>' in output
+    assert output.endswith('<p>後。</p>')

@@ -622,17 +622,24 @@ def md_body_to_note_html(md_text: str, figure_details: Dict[int, dict]) -> str:
             out.append(f"<ol>{body}</ol>")
             continue
 
-        # 段落: note の実際の構造に合わせ、1 行 = 1 <p>（<br> でつながない）。
-        # 連続する非空行は「同じ段落グループ」として連続 <p> で出す（空行が段落間の区切り）。
+        # 空行は段落境界、同じ段落内の原稿改行はShift+Enter相当のbrにする。
+        paragraph_lines = []
         while i < n and lines[i].strip() and not (
             FIGURE_LINE_RE.match(lines[i].strip())
             or BARE_URL_LINE_RE.match(lines[i].strip())
-            or lines[i].strip().startswith(("#", ">", "- ", "* ", "---"))
+            or lines[i].strip().startswith(("# ", "## ", "### ", ">", "- ", "* "))
+            or lines[i].strip() in ("---", "***", "___")
             or re.match(r"^\d+\.\s+", lines[i].strip())
-            or (lines[i].strip().startswith("|") and lines[i].strip().endswith("|"))
+            or (
+                lines[i].strip().startswith("|")
+                and lines[i].strip().endswith("|")
+                and i + 1 < n
+                and re.match(r"^\s*\|?[\s:|-]+\|?\s*$", lines[i + 1])
+            )
         ):
-            out.append(f"<p>{inline(lines[i].strip())}</p>")
+            paragraph_lines.append(inline(lines[i].strip()))
             i += 1
+        out.append(f"<p>{'<br>'.join(paragraph_lines)}</p>")
 
     return "\n".join(out)
 

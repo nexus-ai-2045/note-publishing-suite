@@ -82,7 +82,7 @@ Note editor 実測で見つかった失敗、手動境界、復旧手順、成�
   `provenance_label_check.py --public-output` で由来コメントを除いた本文候補を作る。
 - note editor の埋め込み、目次、Shift+Enter の live 実測境界は
   `references/note-editor-live-constraint-boundaries.md` を正本にし、
-  `figure[data-src]`、`iframe.note-embed`、`table-of-contents`、`toc`、
+  `figure[data-src]`、`iframe.note-embed`、`.external-article-widget`、`table-of-contents`、`toc`、
   `H2` / `H3`、`<br>`、Undo 手動境界を contract test で保持する。
 - checker に落とす場合は、実記事 draft への実行結果まで確認する。
 - UI やブラウザ状態に依存して自動保証できないものは、手動境界として明記し、公開 gate の確認項目へ残す。
@@ -203,6 +203,8 @@ python scripts\note_diff_check.py <note_url> <draft.md> <phrase...> --snapshot-o
 
 - `note_virtual_preview.py` は note editor 実物の CSS（`assets/note-preview/`）で見た目確認するプレビュー。
   既定の読書用表示は `frontmatter`・`HTML` コメント・診断フッターを出さない。
+  空行を通常本文の段落境界とし、段落内の原稿改行を `<br>` に変換する。
+  改行gateで期待値・観測値の段落順配列を照合する場合は両方を渡す。配列を渡さない旧入力の成功は構造照合の証拠にならない。
   編集診断は `--diagnostics`、由来の本人レビューは `note_preview.py --review-provenance` を使う。
   表示で内部情報を除いても、原稿の本人確認・保留・公開前検査の停止条件は維持する。
 

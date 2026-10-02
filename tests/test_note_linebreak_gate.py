@@ -82,3 +82,59 @@ def test_missing_figure_linebreak_measurement_fails(tmp_path):
     assert "empty_paragraph_before_figure_count_missing" in {
         item["code"] for item in payload["issues"]
     }
+
+
+def test_expected_source_structure_accepts_intended_soft_breaks(tmp_path):
+    observation = valid_observation()
+    observation.update(expected_paragraph_soft_break_counts=[2, 0, 1], paragraph_soft_break_counts=[2, 0, 1])
+    returncode, payload = run_gate(tmp_path, observation)
+    assert returncode == 0
+    assert payload["ready_for_draft_save"] is True
+
+
+def test_sentence_paragraph_regression_fails_source_comparison(tmp_path):
+    observation = valid_observation()
+    observation.update(expected_paragraph_soft_break_counts=[2, 0, 1], paragraph_soft_break_counts=[0, 0, 0, 0, 0, 0])
+    returncode, payload = run_gate(tmp_path, observation)
+    assert returncode == 1
+    assert "source_paragraph_structure_mismatch" in {item["code"] for item in payload["issues"]}
+
+
+def test_same_total_soft_breaks_in_wrong_paragraphs_fail(tmp_path):
+    observation = valid_observation()
+    observation.update(expected_paragraph_soft_break_counts=[2, 0, 1], paragraph_soft_break_counts=[1, 0, 2])
+    returncode, payload = run_gate(tmp_path, observation)
+    assert returncode == 1
+    assert "source_paragraph_structure_mismatch" in {item["code"] for item in payload["issues"]}
+
+
+def test_expected_structure_requires_observation(tmp_path):
+    observation = valid_observation()
+    observation["expected_paragraph_soft_break_counts"] = [1]
+    returncode, payload = run_gate(tmp_path, observation)
+    assert returncode == 1
+    assert "paragraph_soft_break_counts_invalid" in {item["code"] for item in payload["issues"]}
+
+
+def test_invalid_expected_structure_fails(tmp_path):
+    observation = valid_observation()
+    observation.update(expected_paragraph_soft_break_counts=[True, -1], paragraph_soft_break_counts=[0, 0])
+    returncode, payload = run_gate(tmp_path, observation)
+    assert returncode == 1
+    assert "expected_paragraph_soft_break_counts_invalid" in {item["code"] for item in payload["issues"]}
+
+
+def test_observed_structure_requires_expectation(tmp_path):
+    observation = valid_observation()
+    observation["paragraph_soft_break_counts"] = [1]
+    returncode, payload = run_gate(tmp_path, observation)
+    assert returncode == 1
+    assert "expected_paragraph_soft_break_counts_invalid" in {item["code"] for item in payload["issues"]}
+
+
+def test_noninteger_observed_break_count_fails(tmp_path):
+    observation = valid_observation()
+    observation.update(expected_paragraph_soft_break_counts=[0], paragraph_soft_break_counts=[False])
+    returncode, payload = run_gate(tmp_path, observation)
+    assert returncode == 1
+    assert "paragraph_soft_break_counts_invalid" in {item["code"] for item in payload["issues"]}
