@@ -169,3 +169,45 @@ def test_link_query_and_label_are_escaped_once(nvp, tmp_path):
     href = re.search(r'<a href="([^"]+)"', output).group(1)
     assert html.unescape(href) == "https://example.com/?a=1&b=2"
     assert ">A&amp;B</a>" in output
+
+
+def test_markdown_images_render_without_becoming_links(nvp, tmp_path):
+    body = '# 記事タイトル\n\n![相対画像](inline-1-curve.png)\n\n前 ![遠隔画像](https://example.com/image.png?x=1&y=2) 後 [参照](https://example.com/article)\n'
+    output, _ = render_fixture(nvp, tmp_path, body)
+    assert '<img src="inline-1-curve.png" alt="相対画像" loading="lazy">' in output
+    assert '<img src="https://example.com/image.png?x=1&amp;y=2" alt="遠隔画像" loading="lazy">' in output
+    assert output.count('<a href="https://') == 1
+    assert '![' not in output
+    assert len(nvp.MD_LINK_RE.findall(body)) == 1
+
+
+def test_image_alt_is_escaped_and_not_processed_as_markup(nvp, tmp_path):
+    body = '# 記事タイトル\n\n!["<tag> & **太字** *斜体* `code` 【確認】](image.png)\n'
+    output, stats = render_fixture(nvp, tmp_path, body)
+    assert 'alt="&quot;&lt;tag&gt; &amp; **太字** *斜体* `code` 【確認】"' in output
+    assert '<strong>' not in output
+    assert stats['warnings']['italic'] == 0
+    assert stats['warnings']['inline_code'] == 0
+
+
+@pytest.mark.parametrize('target', [
+    'javascript:alert', 'data:image/png;base64,abc', 'file:///tmp/image.png',
+    '//example.com/image.png', '/image.png', '\\image.png',
+    'https://example.com\\image.png', 'https://[invalid/image.png',
+])
+def test_unsafe_image_sources_remain_literal(nvp, tmp_path, target):
+    output, _ = render_fixture(nvp, tmp_path, f'# 記事タイトル\n\n![画像]({target})\n')
+    assert '<img ' not in output
+    assert '<a href=' not in output
+    assert '![画像]' in output
+
+
+def test_emphasis_can_span_links_while_preserving_image_alt(nvp, tmp_path):
+    body = '# 記事タイトル\n\n**[参照](https://example.com/article)**\n\n*前 [参照](https://example.com/article) 後*\n\n![**代替** *説明*](image.png)\n'
+    output, stats = render_fixture(nvp, tmp_path, body)
+    assert '<strong><a href="https://example.com/article"' in output
+    assert 'rel="noopener nofollow">参照</a></strong>' in output
+    assert '<em class="warn-inline-italic">前 <a href="https://example.com/article"' in output
+    assert 'rel="noopener nofollow">参照</a> 後</em>' in output
+    assert 'alt="**代替** *説明*"' in output
+    assert stats['warnings']['italic'] == 1
