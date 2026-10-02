@@ -242,8 +242,57 @@ def test_preview_cli_omits_frontmatter_in_both_modes(tmp_path: Path):
         assert "source_mode:" not in body
         assert "based_on" not in body
         assert "./utterances.md" not in body
-        assert not body.lstrip().startswith("<hr>")
+        assert body.count("<hr>") == 1
         assert "prefers-color-scheme: dark" in document
+
+
+def test_preview_omits_frontmatter_after_bom():
+    preview = load_script("note_preview")
+    rendered = preview.render_markdown("﻿" + dictation_draft())
+
+    assert "source_mode:" not in rendered
+    assert rendered.count("<hr>") == 1
+
+
+def test_review_preview_keeps_rules_outside_blocks():
+    preview = load_script("note_preview")
+    rendered = preview.render_markdown(dictation_draft(), review_provenance=True)
+
+    block = rendered.index('<section class="prov-block prov-user-said">')
+    block_end = rendered.index("</section>", block)
+    assert "<hr>" not in rendered[block:block_end]
+    assert rendered.index("<hr>") > block_end
+
+
+def test_review_preview_accepts_bang_comment_end_for_hold():
+    preview = load_script("note_preview")
+    rendered = preview.render_markdown(
+        "<!-- provenance-label: user-said; source: user speech -->\n本文。\n\n"
+        "<!-- provenance-label: hold; source: needs-review --!>\n保留の文。\n",
+        review_provenance=True,
+    )
+
+    assert '<section class="prov-block prov-hold">' in rendered
+    assert "保留 1</span>" in rendered
+    assert "約3字" in rendered
+    assert "--!&gt;" not in rendered
+
+
+def test_review_preview_escapes_untrusted_text_and_unknown_kinds():
+    preview = load_script("note_preview")
+    rendered = preview.render_markdown(
+        '---\ntitle: <b>"題"</b>\n---\n'
+        "<!-- provenance\nkind: tag\nsource: <script>x</script>\n-->\n"
+        '[a](https://example.com/"onmouseover=x) <i>本文</i>\n',
+        review_provenance=True,
+    )
+
+    assert "<script>" not in rendered
+    assert "<b>" not in rendered
+    assert "<i>" not in rendered
+    assert '"onmouseover' not in rendered
+    assert '<section class="prov-block prov-unknown">' in rendered
+    assert 'class="prov-block prov-tag"' not in rendered
 
 
 def test_review_preview_lifts_headings_and_keeps_line_breaks():

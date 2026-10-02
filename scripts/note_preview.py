@@ -27,7 +27,7 @@ PROVENANCE_RE = re.compile(
     r"provenance-label:\s*(?P<legacy_kind>[a-z-]+)"
     r"(?:\s*;\s*source:\s*(?P<legacy_source>[^;>]+?))?"
     r"|provenance\s*\n(?P<meta>.*?)\n\s*"
-    r")-->\s*",
+    r")--!?>\s*",
     re.S,
 )
 # 種類ごとの短い名前。並び順がレビュー画面の件数表示の順になる。
@@ -187,7 +187,7 @@ def body_chars(content: str) -> int:
 
 
 def kind_class(kind: str) -> str:
-    return re.sub(r"[^a-z-]", "", kind) or "unknown"
+    return kind if kind in PROVENANCE_LABELS else "unknown"
 
 
 def render_review_block(metadata: dict[str, str], content: str) -> str:
@@ -257,7 +257,8 @@ def render_review(
 
 
 def render_markdown(source: str, review_provenance: bool = False) -> str:
-    frontmatter, body = split_frontmatter(source)
+    # Windows で保存した下書きの先頭 BOM があると frontmatter と判定できない。
+    frontmatter, body = split_frontmatter(source.lstrip("﻿"))
     prefix, blocks = split_provenance_blocks(body)
     if review_provenance:
         return render_review(frontmatter, prefix, blocks)
