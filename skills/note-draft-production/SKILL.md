@@ -128,3 +128,8 @@ Planに読者・シリーズ・読後行動を固定し、採用リンクの登�
 固定5枚などの記事固有案を汎用規則にしない。
 形式は `../../references/note-draft-authority-and-layout-contract.md` の末尾リンク選定契約に従う。
 意味の適合性と既存登録の確認を人間がレビューするまで未承認を維持する。
+
+
+## 読書表示の生成
+
+Noteの見た目で確認する依頼は `scripts/note_virtual_preview.py <draft> -o <preview.html>` を使う。既存の抽出Note CSSとtemplateが正本。`note_preview.py` の簡易表示はOSのダーク設定に追従し、Note再現の入口ではない。由来の色分け確認には `note_preview.py --review-provenance`、編集診断には `note_virtual_preview.py --diagnostics` を使い、用途を混同しない。実Noteの表示と完全同一とは報告しない。

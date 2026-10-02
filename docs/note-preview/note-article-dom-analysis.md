@@ -173,3 +173,14 @@ SSR HTML 内の `<script src>` は Nuxt のチャンクファイル群（`fronte
 - `blockquote` 単体（`figure` に包まれない形）の実例は今回の記事になし。
 - モバイル実機での表示は未確認（CSS のメディアクエリ値からの推定のみ）。
 - ハッシュタグ表示・目次以外のインタラクティブ要素（いいねアニメーション等）は未確認。
+
+
+## 2026-10-02 公開ページCSSの再照合
+
+取得対象: https://note.com/nexus_ai/n/n70f0489ceacd 。公開HTMLを読取り取得し、inline style 2個（合計221,614文字）を解析。記事本文は複製していない。外部stylesheet linkは今回の応答にはなく、styleに本文selectorが含まれている。
+
+確認値: primary background #fff、secondary #f5f8fa、body本文色のfallback #08131a、base font 1rem、公開本文の外枠620px、768px以下はwidth:auto。本文selectorと明朝／sans-serifの切替が、既存assets/note-preview/note-textnote-body.extracted.cssの取得内容と対応することを確認した。全CSSの差分や全端末の描画一致を保証する確認ではない。
+
+既存のNote CSS抽出assetを描画に再利用し、templateの背景を公開ページの白に、secondary色を上の実測値へ合わせた。color-schemeをlightで明示する。OSのdark設定に追従するnote_preview.pyは由来レビュー用で、公開ページに寄せる読書表示には使わない。読書用はREADMEの既存正本どおりnote_virtual_preview.py。
+
+templateの外枠・画像枠・目次・フォント選択は近似が含まれ、実Noteと同一とは称さない。現行サイトのcss一式やUIを丸ごと複製する第二描画器は作らない。

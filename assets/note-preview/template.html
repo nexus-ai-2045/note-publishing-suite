@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
+<meta name="color-scheme" content="light">
 <title>{{TITLE}} - 仮想 note プレビュー</title>
 <link rel="stylesheet" href="{{EXTRACTED_CSS_HREF}}">
 <style>
@@ -10,7 +11,7 @@
   --color-text-secondary: #767676;
   --color-border-weak: #f5f8fa;
   --color-border-strong: #d9d9d9;
-  --color-background-secondary: #f7f8fa;
+  --color-background-secondary: #f5f8fa;
   --color-custom-accent: #3a8ee6;
   --font-size-2xl: 1.75rem;
   --font-size-xl: 1.25rem;
@@ -21,9 +22,10 @@
 }
 * { box-sizing: border-box; }
 body {
+  color-scheme: light;
   margin: 0;
   padding: 0;
-  background: #f7f8fa;
+  background: #fff;
   color: var(--color-text-primary);
   font-family: "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", Arial, "Noto Sans JP", Meiryo, sans-serif;
 }
