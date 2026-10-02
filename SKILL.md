@@ -202,8 +202,9 @@ python scripts\note_diff_check.py <note_url> <draft.md> <phrase...> --snapshot-o
 ```
 
 - `note_virtual_preview.py` は note editor 実物の CSS（`assets/note-preview/`）で見た目確認するプレビュー。
-  旧 `scripts/note_preview.py`（標準ライブラリのみの簡易プレビュー、廃止候補）とは別物で、
-  こちらはリンク色・見出し余白が note 実物と一致する（詳細: README.md 補助ツール節）。
+  既定の読書用表示は `frontmatter`・`HTML` コメント・診断フッターを出さない。
+  編集診断は `--diagnostics`、由来の本人レビューは `note_preview.py --review-provenance` を使う。
+  表示で内部情報を除いても、原稿の本人確認・保留・公開前検査の停止条件は維持する。
 
 - `scripts/pre_publish_check.py --fix` はファイルを書き換えるため、ユーザーが明示した時だけ使う。
 - `note_diff_check.py` は公開済み URL や editor 反映後の確認対象 phrase がある場合だけ使う。

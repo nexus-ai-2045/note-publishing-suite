@@ -4,6 +4,23 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
+## 0.2.33
+
+日付: 2026-10-02
+
+変更:
+- 読書用プレビューから設定と内部コメントと診断枠を除外し、編集診断を --diagnostics に分離。由来レビューとQA手順を統一。本人確認と保留の停止条件は維持。
+- 既存の設定解析を再利用し、コメント終端・空設定・リンクの二重エスケープを修正。原稿非変更を含む回帰テストを追加。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `python -m pytest tests/test_note_virtual_preview.py tests/test_provenance_draft_review.py tests/test_docs_sync_check.py -q`
+- `独立レビュー完了。全体テストのmacOSクリップボード権限検査17失敗は変更前にも再現。`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.2.32
 
 日付: 2026-10-02
