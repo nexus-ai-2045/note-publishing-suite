@@ -52,6 +52,21 @@ def validate(data: dict[str, Any]) -> tuple[list[dict[str, str]], list[dict[str,
         )
     if isinstance(multi, int) and multi > 0:
         warnings.append(issue("multiple_linebreaks_review", f"段落内に複数の通常brを含む段落が{multi}件あります。意図した読みやすさ調整か確認してください"))
+    if any(field in data for field in ("expected_paragraph_soft_break_counts", "paragraph_soft_break_counts")):
+        expected = data.get("expected_paragraph_soft_break_counts")
+        observed = data.get("paragraph_soft_break_counts")
+        structure_valid = True
+        for field, counts in (
+            ("expected_paragraph_soft_break_counts", expected),
+            ("paragraph_soft_break_counts", observed),
+        ):
+            if not isinstance(counts, list) or any(
+                type(count) is not int or count < 0 for count in counts
+            ):
+                structure_valid = False
+                errors.append(issue(f"{field}_invalid", f"{field}は本文段落順の0以上の整数配列で指定してください"))
+        if structure_valid and observed != expected:
+            errors.append(issue("source_paragraph_structure_mismatch", "本文の段落境界または段落内改行が原稿の期待構造と一致しません"))
     return errors, warnings
 
 

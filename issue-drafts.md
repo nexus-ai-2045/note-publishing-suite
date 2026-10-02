@@ -188,7 +188,7 @@ Note エディタ反映段階を公開なしで通し、下書き保存までの
 状態: 吸収済み
 
 - HTML 貼り付けで再現できない note エディタ機能 (リンクカード埋め込み / 目次 / Shift+Enter の段落内改行) を実測ベースで文書化し、editor-prepublish skill の手動境界リストに反映する。
-- 実測済み: Shift+Enter は同一 `p` 内の `<br>` / URL 埋め込みは URL 単独行の Enter 後に `figure[data-src]` + `iframe.note-embed` / 目次は `table-of-contents` + `toc` 属性 / 大見出しは `H2` / 小見出しは `H3`。
+- 実測済み: Shift+Enter は同一 `p` 内の `<br>` / URL 埋め込みは URL 単独行の Enter 後に `figure[data-src]` + `iframe.note-embed`（Note記事カード。外部記事カードの検査契約は正本referenceの追記参照） / 目次は `table-of-contents` + `toc` 属性 / 大見出しは `H2` / 小見出しは `H3`。
 - 復旧境界: 埋め込み変換後と目次挿入後の `Control+Z` 1回では DOM が残ったため、誤位置は手動削除/復旧確認へ戻す。
 - URL 行が通常リンクのまま残る、または埋め込みカード位置を実測確認できない場合は、本文崩れを避けて手動境界として報告する。
 - 行き先: `references/note-editor-live-constraint-boundaries.md` / linebreak・figure gates / note-editor-ops

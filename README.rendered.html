@@ -117,7 +117,7 @@
 <p><strong>書くところまで自動化。公開は、人が決める。</strong></p>
 <p><img src="assets/note-publishing-workflow.svg" alt="素材からNote下書き保存までは自動化し、公開直前で停止して人が判断するワークフロー" loading="lazy"></p>
 <p>ローカル素材から Note の下書きを作り、検査し、エディタへ反映する <strong>NPS（Note Publishing Suite）</strong> です。Codex / Claude Code から使えます。 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。</p>
-<p>パッケージ版: <code>0.2.36</code></p>
+<p>パッケージ版: <code>0.2.37</code></p>
 <p>読書用プレビューは <code>note_virtual_preview.py</code>、編集診断は同コマンドの <code>--diagnostics</code>、由来レビューは <code>note_preview.py --review-provenance</code> を使います。原稿の本人確認・保留は検査で維持します。</p>
 <div class="table-wrap"><table>
 <thead><tr><th>すぐやる</th><th>あとで読む</th></tr></thead>
@@ -265,7 +265,7 @@ python scripts/provenance_label_check.py &lt;draft.md&gt; --public-output &lt;pu
 <li><code>scripts/docs_sync_check.py</code>: 生成物と関連文書をread-onlyで同期検査。</li>
 <li><code>scripts/note_interview_packet.py</code>: 低負担な問答packetを生成。</li>
 <li><code>scripts/note_authorship_gate.py</code>: 本人発言にない作文や無断短縮を検査。</li>
-<li><code>scripts/note_linebreak_gate.py</code> / <code>scripts/note_figure_structure_gate.py</code>: 改行、図、captionを検査。</li>
+<li><code>scripts/note_linebreak_gate.py</code> / <code>scripts/note_figure_structure_gate.py</code>: 改行、図、captionを検査。改行gateは段落順の期待・観測soft-break配列を照合できる。プレビューは空行で段落を分け、同じ段落内の改行を <code>&lt;br&gt;</code> にする。</li>
 <li><code>scripts/note_browser_transport_recovery.py</code> / <code>scripts/note_editor_timeout_recovery.py</code>: Browser切断とtimeoutを分類。前者はread-only復旧計画専用で、process終了や人間承認の真正性確認は行わない。</li>
 <li><code>scripts/note_editor_pdca_failure_check.py</code>: Note editor 失敗パターン台帳を検査。</li>
 <li><code>scripts/note_editor_pdca_cycle_check.py</code>: 記事ごとの PDCA cycle 受領JSONを検査（1 action・前後DOM証跡・非公開・routeあたり最大2回）。</li>

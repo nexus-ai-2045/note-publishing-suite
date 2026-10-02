@@ -4,6 +4,21 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
+## 0.2.37
+
+日付: 2026-10-02
+
+変更:
+- 通常本文の空行を段落境界、段落内の原稿改行をbrへ変換。期待・観測soft-break配列の欠落、型不正、段落別不一致を改行gateで拒否し、外部記事カードのDOM検査契約を同期。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`: 364件合格、10件skip、18件失敗。ACL17件は変更前にも再現。standalone fixtureの生成物drift1件は単独再検査で合格。
+- `python3 -m pytest tests/test_note_linebreak_gate.py tests/test_note_virtual_preview.py tests/test_note_editor_prepublish_verify.py tests/test_docs_sync_check.py -q: 92件合格。`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.2.36
 
 日付: 2026-10-02

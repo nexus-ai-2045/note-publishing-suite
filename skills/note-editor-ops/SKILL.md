@@ -132,8 +132,7 @@ Browser / CDP / DOM の timeout、切断、対象タブ消失は `../../scripts/
 - note 公式ヘルプでは、外部サービス URL の貼り付けで埋め込みまたはカード化され、URL 貼り付け後に Enter / Return が必要な場合がある。
 - suite の local policy として、Markdown リンクや HTML ではなく、URL を独立段落として入力し、変換後の表示を確認する。
 - 既存URL行をその場で自動カード化しない。既存行クリック後の挿入メニューはカーソル位置がずれ、本文上部など意図しない位置へカードや生URLを挿入することがある。
-- in-app Browser 実測では、成功 DOM は `figure[data-src="<target URL>"]` と
-  子要素 `iframe.note-embed`。raw URL や `a[href]` だけなら失敗扱い。
+- in-app Browser 実測では、対象URLの `figure[data-src="<target URL>"]` と、子要素 `iframe.note-embed`（Note記事カード）または `.external-article-widget` 内のタイトル・リンク（外部記事カード）を成功 DOM とする。外部カードすべてにiframeを要求しない。raw URL や `a[href]` だけなら失敗扱い。
 - 変換対象は、公式、リリース、Discord、マガジンなど、記事ごとの checker に落とせるものは checker に追加する。
 - URL 行が通常リンクのまま残る、対象外段落へ入力される、または位置が崩れたら即 Undo で復旧する。
 - 事前に cursor / selection が空段落にあることを確認する。本文中や選択ありなら埋め込み操作へ進まない。
@@ -151,13 +150,17 @@ Browser / CDP / DOM の timeout、切断、対象タブ消失は `../../scripts/
 ### 4. DOM verification
 
 - この節の DOM 成功判定は local checker。公式ヘルプの記述として扱わない。
-- 成功判定は表示テキストだけでなく、`figure[data-src="<target URL>"]` または同等の埋め込みDOMで確認する。
+- 成功判定は表示テキストだけでなく、`figure[data-src="<target URL>"]` と、Note記事カードの `iframe.note-embed` または外部記事カードの `.external-article-widget` 内のタイトル・リンクで確認する。同等の埋め込みDOMを採用する場合は、その構造をreceiptへ残す。
 - 目次は `table-of-contents contenteditable="false"` と `toc` 属性内の
   H2/H3 heading list で確認する。
 - 目次 DOM、H2/H3 heading list、Shift+Enter の `<br>`、Undo 復旧不可は
   2026-06-16 の local live measurement。公式仕様として扱う前に
   `note-official-guidance-intake` で source URL を確認する。
 - Shift+Enter は同一 paragraph 内の `<br>` として確認する。
+- 通常本文は、空行で意味段落を分け、同じ段落内の原稿改行を `<br>` にする。句点後の原稿改行を毎回別の `<p>` にしない。
+- `production_candidate` の改行照合は、反映する同一版の原稿と `scripts/note_virtual_preview.py` で生成した本文から、通常本文の段落順に `<br>` 数を取り、`expected_paragraph_soft_break_counts` に保存する。図のplaceholderや画像挿入用メモ、リスト、引用、目次、カードを除き、その除外対象をreceiptへ残す。
+- fresh live DOMでは本文rootの直下にある非空の `p` を同じ範囲と順序で採取し、`br:not(.ProseMirror-trailingBreak)` 数を `paragraph_soft_break_counts` に保存する。画像だけの `p` や、原稿側で除外した画像挿入用メモを含めない。原稿側の期待値を作れる場合は両fieldを必須として、`scripts/note_linebreak_gate.py <observation.json> --json` へ渡し、段落数と段落内改行の配置を照合する。片方だけのfieldは不合格とする。両fieldを省略した既存入力の合格は、この照合を済ませた証拠にしない。
+- 改行の照合とは別に、空白を正規化した本文、リンク、図とキャプション、見出しを同一版の正本へ照合する。期待件数は記事ごとに導出し、固定のリンク数やカード枚数を全記事へ適用しない。
 - `href` だけが残る状態は、通常リンク残りとして扱う。
 - フッターでは、生URL残り、旧ラベル通常リンク残り、同一URL重複、意図しない段落混入を確認する。
 - DOM 確認時は viewport size、scroll position、本文 root、対象 paragraph を closeout に残す。
@@ -177,8 +180,8 @@ Browser / CDP / DOM の timeout、切断、対象タブ消失は `../../scripts/
 - checker を追加したら、対象 draft への実行結果まで確認する。
 - note側DOM成功とローカルdraft成功は別物として両方確認する。
 - 公式機能として扱うものは、先に `references/note-editor-capability-inventory.md` へ source を記録する。
-- DOM 判定は公式ヘルプの記述として扱わない。`figure[data-src]` や
-  `iframe.note-embed` などの local policy / local checker として記録する。
+- DOM 判定は公式ヘルプの記述として扱わない。`figure[data-src]`、
+  `iframe.note-embed`、`.external-article-widget` などの local policy / local checker として記録する。
 
 ### 7. Post-publish ledger
 

@@ -73,7 +73,7 @@ manual_boundary:
   - 誤位置に embed された場合、追加編集で直す前に人間が画面上で削除/Undo を確認する
   - 自動化 closeout では `figure[data-src]`、raw URL、`a[href]`、重複を必ず報告する
 ratchet:
-  - URL embed 成功条件は `figure[data-src]` と `iframe.note-embed`
+  - 上記のNote記事URLの成功条件は `figure[data-src]` と `iframe.note-embed`
   - `href` だけ、raw URL 残り、重複 URL は失敗扱い
 ```
 
@@ -220,3 +220,18 @@ reference と skill が次の測定済み境界を持ち続けることを contr
 - hidden WebView の synthetic keydown 境界
 - DOM selection と paste の間の 1 tick
 - 連続画像の空 paragraph separator
+
+
+## 通常本文と外部記事カードの検査契約
+
+通常本文のプレビューは空行を段落境界とし、同一段落内の原稿改行を `<br>` にする。
+改行gateの `expected_paragraph_soft_break_counts` と `paragraph_soft_break_counts` は
+本文の同じ除外範囲と段落順で採取した非負整数配列。どちらかだけの入力、型不正、
+段落数や各段落の改行数の不一致は不合格。両方を省略した旧入力は従来検査のみとなる。
+具体的な採取範囲と正本照合は `skills/note-editor-ops/SKILL.md` に従う。
+
+外部記事カードのlocal checkerは対象URLの `figure[data-src]` と、その内部の
+`.external-article-widget` にあるタイトル・リンクを確認する。Note記事カードの
+`iframe.note-embed` と構造が異なるため、外部記事カードにiframeを一律必須としない。
+通常の `a[href]` や生URLだけを成功としない。未知の構造はreceiptへ記録して確認する。
+これらはlocal policyであり、公式仕様や全外部サービスでの成功を保証しない。
