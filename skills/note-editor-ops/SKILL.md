@@ -74,6 +74,8 @@ Note editor で実際に必要になる低レベル操作を、機能ごとに�
 
 ### 0a. Chrome DOM 基本ループ
 
+この節はChromeが許可surfaceとして選択済みの場合だけ適用する。内部ブラウザ指定時は外部Chromeのinventory / claim / attachを行わず、同じ確認項目を選択済みの内部surface内だけで扱う。
+
 1. Plan: 対象タブ、1 action、期待する状態遷移、公開/保存/共有 stopline を決める。
 2. Do-pre: tab inventory、claim、URL / title、fresh DOM snapshot、候補数を取得する。
 3. Do-action: 候補数が1件なら click / fill / upload / navigation の1 actionだけ行う。
@@ -82,6 +84,10 @@ Note editor で実際に必要になる低レベル操作を、機能ごとに�
 
 ### 1. Browser attach
 
+- 最初のブラウザtool呼出し（接続確認・タブ一覧を含む）の前に、現在の会話のsurface指定とtoolの接続先を照合する。内部ブラウザ指定時は、現在のtool説明に従って `cua_repl` の `iab` を選択し、返却された Browser type / backend が `iab` であることを確認する。API形状は現在のtool説明を正本とする。
+- 内部タブの `tab.playwright` と外部 `mcp__playwright__browser_tabs` は別経路。Playwrightという名前だけで内部接続と判断しない。外部MCPのタブ一覧は内部ブラウザの能力確認にも接続確認にも使わない。
+- 「内部のみ」「絶対に内部」は許可surfaceの限定。「内部優先」と区別して保持し、限定中はChrome使用可否をfallbackとして質問しない。非対応・接続失敗は内部経路の限定残務として返し、ユーザーが自ら条件を変更するまで別surfaceを候補にしない。
+- 経路逸脱や切替質問が再発したら、既存のcycle受領記録とfailure ledgerへ、ユーザー指定、選択tool、返却surface、実際の呼出し、停止・修復結果を残す。担当の自己説明だけで原因を確定せず、同じattach手順へフィードバックする。文書とcheckerの成功を、実行時の経路強制や再発ゼロの証明にしない。
 - in-app Browser で対象 editor URL に attach する。
 - attach / inspect できない場合は停止する。Chrome、Computer Use、live article へ無断で切り替えない。
 - 現在 URL、title、本文 root、対象 note id を読み取りで確認する。
@@ -103,7 +109,7 @@ Note editor で実際に必要になる低レベル操作を、機能ごとに�
 - `unsupported_capability`、`wrong_or_ambiguous_target`、`authentication_required`、`unexpected_write_or_recovery_uncertain` は同じrouteを再試行しない。
 - attach/connection failureは、同一surface・同一targetへの再接続だけ1回許可する。
 - selector/viewport driftは、DOM候補を再列挙して同一targetで1 actionだけ再試行する。
-- fallback順は `same target re-inspect -> manual/human supervised -> user-approved surface switch -> hold` とする。
+- fallback順は `same target re-inspect -> manual/human supervised -> user-approved surface switch -> hold` とする。ただし現在のsurface限定がある時は、その範囲内の手動操作またはholdに絞り、別surfaceへの切替提案・確認を行わない。
 - manualまたはhuman supervisedへ渡す時は、対象URL、local file path、完了確認項目、未実行の公開系操作を返す。
 - 別surfaceへの自動fallbackは禁止する。新しい対象ロックとユーザー確認が揃ってから別cycleとして開始する。
 
