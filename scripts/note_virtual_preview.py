@@ -38,7 +38,14 @@ REPO_ROOT = SCRIPT_DIR.parent
 DEFAULT_TEMPLATE_PATH = REPO_ROOT / "assets" / "note-preview" / "template.html"
 DEFAULT_CSS_PATH = REPO_ROOT / "assets" / "note-preview" / "note-textnote-body.extracted.css"
 
-MD_LINK_RE = re.compile(r"\[([^\]]+)\]\((https?://[^\s)]+)\)")
+_image_spec = importlib.util.spec_from_file_location("render_readme", SCRIPT_DIR / "render_readme.py")
+if _image_spec is None or _image_spec.loader is None:
+    raise RuntimeError("render_readme.py を読み込めません")
+_image_renderer = importlib.util.module_from_spec(_image_spec)
+_image_spec.loader.exec_module(_image_renderer)
+
+
+MD_LINK_RE = re.compile(r"(?<!!)\[([^\]]+)\]\((https?://[^\s)]+)\)")
 BARE_URL_LINE_RE = re.compile(r"^\s*(https?://\S+)\s*$")
 FIGURE_LINE_RE = re.compile(r"^\s*（図[:：]\s*(.+?)\s*）\s*$")
 TODO_MARKER_RE = re.compile(r"【([^】]*)】")
@@ -424,6 +431,23 @@ def convert_inline_warnings(text: str) -> str:
     return INLINE_CODE_RE.sub(_sub, text)
 
 
+def transform_preserving_images(html_text: str, transform) -> str:
+    images = []
+    token_prefix = "\x00NOTE_IMAGE_"
+    while token_prefix in html_text:
+        token_prefix += "_"
+
+    def reserve(match):
+        images.append(match.group(0))
+        return f"{token_prefix}{len(images) - 1}\x00"
+
+    reserved = re.sub(r"<img\b[^>]*>", reserve, html_text)
+    transformed = transform(reserved)
+    for index, image in enumerate(images):
+        transformed = transformed.replace(f"{token_prefix}{index}\x00", image)
+    return transformed
+
+
 def convert_italic_warnings(html_text: str) -> str:
     """** による太字変換（bold_markdown）の後に残った単独 * の斜体記法を警告表示に変換する。"""
 
@@ -435,7 +459,7 @@ def convert_italic_warnings(html_text: str) -> str:
             '<span class="warn-note">note では消えます</span>'
         )
 
-    return ITALIC_RE.sub(_sub, html_text)
+    return transform_preserving_images(html_text, lambda text: ITALIC_RE.sub(_sub, text))
 
 
 def render_figure_block(caption: str, detail: Optional[dict]) -> str:
@@ -492,7 +516,17 @@ def md_body_to_note_html(md_text: str, figure_details: Dict[int, dict]) -> str:
     figure_index = 0
 
     def inline(text: str) -> str:
-        return convert_inline_warnings(convert_todo_markers(convert_links(html.escape(text))))
+        parts = []
+        cursor = 0
+        for match in _image_renderer.MD_IMAGE_RE.finditer(text):
+            segment = html.escape(text[cursor:match.start()])
+            parts.append(convert_inline_warnings(convert_todo_markers(convert_links(segment))))
+            escaped_image = html.escape(match.group(0))
+            parts.append(_image_renderer.MD_IMAGE_RE.sub(_image_renderer.render_markdown_image, escaped_image))
+            cursor = match.end()
+        segment = html.escape(text[cursor:])
+        parts.append(convert_inline_warnings(convert_todo_markers(convert_links(segment))))
+        return "".join(parts)
 
     while i < n:
         line = lines[i]
@@ -605,7 +639,9 @@ def md_body_to_note_html(md_text: str, figure_details: Dict[int, dict]) -> str:
 
 def bold_markdown(html_text: str) -> str:
     """**text** を <strong> に変換する（段落生成後、htmlエスケープ済みテキストに対して行う）。"""
-    return re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", html_text)
+    return transform_preserving_images(
+        html_text, lambda text: re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", text)
+    )
 
 
 def render_toc_if_present(body_html: str) -> str:
