@@ -117,7 +117,7 @@
 <p><strong>書くところまで自動化。公開は、人が決める。</strong></p>
 <p><img src="assets/note-publishing-workflow.svg" alt="素材からNote下書き保存までは自動化し、公開直前で停止して人が判断するワークフロー" loading="lazy"></p>
 <p>ローカル素材から Note の下書きを作り、検査し、エディタへ反映する <strong>NPS（Note Publishing Suite）</strong> です。Codex / Claude Code から使えます。 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。</p>
-<p>パッケージ版: <code>0.2.31</code></p>
+<p>パッケージ版: <code>0.2.32</code></p>
 <div class="table-wrap"><table>
 <thead><tr><th>すぐやる</th><th>あとで読む</th></tr></thead>
 <tbody>
@@ -217,8 +217,8 @@ python scripts/provenance_label_check.py &lt;draft.md&gt; --public-output &lt;pu
 <ul>
 <li>「記事を書いて」「文章にまとめて」「会話を記事に」「メモを記事に」</li>
 <p>「下書きを直して」も下書き制作の自動発火対象です。</p>
-<li>レビュー HTML では、ユーザー発言、確認済み外部事実、AI による整理・</li>
-<p>言い換え、未確認・人間判断待ちを色分けします。</p>
+<li>レビュー HTML は本人=緑、AIのつなぎ=黄、資料の事実=青、保留=赤で塊を色分けし、</li>
+<p>上に種類ごとの件数と本文の字数を出します。下書きの frontmatter は表示しません。</p>
 <li>修正対象は内部 ID ではなく、見出しまたは本文の短い引用で指定できます。</li>
 <li><code>hold</code> が残る間は公開本文候補を書き出しません。公開本文候補では</li>
 <p>ローカル管理用の由来コメントを除去します。</p>
