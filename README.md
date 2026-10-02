@@ -16,9 +16,9 @@ publication_gate: human_review_required
 **NPS（Note Publishing Suite）** です。Codex / Claude Code から使えます。
 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。
 
-パッケージ版: `0.2.34`
+パッケージ版: `0.2.35`
 
-読書用プレビューは `note_virtual_preview.py`、編集診断は同コマンドの `--diagnostics`、由来レビューは `note_preview.py --review-provenance` を使います。原稿の本人確認・保留は検査で維持します。
+読書用プレビューは `note_virtual_preview.py`（白背景・`color-scheme: light`）、編集診断は同コマンドの `--diagnostics`、由来レビューは `note_preview.py --review-provenance` を使います。`note_preview.py` の簡易表示は Note 再現の入口ではありません。原稿の本人確認・保留は検査で維持します。
 
 | すぐやる | あとで読む |
 | --- | --- |
@@ -225,8 +225,9 @@ Noteログイン、常時接続、画像アップロードの完全自動化は�
 - `scripts/note_preview.py`: ローカルプレビュー（旧・標準ライブラリのみの簡易版。廃止候補）。
 - `scripts/note_virtual_preview.py`: note editor 実物の DOM/CSS 実測（`docs/note-preview/`）に基づく
   プレビュー。`note_preview.py` と違い、抽出済みの note 本物の CSS（`assets/note-preview/`）を
-  `<link>` で読み込んで見た目を再現する。`note_preview.py` は本文リンクの色や見出しの余白が
-  note 実物と一致しないため、乗り換え先はこちら。目次・アウトライン・（図: …）枠・
+  `<link>` で読み込んで見た目を再現する。読書用表示は白背景と `color-scheme: light` を既定にし、
+  OSのダーク設定に追従しない。編集診断は `--diagnostics`。`note_preview.py` は本文リンクの色や
+  見出しの余白が note 実物と一致しないため、乗り換え先はこちら。目次・アウトライン・（図: …）枠・
   H1→H2 丸めの警告なども合わせて出す。移植元: nexa-articles
   `sources/_tools/note-preview/render_note_preview.py`（v2、2026-09-11）。
   解析文書は `docs/note-preview/` にコピーしてある。

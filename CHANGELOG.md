@@ -4,21 +4,23 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
-## 0.2.34
+## 0.2.35
 
 日付: 2026-10-02
 
 変更:
-- Note読書用プレビューの背景を白にし、light表示を明示。公開ページCSSの再照合値と近似の限界を記録。
-- 制作スキルで、読書表示・由来レビュー・編集診断の入口を区別。
+- Note読書プレビューの背景を白にし、color-scheme light でOSのダーク設定に追従しないよう固定した。公開ページCSSの再照合値と近似の限界を記録。
+- 読書表示・由来レビュー・編集診断の入口を制作スキルに明記し、用途の切り分けを文書化した。
 
 検証:
-- `python3 -m pytest tests/test_note_virtual_preview.py -q`: 12件PASS。
-- 作成担当セルフレビューと主担当の独立差分レビュー: 指摘なし。
-- GitHub CIの初回で版更新不足とdocs-sync不足を検出し、既存の版管理契約に従い修正。
+- `python scripts/check_version_bump.py`
+- `python scripts/docs_sync_check.py --base-ref origin/main`
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `python3 -m pytest tests/test_note_virtual_preview.py -q`
 
 公開境界:
-- Note投稿、SNS共有、GitHubリリース・タグ作成、公開範囲変更は未実行。
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
 
 ## 0.2.33
 
