@@ -4,6 +4,24 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
+## 0.2.35
+
+日付: 2026-10-02
+
+変更:
+- 並走PRと版が衝突しないよう、読書プレビュー系のパッケージ版を 0.2.35 へ進めた。
+- 白背景・color-scheme light・読書表示／由来レビュー／編集診断の入口の切り分けを README・SKILL・CHANGELOG に短い日本語で追記した。
+
+検証:
+- `python scripts/check_version_bump.py`
+- `python scripts/docs_sync_check.py --base-ref origin/main`
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `python3 -m pytest tests/test_note_virtual_preview.py -q`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.2.34
 
 日付: 2026-10-02

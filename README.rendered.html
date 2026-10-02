@@ -117,8 +117,8 @@
 <p><strong>書くところまで自動化。公開は、人が決める。</strong></p>
 <p><img src="assets/note-publishing-workflow.svg" alt="素材からNote下書き保存までは自動化し、公開直前で停止して人が判断するワークフロー" loading="lazy"></p>
 <p>ローカル素材から Note の下書きを作り、検査し、エディタへ反映する <strong>NPS（Note Publishing Suite）</strong> です。Codex / Claude Code から使えます。 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。</p>
-<p>パッケージ版: <code>0.2.34</code></p>
-<p>読書用プレビューは <code>note_virtual_preview.py</code>、編集診断は同コマンドの <code>--diagnostics</code>、由来レビューは <code>note_preview.py --review-provenance</code> を使います。原稿の本人確認・保留は検査で維持します。</p>
+<p>パッケージ版: <code>0.2.35</code></p>
+<p>読書用プレビューは <code>note_virtual_preview.py</code>（白背景・<code>color-scheme: light</code>）、編集診断は同コマンドの <code>--diagnostics</code>、由来レビューは <code>note_preview.py --review-provenance</code> を使います。<code>note_preview.py</code> の簡易表示は Note 再現の入口ではありません。原稿の本人確認・保留は検査で維持します。</p>
 <div class="table-wrap"><table>
 <thead><tr><th>すぐやる</th><th>あとで読む</th></tr></thead>
 <tbody>
@@ -257,7 +257,7 @@ python scripts/provenance_label_check.py &lt;draft.md&gt; --public-output &lt;pu
 <ul>
 <li><code>scripts/note_preview.py</code>: ローカルプレビュー（旧・標準ライブラリのみの簡易版。廃止候補）。</li>
 <li><code>scripts/note_virtual_preview.py</code>: note editor 実物の DOM/CSS 実測（<code>docs/note-preview/</code>）に基づく</li>
-<p>プレビュー。<code>note_preview.py</code> と違い、抽出済みの note 本物の CSS（<code>assets/note-preview/</code>）を <code>&lt;link&gt;</code> で読み込んで見た目を再現する。<code>note_preview.py</code> は本文リンクの色や見出しの余白が note 実物と一致しないため、乗り換え先はこちら。目次・アウトライン・（図: …）枠・ H1→H2 丸めの警告なども合わせて出す。移植元: nexa-articles <code>sources/_tools/note-preview/render_note_preview.py</code>（v2、2026-09-11）。 解析文書は <code>docs/note-preview/</code> にコピーしてある。</p>
+<p>プレビュー。<code>note_preview.py</code> と違い、抽出済みの note 本物の CSS（<code>assets/note-preview/</code>）を <code>&lt;link&gt;</code> で読み込んで見た目を再現する。読書用表示は白背景と <code>color-scheme: light</code> を既定にし、 OSのダーク設定に追従しない。編集診断は <code>--diagnostics</code>。<code>note_preview.py</code> は本文リンクの色や 見出しの余白が note 実物と一致しないため、乗り換え先はこちら。目次・アウトライン・（図: …）枠・ H1→H2 丸めの警告なども合わせて出す。移植元: nexa-articles <code>sources/_tools/note-preview/render_note_preview.py</code>（v2、2026-09-11）。 解析文書は <code>docs/note-preview/</code> にコピーしてある。</p>
 <li><code>scripts/review_draft.py</code>: <code>build-context-card</code> と <code>review-draft</code>。</li>
 <li><code>scripts/note_diff_check.py</code> / <code>scripts/fetch_note_body.js</code>: 公開本文の取得・差分確認。</li>
 <li><code>scripts/post_publish.py</code>: 既定はドライランの台帳更新。</li>
