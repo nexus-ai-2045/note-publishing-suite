@@ -141,15 +141,142 @@ def test_multiline_provenance_accepts_and_strips_html_comment_bang_end_tag():
     assert "本人の言葉" in public_text
 
 
+def dictation_draft() -> str:
+    return """---
+title: "口述の下書き例"
+source_mode: source_pack_locked_with_user_speech_priority
+based_on:
+  - ./utterances.md
+  - ./fact-pack.md
+publication_gate: human_review_required
+---
+
+<!-- provenance-label: user-said; source: user speech utterances.md 第1段落 -->
+## 見出し
+
+### 小見出し
+
+一行目です。
+二行目は [リンク](https://example.com/a?x=1&y=2) を含む。
+
+---
+
+<!-- provenance-label: assistant-organized; source: structure つなぎ -->
+次の話へ進みます。
+
+<!-- provenance-label: external-fact; source: official source-pack -->
+公式資料の事実です。
+
+<!-- provenance-label: hold; source: needs-review -->
+保留の文は数えない。
+"""
+
+
 def test_review_preview_renders_visible_japanese_provenance_labels():
     preview = load_script("note_preview")
     rendered = preview.render_markdown(sample_draft(), review_provenance=True)
 
-    assert "由来: ユーザー発言" in rendered
-    assert "由来: 確認済み外部事実" in rendered
-    assert "由来: AIによる整理・言い換え" in rendered
-    assert "由来: 未確認・人間判断待ち" in rendered
-    assert "provenance-card" in rendered
+    for kind, name in [
+        ("user-said", "本人"),
+        ("assistant-organized", "AIのつなぎ"),
+        ("external-fact", "資料の事実"),
+        ("hold", "保留"),
+    ]:
+        assert f'<section class="prov-block prov-{kind}">' in rendered
+        assert f'<span class="prov-tag">{name}</span>' in rendered
+        assert f"{name} 1</span>" in rendered
+    assert "current-conversation" in rendered
+    assert "official-source-pack" in rendered
+
+
+def test_preview_omits_frontmatter_but_keeps_body_rule():
+    preview = load_script("note_preview")
+
+    for review in (False, True):
+        rendered = preview.render_markdown(dictation_draft(), review_provenance=review)
+        for leaked in (
+            "title:",
+            "source_mode:",
+            "based_on",
+            "./utterances.md",
+            "publication_gate:",
+        ):
+            assert leaked not in rendered, (review, leaked)
+        assert rendered.count("<hr>") == 1, review
+
+
+def test_preview_without_closed_frontmatter_keeps_rules():
+    preview = load_script("note_preview")
+
+    assert (
+        preview.render_markdown("本文。\n\n---\n\n続き。\n")
+        == "<p>本文。</p>\n<hr>\n<p>続き。</p>"
+    )
+    assert preview.render_markdown("---\n本文。\n") == "<hr>\n<p>本文。</p>"
+
+
+def test_preview_cli_omits_frontmatter_in_both_modes(tmp_path: Path):
+    draft = tmp_path / "dictation.md"
+    draft.write_text(dictation_draft(), encoding="utf-8")
+
+    for flags in ([], ["--review-provenance"]):
+        output = tmp_path / f"preview-{len(flags)}.html"
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "note_preview.py"),
+                *flags,
+                str(draft),
+                "-o",
+                str(output),
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        assert completed.returncode == 0, completed.stderr
+        document = output.read_text(encoding="utf-8")
+        body = document.split("</head>", 1)[1]
+        assert "source_mode:" not in body
+        assert "based_on" not in body
+        assert "./utterances.md" not in body
+        assert not body.lstrip().startswith("<hr>")
+        assert "prefers-color-scheme: dark" in document
+
+
+def test_review_preview_lifts_headings_and_keeps_line_breaks():
+    preview = load_script("note_preview")
+    rendered = preview.render_markdown(dictation_draft(), review_provenance=True)
+
+    heading = rendered.index("<h2>見出し</h2>")
+    subheading = rendered.index("<h3>小見出し</h3>")
+    block = rendered.index('<section class="prov-block prov-user-said">')
+    assert heading < subheading < block
+
+    block_html = rendered[block : rendered.index("</section>", block)]
+    assert "<h2" not in block_html
+    assert "<h3" not in block_html
+    assert "一行目です。<br>二行目は" in block_html
+    assert (
+        '<a href="https://example.com/a?x=1&amp;y=2" target="_blank" rel="noopener">リンク</a>'
+        in block_html
+    )
+    assert "user speech utterances.md 第1段落" in block_html
+
+
+def test_review_preview_summarizes_counts_and_body_length():
+    preview = load_script("note_preview")
+    rendered = preview.render_markdown(dictation_draft(), review_provenance=True)
+
+    for name in ("本人", "AIのつなぎ", "資料の事実", "保留"):
+        assert f"{name} 1</span>" in rendered
+    # 見出し・空白・リンク先・保留を除く: 一行目です。(6) + 二行目はリンクを含む。(11)
+    # + 次の話へ進みます。(9) + 公式資料の事実です。(10)
+    assert "約36字" in rendered
+    assert rendered.index("約36字") < rendered.index('<section class="prov-block')
+    assert "<h1>口述の下書き例</h1>" in rendered
 
 
 def test_normal_preview_hides_provenance_comments():
