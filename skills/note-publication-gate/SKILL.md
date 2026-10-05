@@ -70,3 +70,7 @@ description: "Use inside note-publishing-suite immediately before any Note publi
 - 未確認項目。
 - 実行していない public action。
 - 最終承認の有無。
+
+## 版に結び付く最終確認
+
+`../../references/note-workflow-review-contract.md` が3経路と承認失効の正本。最終手前では `note_workflow_gate.py --settings USER_SETTINGS_PATH --packet USER_REVIEW_PACKET --conversation-id CURRENT_CONVERSATION --stage publish` を実行し、現稿・原文・調査・公開設定と、現在会話の本人承認receiptが一致することを確認する。毎回の調査確認・設定確認は省略しない。既存の公開前QAも必須。通過しても `manual_publish_required: true` / `automation_allowed: false` とし、公開・更新・予約確定の最終ボタンは人間へ渡す。

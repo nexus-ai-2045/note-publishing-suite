@@ -111,3 +111,7 @@ Note editor への反映、目次、リンク、画像、埋め込み、タグ�
 を実行する。観測は末尾全体のDOM順とarticle_id/seriesを保持し、計画と照合する。
 JSONの供給だけをlive DOM証拠に読み替えない。manual_boundaryは停止理由として残す。
 公開後照合は同CLIの `--footer-only`。本文文字列やAPI fallbackはカードDOM証拠にならない。
+
+## 修正と公開設定の承認記録
+
+`../../references/note-workflow-review-contract.md` に従う。本文・見出し・caption・目次・リンクの変更も誤字も、変更前後と操作計画を先に本人へ示し、write直前に `note_workflow_gate.py --settings USER_SETTINGS_PATH --packet USER_REVIEW_PACKET --conversation-id CURRENT_CONVERSATION --stage edit` を通す。最新editorの原稿と対象ロックを再確認する。公開設定への移動と設定変更は区別し、設定の採用・変更と最終公開前には現稿と全設定を毎回提示して `--stage settings` を通す。checkerの成功はeditor観測QAに代わらない。

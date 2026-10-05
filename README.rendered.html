@@ -117,7 +117,7 @@
 <p><strong>書くところまで自動化。公開は、人が決める。</strong></p>
 <p><img src="assets/note-publishing-workflow.svg" alt="素材からNote下書き保存までは自動化し、公開直前で停止して人が判断するワークフロー" loading="lazy"></p>
 <p>ローカル素材から Note の下書きを作り、検査し、エディタへ反映する <strong>NPS（Note Publishing Suite）</strong> です。Codex / Claude Code から使えます。 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。</p>
-<p>パッケージ版: <code>0.2.38</code></p>
+<p>パッケージ版: <code>0.2.39</code></p>
 <p>読書用プレビューは <code>note_virtual_preview.py</code>、編集診断は同コマンドの <code>--diagnostics</code>、由来レビューは <code>note_preview.py --review-provenance</code> を使います。原稿の本人確認・保留は検査で維持します。</p>
 <div class="table-wrap"><table>
 <thead><tr><th>すぐやる</th><th>あとで読む</th></tr></thead>
@@ -300,6 +300,9 @@ python -m pytest scripts/test_skill_integration.py tests</code></pre>
 <p>GitHubではこのREADMEをそのまま読めます。ローカル整形版は <code>python scripts/render_readme.py</code> で <code>README.rendered.html</code> に生成できます。</p>
 </details>
 <p>末尾は固定枚数にせず、既存制作計画でリンク・理由・形式・順序・必須/任意を人間レビューします。<a href="references/note-draft-authority-and-layout-contract.md">制作計画契約</a>とCLIで照合し、成功も供給snapshotの整合性に限定します。</p>
+<h2>記事制作の入口と毎回の確認</h2>
+<p>音声書き起こしやnote本文から始める編集、既存素材の記事化、壁打ちを重ねる共同執筆の3経路を扱います。原文を先にローカル保存し、編集稿と区別します。本人発話、AI整理・追加案、外部事実、採否を既存の由来検査に結び付けます。</p>
+<p>誤字も修正前後を確認し、公開前調査・公開設定・最終公開も毎回本人に確認します。<a href="references/note-workflow-review-contract.md">版ごとの承認契約</a>と <code>scripts/note_workflow_gate.py</code> で対象の版と承認記録を照合します。古い承認では進めません。checkerだけで人間発言の真正性や任意のBrowser経路を保証せず、runtimeが接続と証拠照合を担います。毎発言のフックは導入せず、最終投稿ボタンは人間が操作します。</p>
     </article>
   </main>
 </body>

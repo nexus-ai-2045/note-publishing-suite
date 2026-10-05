@@ -133,3 +133,7 @@ Planに読者・シリーズ・読後行動を固定し、採用リンクの登�
 ## 読書表示の生成
 
 Noteの見た目で確認する依頼は `scripts/note_virtual_preview.py <draft> -o <preview.html>` を使う。既存の抽出Note CSSとtemplateが正本。`note_preview.py` の簡易表示はOSのダーク設定に追従し、Note再現の入口ではない。由来の色分け確認には `note_preview.py --review-provenance`、編集診断には `note_virtual_preview.py --diagnostics` を使い、用途を混同しない。実Noteの表示と完全同一とは報告しない。
+
+## 経路選択と編集承認
+
+`../../references/note-workflow-review-contract.md` を読む。本人原稿、素材記事化、共同執筆の経路を選び、変更前snapshotをworkspaceへ保存して編集稿と分ける。note本文が出発点なら写真・caption・見出し・リンクの構造も保全する。AIの追加案と本人発話を対応表で分ける。草稿候補を作ることと現稿へ採用・反映することを区別し、誤字も変更前後を本人に提示する。承認の照合には `note_workflow_gate.py --settings USER_SETTINGS_PATH --packet USER_REVIEW_PACKET --conversation-id CURRENT_CONVERSATION --stage edit` を用いる。
