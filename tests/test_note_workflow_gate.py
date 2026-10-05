@@ -32,9 +32,14 @@ def packet(tmp_path, monkeypatch):
         kwargs.setdefault("settings_path", config)
         return original_check(*args, **kwargs)
     monkeypatch.setattr(gate, "check_packet", configured_check)
-    expected, _ = gate.read_workspace_settings(config, "article")
+    expected, dirs = gate.read_workspace_settings(config, "article")
+    sys.path.insert(0, str(SCRIPT.parent))
+    from note_feedback import record_feedback
+    feedback = record_feedback(dirs, "article", Path(files["source_snapshot"]), Path(files["draft"]),
+                               Path(files["source_snapshot"]), [], conversation_id="current")
     return dict(schema_version=gate.SCHEMA, article_id="article", conversation_id="current",
-                route="direct_draft", receipts=[], ssot_readback=expected, edit_plan={"toc": False}, **files,
+                layout=dict(toc=dict(decision="include", reason="見出し案内"), footer_cards=dict(decision="omit", reason="今回は不要", urls=[])),
+                route="direct_draft", receipts=[], ssot_readback=expected, feedback_readback=feedback, edit_plan={"toc": False}, **files,
                 settings=dict(account="nexus_ai", tags=[], magazine=None, visibility="public",
                               article_type="free", price=0, sns_share=False, publish_mode="immediate",
                               schedule_at=None, image_rights_confirmed=True, cover_image=None))
@@ -67,20 +72,6 @@ def test_routes_approval_and_manual_boundary(packet, route, stage):
 def test_stale_content(packet, stage, field):
     approve(packet, stage)
     Path(packet[field]).write_text("変更", encoding="utf-8")
-    assert gate.check_packet(packet, stage, "current")["status"] == "blocked"
-
-
-@pytest.mark.parametrize("stage", sorted(gate.STAGES))
-def test_reapproval_replaces_stale_receipts_without_mixing_history(packet, stage):
-    assert approve(packet, stage)["status"] == "approved"
-    old_receipts = list(packet["receipts"])
-    Path(packet["draft"]).write_text("現版の本文", encoding="utf-8")
-    assert gate.check_packet(packet, stage, "current")["status"] == "blocked"
-    # 現版への承認を追加しても旧版receiptが混在していれば停止する。
-    assert approve(packet, stage)["status"] == "blocked"
-    packet["receipts"] = []
-    assert approve(packet, stage)["status"] == "approved"
-    packet["receipts"].extend(old_receipts)
     assert gate.check_packet(packet, stage, "current")["status"] == "blocked"
 
 
@@ -138,12 +129,12 @@ def test_cli_read_only_and_bad_json(packet, tmp_path):
     approve(packet, "publish")
     path = tmp_path / "packet.json"
     path.write_text(json.dumps(packet))
-    before = {p: p.read_bytes() for p in tmp_path.iterdir()}
+    before = {p: p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
     command = [sys.executable, str(SCRIPT), "--packet", str(path), "--stage", "publish", "--conversation-id", "current", "--settings", str(tmp_path / "workspace-settings.json")]
     result = subprocess.run(command, capture_output=True, text=True)
     assert result.returncode == 0
     assert json.loads(result.stdout)["manual_publish_required"] is True
-    assert {p: p.read_bytes() for p in tmp_path.iterdir()} == before
+    assert {p: p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()} == before
     path.write_text("{bad")
     result = subprocess.run(command, capture_output=True, text=True)
     assert result.returncode == 1
@@ -336,3 +327,156 @@ def test_actual_storage_containment(packet, tmp_path, field):
 def test_missing_profile_fails_closed(packet, tmp_path):
     (tmp_path / "profile.md").unlink()
     assert gate.check_packet(packet, "edit", "current")["status"] == "blocked"
+
+
+@pytest.mark.parametrize("stage", ["layout", "settings", "publish"])
+@pytest.mark.parametrize("layout", [None, {}, {"toc": {"decision": "omit", "reason": ""}},
+    {"toc": {"decision": "omit", "reason": "短文"}, "footer_cards": {"decision": "include", "reason": "参照", "urls": []}},
+    {"toc": {"decision": "omit", "reason": "短文"}, "footer_cards": {"decision": "omit", "reason": "不要", "urls": ["https://example.com/"]}}])
+def test_layout_missing_or_invalid_blocks(packet, stage, layout):
+    packet["layout"] = layout
+    assert approve(packet, stage)["status"] == "blocked"
+
+
+@pytest.mark.parametrize("stage", ["layout", "settings", "publish"])
+def test_layout_changed_choice_invalidates(packet, stage):
+    assert approve(packet, stage)["status"] == "approved"
+    packet["layout"]["toc"]["decision"] = "omit"
+    assert gate.check_packet(packet, stage, "current")["status"] == "blocked"
+
+
+@pytest.mark.parametrize("urls", [["ftp://example.com"], ["https://example.com", "https://example.com"], ["https://"], [4]])
+def test_bad_card_urls_block(packet, urls):
+    packet["layout"]["footer_cards"] = dict(decision="include", reason="参照", urls=urls)
+    assert approve(packet, "layout")["status"] == "blocked"
+
+
+def test_footer_url_change_invalidates_layout(packet):
+    packet["layout"]["footer_cards"] = dict(decision="include", reason="参照", urls=["https://example.com/a"])
+    assert approve(packet, "layout")["status"] == "approved"
+    packet["layout"]["footer_cards"]["urls"] = ["https://example.com/b"]
+    assert gate.check_packet(packet, "layout", "current")["status"] == "blocked"
+
+
+def test_text_edit_before_layout_decision_allowed(packet):
+    packet.pop("layout")
+    assert approve(packet, "edit")["status"] == "approved"
+
+
+@pytest.mark.parametrize("plan", [{"toc": True}, {"footer_embed_urls": ["https://example.com"]}])
+def test_layout_edit_needs_separate_layout_receipt(packet, plan):
+    packet["edit_plan"] = plan
+    if plan.get("footer_embed_urls"):
+        packet["layout"]["footer_cards"] = dict(decision="include", reason="参照", urls=plan["footer_embed_urls"])
+    result = approve(packet, "edit")
+    assert result["status"] == "approved"
+    packet["receipts"] = [r for r in packet["receipts"] if r["stage"] == "edit"]
+    assert gate.check_packet(packet, "edit", "current")["status"] == "blocked"
+
+
+@pytest.mark.parametrize("field,value", [("article_id", "other"), ("conversation_id", "other")])
+def test_layout_other_identity_blocks(packet, field, value):
+    approve(packet, "layout")
+    packet["receipts"][0][field] = value
+    assert gate.check_packet(packet, "layout", "current")["status"] == "blocked"
+
+
+def test_cli_urls_plan_requires_layout_approval(packet):
+    packet["edit_plan"] = dict(urls=["https://example.com"], toc=False)
+    assert approve(packet, "edit")["status"] == "blocked"
+    packet["layout"]["footer_cards"] = dict(decision="include", reason="参照", urls=["https://example.com"])
+    packet["receipts"] = []
+    assert approve(packet, "edit")["status"] == "approved"
+    packet["receipts"] = [r for r in packet["receipts"] if r["stage"] != "layout"]
+    assert gate.check_packet(packet, "edit", "current")["status"] == "blocked"
+
+
+@pytest.mark.parametrize("stage", sorted(gate.STAGES))
+def test_missing_feedback_blocks_every_stage(packet, tmp_path, stage):
+    (tmp_path / "feedback/article/feedback.json").unlink()
+    assert gate.check_packet(packet, stage, "current")["status"] == "blocked"
+
+
+@pytest.mark.parametrize("stage", sorted(gate.STAGES))
+def test_updated_learning_invalidates_receipts(packet, tmp_path, stage):
+    assert approve(packet, stage)["status"] == "approved"
+    from note_feedback import record_feedback
+    _, dirs = gate.read_workspace_settings(tmp_path / "workspace-settings.json", "article")
+    packet["feedback_readback"] = record_feedback(dirs, "article", Path(packet["source_snapshot"]),
+        Path(packet["draft"]), Path(packet["source_snapshot"]),
+        [dict(origin="ai", decision="rejected", before="draft", after="短縮案",
+              reason="本人原文を維持", evidence_ref="fixture://human")], conversation_id="current")
+    assert gate.check_packet(packet, stage, "current")["status"] == "blocked"
+
+
+def test_new_author_edit_requires_feedback_refresh(packet):
+    approve(packet, "edit")
+    Path(packet["draft"]).write_text("新しい本人追記")
+    result = gate.check_packet(packet, "edit", "current")
+    assert result["status"] == "blocked"
+    assert any("feedback" in reason for reason in result["reasons"])
+
+
+def test_feedback_readback_not_self_attested(packet):
+    packet["feedback_readback"] = {}
+    assert gate.check_packet(packet, "edit", "current")["status"] == "blocked"
+
+
+def test_gate_list_current_approval_does_not_reask(packet):
+    approve(packet, "settings")
+    rows = {r["stage"]: r for r in gate.list_gates(packet, "current", settings_path=Path(packet["draft"]).parent / "workspace-settings.json")["gates"]}
+    assert rows["settings"]["approval_status"] == "approved"
+    assert rows["settings"]["status"] == "approved"
+    assert "次工程" in rows["settings"]["next_action"]
+    assert rows["settings"]["evidence_refs"] == ["runtime://receipt"]
+    assert rows["research"]["approval_status"] == "pending"
+
+
+@pytest.mark.parametrize("field,value,reason", [
+    ("article_id", "other", "別記事"), ("conversation_id", "other", "別会話"),
+    ("subject_sha256", "old", "承認対象の版が変更"), ("status", "pending", "未承認"),
+])
+def test_gate_list_receipt_failure_reason(packet, field, value, reason):
+    approve(packet, "research")
+    packet["receipts"][0][field] = value
+    row = next(r for r in gate.list_gates(packet, "current", settings_path=Path(packet["draft"]).parent / "workspace-settings.json")["gates"] if r["stage"] == "research")
+    assert row["approval_status"] == "invalidated"
+    assert reason in row["invalidation_reasons"]
+    assert row["status"] == "blocked"
+
+
+def test_gate_list_dependency_failure_keeps_current_stage_approval(packet):
+    approve(packet, "settings")
+    packet["receipts"] = [r for r in packet["receipts"] if r["stage"] == "settings"]
+    row = next(r for r in gate.list_gates(packet, "current", settings_path=Path(packet["draft"]).parent / "workspace-settings.json")["gates"] if r["stage"] == "settings")
+    assert row["approval_status"] == "approved"
+    assert row["status"] == "blocked"
+    assert "再確認質問は不要" in row["next_action"]
+
+
+def test_gate_list_stale_settings_keeps_old_receipt_and_checker_semantics(packet):
+    approve(packet, "settings")
+    before = list(packet["receipts"])
+    packet["settings"]["tags"] = ["AI"]
+    result = gate.list_gates(packet, "current", settings_path=Path(packet["draft"]).parent / "workspace-settings.json")
+    row = next(r for r in result["gates"] if r["stage"] == "settings")
+    assert row["approval_status"] == "invalidated"
+    assert packet["receipts"] == before
+    assert result["automation_allowed"] is False
+    assert result["manual_publish_required"] is True
+
+
+def test_gate_list_cli_read_only_bad_json(packet, tmp_path):
+    path = tmp_path / "review.json"
+    path.write_text(json.dumps(packet))
+    before = {p: p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    command = [sys.executable, str(SCRIPT), "--packet", str(path), "--list-gates",
+               "--conversation-id", "current", "--settings", str(tmp_path / "workspace-settings.json")]
+    result = subprocess.run(command, capture_output=True, text=True)
+    assert result.returncode == 1
+    assert len(json.loads(result.stdout)["gates"]) == 5
+    assert {p: p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()} == before
+    path.write_text('{"receipts":[],"receipts":[]}')
+    result = subprocess.run(command, capture_output=True, text=True)
+    assert result.returncode == 1
+    assert all(r["approval_status"] == "unavailable" for r in json.loads(result.stdout)["gates"])

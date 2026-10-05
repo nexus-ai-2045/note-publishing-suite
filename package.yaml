@@ -1,5 +1,5 @@
 name: note-publishing-suite
-version: 0.2.39
+version: 0.2.40
 scope: repo-local
 repo_root: .
 entrypoint: SKILL.md
@@ -175,6 +175,7 @@ footer_selection_contract:
   observation_scope: supplied_snapshot_only
   manual_boundary_is_pass: false
 existing_scripts:
+  - scripts/note_feedback.py
   - scripts/note_workflow_gate.py
   - scripts/note_footer_selection.py
   - scripts/note_authorship_gate.py
@@ -308,9 +309,16 @@ workflow_review_contract:
   external_reference_readback_required: true
   schema_version: note-workflow-review/v1
   routes: [direct_draft, source_article, collaborative]
-  stages: [edit, research, settings, publish]
+  stages: [edit, research, layout, settings, publish]
   source_snapshot_required: true
   approval_writer: trusted_runtime
   receipt_authenticity_verified_by_checker: false
   final_publish_automation_allowed: false
   per_message_hook_required: false
+
+post_publish_observation_contract:
+  schema_version: note-public-observation/v1
+  local_input_no_network_fallback: true
+  default_mode: dry-run
+  ledger_write_flag: write-ledger
+  personal_state_in_package: false

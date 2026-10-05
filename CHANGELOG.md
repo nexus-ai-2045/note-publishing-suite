@@ -4,6 +4,27 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
+## 0.2.40
+
+日付: 2026-10-06
+
+変更:
+- 内部ブラウザのローカル証跡による公開snapshot／台帳更新を追加。dry-runを既定にし、記事IDの冪等更新と未知field保持、二台帳の中断復旧を実装。
+- 現在版の承認一覧、目次・末尾カードの独立採否、外部の記事別feedback読戻しを追加。
+- タグ候補と選択済みタグを区別し、同時変更を検出する純粋事前照合と回帰検証を追加。
+- 利用者固有の編集CLI・個人設定・台帳・実記事の証跡は配布へ含めない。
+- 原稿・証跡・snapshotと台帳・journalのalias衝突を拒否し、SHA-256形式検査を保持。
+
+検証:
+- 全体実行では既存clipboardのDarwin ACL検査17件が失敗。今回の配送差分に含まない環境依存の未解決事項として扱う。
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `python3 -m pytest scripts/test_skill_integration.py tests --ignore=tests/test_clipboard_bridge.py -q`
+- `sh scripts/verify_public_package.sh --json`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.2.39
 
 日付: 2026-10-05

@@ -16,7 +16,7 @@ publication_gate: human_review_required
 **NPS（Note Publishing Suite）** です。Codex / Claude Code から使えます。
 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。
 
-パッケージ版: `0.2.39`
+パッケージ版: `0.2.40`
 
 読書用プレビューは `note_virtual_preview.py`、編集診断は同コマンドの `--diagnostics`、由来レビューは `note_preview.py --review-provenance` を使います。原稿の本人確認・保留は検査で維持します。
 
@@ -306,3 +306,11 @@ GitHubではこのREADMEをそのまま読めます。ローカル整形版は
 音声書き起こしやnote本文から始める編集、既存素材の記事化、壁打ちを重ねる共同執筆の3経路を扱います。原文を先にローカル保存し、編集稿と区別します。本人発話、AI整理・追加案、外部事実、採否を既存の由来検査に結び付けます。
 
 誤字も修正前後を確認し、公開前調査・公開設定・最終公開も毎回本人に確認します。[版ごとの承認契約](references/note-workflow-review-contract.md)と `scripts/note_workflow_gate.py` で対象の版と承認記録を照合します。古い承認では進めません。checkerだけで人間発言の真正性や任意のBrowser経路を保証せず、runtimeが接続と証拠照合を担います。毎発言のフックは導入せず、最終投稿ボタンは人間が操作します。
+
+## 公開後の読戻しと承認一覧
+
+内部ブラウザで取得した公開現物JSONを `--local-observation` で供給できる。指定時はネットワーク取得へ戻らない。公開／下書き台帳は `--published-ledger`／`--draft-ledger` でworkspace正本を指定し、既定dry-runの確認後、`--write-ledger` で更新する。原稿・公開snapshot・採否履歴はpackage外に保管する。
+
+承認の確認は `note_workflow_gate.py --list-gates` で現在版・根拠・失効理由・依存する未承認項目を表示する。本文校正、目次／末尾カード、公開設定、最終公開の承認を区別し、本人が変更したタグを上書きしない。公開済みの観測と全ゲート通過は別の事実として残す。
+
+詳しくは [人間レビュー契約](references/note-workflow-review-contract.md) と [公開後手順](skills/note-postpublish-ledger/SKILL.md) を参照する。

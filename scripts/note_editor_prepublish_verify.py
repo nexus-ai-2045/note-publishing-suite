@@ -35,6 +35,55 @@ def as_list(value: Any) -> list[Any]:
     return value if isinstance(value, list) else []
 
 
+
+def text_value(value: Any) -> str:
+    if isinstance(value, str):
+        return value.strip()
+    if value is None:
+        return ""
+    return str(value).strip()
+
+def tag_operation_preflight(readback: Any, article_id: str, account: str) -> dict[str, Any]:
+    """trusted runtimeの操作直前DOM読戻しを照合する。候補を採用扱いせず、操作は行わない。"""
+    reasons = []
+    value = as_dict(readback)
+    baseline, current = as_dict(value.get("baseline")), as_dict(value.get("current"))
+    if not article_id or not account:
+        reasons.append("tag_identity_missing")
+    for label, observed in (("baseline", baseline), ("current", current)):
+        if observed.get("article_id") != article_id or observed.get("account") != account:
+            reasons.append(f"tag_identity_mismatch:{label}")
+        if observed.get("selection_scope_verified") is not True:
+            reasons.append(f"tag_selected_region_unverified:{label}")
+        for key in ("selected_tags", "suggested_tags"):
+            tags = observed.get(key)
+            if not isinstance(tags, list) or any(not isinstance(t, str) or not t.strip().lstrip("#") for t in tags):
+                reasons.append(f"tag_list_invalid:{label}:{key}")
+            elif key == "selected_tags" and len(set(map(normalize_tag, tags))) != len(tags):
+                reasons.append(f"tag_selected_duplicate:{label}")
+    planned = value.get("planned_additions")
+    if not isinstance(planned, list) or any(not isinstance(t, str) or not t.strip().lstrip("#") for t in planned):
+        reasons.append("tag_plan_invalid")
+        planned = []
+    elif len(set(map(normalize_tag, planned))) != len(planned):
+        reasons.append("tag_plan_duplicate")
+    if not reasons:
+        baseline_tags = set(map(normalize_tag, baseline["selected_tags"]))
+        selected = set(map(normalize_tag, current["selected_tags"]))
+        if baseline_tags != selected:
+            reasons.append("tag_selected_changed_since_baseline")
+    selected = set(map(normalize_tag, current.get("selected_tags", []))) if not reasons else set()
+    return dict(status="blocked" if reasons else "approved", reasons=reasons,
+                additions=[] if reasons else [t for t in planned if normalize_tag(t) not in selected],
+                skipped=[] if reasons else [t for t in planned if normalize_tag(t) in selected],
+                automation_allowed=False)
+
+def validate_tag_preflight(data: dict[str, Any]) -> list[dict[str, str]]:
+    if "tag_preflight" not in data:
+        return []
+    result = tag_operation_preflight(data["tag_preflight"], text_value(data.get("note_id")), text_value(data.get("account")))
+    return [issue("error", reason, "タグ操作直前の読戻し不一致。現在値と提案の差を提示し、変更を上書きしない") for reason in result["reasons"]]
+
 def manual_boundary_for(data: dict[str, Any], keys: tuple[str, ...]) -> str | None:
     boundaries = as_dict(data.get("manual_boundaries"))
     for key in keys:
@@ -188,6 +237,7 @@ def build_result(
         issues.extend(validate_toc(data))
         issues.extend(validate_magazine(data))
         issues.extend(validate_tags(data))
+        issues.extend(validate_tag_preflight(data))
         issues.extend(validate_article_type(data))
         issues.extend(validate_final_buttons(data))
         manual_boundaries.extend(top_boundaries)

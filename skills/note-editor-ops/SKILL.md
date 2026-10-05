@@ -223,3 +223,7 @@ Browser / CDP / DOM の timeout、切断、対象タブ消失は `../../scripts/
 ## OSクリップボードの利用前確認
 
 `consented_os_clipboard` は `scripts/clipboard_bridge.py` の利用者・端末・期限・操作範囲ゲートを通る場合だけ利用する。手順は `references/note-image-upload-automation-boundary.md` を参照（package root基準）。所有者の承認を別利用者へ継承せず、AIが確認文を自動入力したり同意記録を偽造したりしない。公開・送信・editor操作は別承認。画像等のclipboardをテキストrestoreで完全復旧できると扱わない。
+
+## タグ操作直前の照合
+
+候補欄と選択済み欄を別々に取得し、対象記事・名義・選択領域の確認を保持する。操作直前の読戻しを計画時と比較し、人間の同時変更があれば上書きせず現在値と提案の差を提示する。`note_editor_prepublish_verify.tag_operation_preflight` は追加対象と既存タグskipを返す純粋関数で、書込み権限を発行しない。現在版の承認は再質問せず、変更した対象だけを確認カードへ提示する。
