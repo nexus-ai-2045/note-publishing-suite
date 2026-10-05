@@ -1,5 +1,5 @@
 name: note-publishing-suite
-version: 0.2.38
+version: 0.2.39
 scope: repo-local
 repo_root: .
 entrypoint: SKILL.md
@@ -9,6 +9,7 @@ changelog: CHANGELOG.md
 issue_draft: issue-drafts.md
 issue_packet: issue-packet.json
 references:
+  note_workflow_review_contract: references/note-workflow-review-contract.md
   note_draft_authority_and_layout_contract: references/note-draft-authority-and-layout-contract.md
   note_editor_capability_inventory: references/note-editor-capability-inventory.md
   note_editor_pdca_orchestration: references/note-editor-pdca-orchestration.md
@@ -174,6 +175,7 @@ footer_selection_contract:
   observation_scope: supplied_snapshot_only
   manual_boundary_is_pass: false
 existing_scripts:
+  - scripts/note_workflow_gate.py
   - scripts/note_footer_selection.py
   - scripts/note_authorship_gate.py
   - scripts/note_interview_packet.py
@@ -298,3 +300,17 @@ roadmap_contract:
   status: draft-for-human-review
   public_actions_allowed: false
   repository_visibility_change_requires_repo_specific_approval: true
+
+
+workflow_review_contract:
+  settings_schema_version: nps-workspace-settings/v1
+  independent_settings_path_required: true
+  external_reference_readback_required: true
+  schema_version: note-workflow-review/v1
+  routes: [direct_draft, source_article, collaborative]
+  stages: [edit, research, settings, publish]
+  source_snapshot_required: true
+  approval_writer: trusted_runtime
+  receipt_authenticity_verified_by_checker: false
+  final_publish_automation_allowed: false
+  per_message_hook_required: false

@@ -330,3 +330,9 @@ python scripts\engagement_tracker.py report
 契約は `references/note-draft-authority-and-layout-contract.md`、実入口は
 `scripts/note_editor_prepublish_verify.py`。未レビュー・空計画・DOM照合の不一致は停止する。
 観測JSONの一致は供給snapshotの整合性に限り、公開承認や実DOM取得を証明しない。
+
+## 3経路と版ごとの承認
+
+記事制作は `direct_draft`（本人原稿の編集）、`source_article`（素材の記事化）、`collaborative`（共同執筆）を区別する。正本は [記事制作と人間レビューの契約](references/note-workflow-review-contract.md)。変更前原文のローカルsnapshotを必須にし、編集稿と分ける。
+
+誤字を含む修正、公開前調査、公開設定、最終公開は、対象の版ごとに人間確認する。各段階の直前に `scripts/note_workflow_gate.py --settings USER_SETTINGS_PATH --packet <review.json> --stage <edit|research|settings|publish> --conversation-id <current>` を通す。欠落・変更・別記事・別会話は停止する。汎用Browser直操作も例外にしない。checkerは承認を生成せず、真正性の照合はruntimeの責務。最終投稿は人間操作とする。

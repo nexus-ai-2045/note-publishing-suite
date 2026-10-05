@@ -239,11 +239,15 @@ def evaluate(
     evidence: Path | None,
     *,
     source: Path | None = None,
-    shortening_budget: float = 0.0,
+    shortening_budget: float | None = None,
     major_phrases: list[str] | None = None,
     source_resolution: str | None = None,
     shortening_stop_causes: list[str] | None = None,
 ) -> dict[str, object]:
+    if shortening_stop_causes is None:
+        source, shortening_budget, source_resolution, shortening_stop_causes = (
+            resolve_shortening_config(draft, cli_source=source, cli_budget=shortening_budget)
+        )
     candidates = scan(draft.read_text(encoding="utf-8"))
     verified = load_verified(evidence, draft)
     unresolved = [item for item in candidates if item["excerpt_id"] not in verified]
@@ -260,7 +264,7 @@ def evaluate(
         shortening = compare_shortening(
             source.read_text(encoding="utf-8"),
             draft.read_text(encoding="utf-8"),
-            shortening_budget=shortening_budget,
+            shortening_budget=shortening_budget if shortening_budget is not None else 0.0,
             major_phrases=major_phrases or [],
         )
         shortening["source"] = str(source)
