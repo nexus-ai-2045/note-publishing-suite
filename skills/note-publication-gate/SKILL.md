@@ -74,3 +74,7 @@ description: "Use inside note-publishing-suite immediately before any Note publi
 ## 版に結び付く最終確認
 
 `../../references/note-workflow-review-contract.md` が3経路と承認失効の正本。最終手前では `note_workflow_gate.py --settings USER_SETTINGS_PATH --packet USER_REVIEW_PACKET --conversation-id CURRENT_CONVERSATION --stage publish` を実行し、現稿・原文・調査・公開設定と、現在会話の本人承認receiptが一致することを確認する。毎回の調査確認・設定確認は省略しない。既存の公開前QAも必須。通過しても `manual_publish_required: true` / `automation_allowed: false` とし、公開・更新・予約確定の最終ボタンは人間へ渡す。
+
+## 現在版の承認を区別する
+
+`note_workflow_gate.py --list-gates` で対象・版・根拠・失効理由・次の操作を確認する。目次と末尾カードの採否は `layout` に独立記録し、本文校正の承認で代用しない。外部feedbackと文体参照を毎回読戻す。現在版で承認済みの対象を再質問せず、変更・失効した対象のみ具体案の確認カードにする。最終ボタンの人間境界を維持する。

@@ -67,3 +67,16 @@ python scripts\engagement_tracker.py report
 - 表示日時。
 - 更新した、または更新予定の ledger path。
 - 実行しなかった X/SNS action。
+
+## ローカル観測の公開後処理
+
+`--local-observation` のJSONは `schema: note-public-observation/v1`、canonical公開 `url`、`note_id`、`title`、公開本文plain textの `body`、timezone付き `captured_at`、`captured_by: codex-internal-browser` を持つ。任意の `body_sha256` を実本文と照合し、タグは選択済み領域の観測ができた場合のみ `tags` に入れる。証跡指定時はネットワークへ戻らず、不正JSON・対象不一致・原稿不在で停止する。
+
+```sh
+python scripts/post_publish.py --url NOTE_URL --draft DRAFT_PATH --published-ledger WORKSPACE_PUBLISHED_LEDGER --draft-ledger WORKSPACE_DRAFT_LEDGER --local-observation OBSERVATION_JSON
+python scripts/sync_note_public_snapshot.py --url NOTE_URL --source-draft DRAFT_PATH --output PUBLIC_SNAPSHOT_PATH --ledger WORKSPACE_PUBLISHED_LEDGER --local-observation OBSERVATION_JSON
+```
+
+両CLIは既定dry-run。案を確認した後に `--write-ledger` を付ける。snapshotと原稿・aliasが同じファイルなら停止する。snapshot保存後、`post_publish.py` の `--archive-path WORKSPACE_RELATIVE_SNAPSHOT` で両台帳へ同値を結線する。公開済みの観測は、全ゲート通過や本文全体の一致を証明しない。
+
+queueや定期測定は利用者workspaceの接続が所有する。このpackageはそれらを起動しない。内部ブラウザの手動観測を登録する接続は `manual_observation`／`enabled:false` を保持し、ネットワーク定期取得を無断で開始しない。workspace固有の実接続は別の受入証拠で検証する。

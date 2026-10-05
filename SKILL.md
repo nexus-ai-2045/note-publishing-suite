@@ -336,3 +336,11 @@ python scripts\engagement_tracker.py report
 記事制作は `direct_draft`（本人原稿の編集）、`source_article`（素材の記事化）、`collaborative`（共同執筆）を区別する。正本は [記事制作と人間レビューの契約](references/note-workflow-review-contract.md)。変更前原文のローカルsnapshotを必須にし、編集稿と分ける。
 
 誤字を含む修正、公開前調査、公開設定、最終公開は、対象の版ごとに人間確認する。各段階の直前に `scripts/note_workflow_gate.py --settings USER_SETTINGS_PATH --packet <review.json> --stage <edit|research|settings|publish> --conversation-id <current>` を通す。欠落・変更・別記事・別会話は停止する。汎用Browser直操作も例外にしない。checkerは承認を生成せず、真正性の照合はruntimeの責務。最終投稿は人間操作とする。
+
+## 公開後の読戻しと承認一覧
+
+内部ブラウザで取得した公開現物JSONを `--local-observation` で供給できる。指定時はネットワーク取得へ戻らない。公開／下書き台帳は `--published-ledger`／`--draft-ledger` でworkspace正本を指定し、既定dry-runの確認後、`--write-ledger` で更新する。原稿・公開snapshot・採否履歴はpackage外に保管する。
+
+承認の確認は `note_workflow_gate.py --list-gates` で現在版・根拠・失効理由・依存する未承認項目を表示する。本文校正、目次／末尾カード、公開設定、最終公開の承認を区別し、本人が変更したタグを上書きしない。公開済みの観測と全ゲート通過は別の事実として残す。
+
+詳しくは [人間レビュー契約](references/note-workflow-review-contract.md) と [公開後手順](skills/note-postpublish-ledger/SKILL.md) を参照する。

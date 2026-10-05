@@ -115,3 +115,7 @@ JSONの供給だけをlive DOM証拠に読み替えない。manual_boundaryは�
 ## 修正と公開設定の承認記録
 
 `../../references/note-workflow-review-contract.md` に従う。本文・見出し・caption・目次・リンクの変更も誤字も、変更前後と操作計画を先に本人へ示し、write直前に `note_workflow_gate.py --settings USER_SETTINGS_PATH --packet USER_REVIEW_PACKET --conversation-id CURRENT_CONVERSATION --stage edit` を通す。最新editorの原稿と対象ロックを再確認する。公開設定への移動と設定変更は区別し、設定の採用・変更と最終公開前には現稿と全設定を毎回提示して `--stage settings` を通す。checkerの成功はeditor観測QAに代わらない。
+
+## 現在版の承認を区別する
+
+`note_workflow_gate.py --list-gates` で対象・版・根拠・失効理由・次の操作を確認する。目次と末尾カードの採否は `layout` に独立記録し、本文校正の承認で代用しない。外部feedbackと文体参照を毎回読戻す。現在版で承認済みの対象を再質問せず、変更・失効した対象のみ具体案の確認カードにする。最終ボタンの人間境界を維持する。
