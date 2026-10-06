@@ -352,19 +352,21 @@ def ensure_ledger_row(ledger_path: Path, note_id: str) -> None:
     _require_single_row(json.loads(ledger_path.read_text(encoding="utf-8")), note_id, ledger_path)
 
 
-def fetch_published_note(url: str) -> dict[str, str]:
+def fetch_published_data(url: str) -> dict:
+    """公開APIの生 data を返す。更新後照合など呼び出し側が状態を判定する。"""
     request = urllib.request.Request(
         f"https://note.com/api/v3/notes/{extract_note_id(url)}",
         headers={"Accept": "application/json", "User-Agent": "note-public-snapshot/1"},
     )
     with urllib.request.urlopen(request, timeout=20) as response:
         payload = json.load(response)
-    data = payload["data"]
+    return payload["data"]
+
+
+def extract_published_text(data: dict) -> str:
+    """公開API data から本文テキストを取り出す。"""
     if data.get("status") != "published":
         raise ValueError("note記事がpublishedではありません")
-    title = str(data.get("name") or "").strip()
-    if not title:
-        raise ValueError("note記事の公開タイトルが空です")
     body = str(data.get("body") or "")
     text = re.sub(r"<br\s*/?>", "\n", body, flags=re.IGNORECASE)
     text = re.sub(r"</(?:p|h[1-6]|li|blockquote)>", "\n", text, flags=re.IGNORECASE)
@@ -372,7 +374,16 @@ def fetch_published_note(url: str) -> dict[str, str]:
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"[ \t]+\n", "\n", text)
     text = re.sub(r"\n[ \t]+", "\n", text)
-    return {"title": title, "body": re.sub(r"\n{3,}", "\n\n", text).strip()}
+    return re.sub(r"\n{3,}", "\n\n", text).strip()
+
+
+def fetch_published_note(url: str) -> dict[str, str]:
+    data = fetch_published_data(url)
+    title = str(data.get("name") or "").strip()
+    body = extract_published_text(data)
+    if not title:
+        raise ValueError("note記事の公開タイトルが空です")
+    return {"title": title, "body": body}
 
 
 def fetch_published_text(url: str) -> str:

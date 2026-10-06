@@ -278,6 +278,7 @@ python scripts\note_diff_check.py <note_url> <draft.md> <phrase...> --snapshot-o
 python scripts\post_publish.py --url <note_url> --draft <draft.md> --dry-run
 python scripts\note_diff_check.py <note_url> <draft.md> <phrase...>
 python scripts\engagement_tracker.py report
+python scripts\verify_published_update.py --url <note_url> --expected-title <title> --expected-eyecatch-url <image_url> --contains <new_phrase>
 ```
 
 - `scripts/post_publish.py` は X 投稿や schedule option を持つため、`--x-text`、`--x-schedule` はこの suite から使わない。
@@ -285,6 +286,7 @@ python scripts\engagement_tracker.py report
 - `data/note_drafts.json` は draft/stale/superseded/published_from_note_editor_record の状態を保ち、公開済み一次台帳に混ぜない。
 - package 外の workspace 固有台帳を使う場合は `scripts/post_publish.py --ledger-dir <dir>` を使う。script の複製は作らない。
 - editor で公開版が変わった場合は、公開本文 snapshot、SHA-256、`local_draft_differs_from_published` を ledger に残す。
+- 公開済み記事を更新し元draftがない場合は、`references/post-publish-context-proof.md` の更新ルートで公開APIの現在値を照合し、仮draftやdraft台帳遷移を作らない。
 - Note 表示日時はユーザーの手動確認値を優先して記録する。
 
 ## Issue Drafts
