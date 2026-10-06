@@ -476,3 +476,107 @@ def test_darwin_real_allow_acl_rejected(tmp_path, directory):
             cb._validate_storage_fd(fd, directory=directory)
     finally:
         os.close(fd)
+
+
+@pytest.mark.parametrize(
+    'failure',
+    [None, 'enoent_only', 'unsupported', 'zero_errno', 'init', 'stat_enoent',
+     'stat_unsupported', 'stat_io', 'query', 'present', 'unknown', 'symbol', 'arch',
+     'fs_unsupported', 'fs_unknown', 'fs_error'],
+)
+def test_darwin_null_requires_verified_absent_acl(monkeypatch, failure):
+    monkeypatch.setattr(cb.platform, 'system', lambda: 'Darwin')
+    monkeypatch.setattr(cb.platform, 'machine', lambda: 'other' if failure == 'arch' else 'arm64')
+    library = mock.MagicMock()
+
+    def get_acl(fd, kind):
+        cb.ctypes.set_errno(cb.errno.ENOTSUP if failure == 'unsupported' else
+                            0 if failure == 'zero_errno' else cb.errno.ENOENT)
+        return None
+
+    def capability(fd, name):
+        assert (fd, name) == (17, 13)
+        if failure == 'fs_error':
+            raise OSError(cb.errno.ENOTSUP, 'unsupported')
+        return 0 if failure == 'fs_unsupported' else -1 if failure == 'fs_unknown' else 1
+
+    monkeypatch.setattr(cb.os, 'fpathconf', capability, raising=False)
+    library.acl_get_fd_np.side_effect = get_acl
+    library.filesec_init.return_value = None if failure == 'init' else 789
+
+    def fstatx(fd, info, fsec):
+        errors = {'stat_enoent': cb.errno.ENOENT, 'stat_unsupported': cb.errno.ENOTSUP,
+                  'stat_io': cb.errno.EIO, 'enoent_only': cb.errno.ENOENT}
+        if failure in errors:
+            cb.ctypes.set_errno(errors[failure])
+            return -1
+        return 0
+
+    def query(fsec, prop, output):
+        output._obj.value = 1 if failure == 'present' else -1 if failure == 'unknown' else 0
+        return -1 if failure == 'query' else 0
+
+    library.fstatx_np.side_effect = fstatx
+    library.filesec_query_property.side_effect = query
+    if failure == 'symbol':
+        del library.fstatx_np
+    monkeypatch.setattr(cb.ctypes, 'CDLL', lambda *a, **k: library)
+    if failure is None:
+        cb._validate_darwin_acl(17)
+        library.fstatx_np.assert_called_once()
+        assert library.fstatx_np.call_args.args[0] == 17
+        assert library.filesec_query_property.call_args.args[:2] == (789, 5)
+    else:
+        with pytest.raises(cb.ClipboardBridgeError):
+            cb._validate_darwin_acl(17)
+    if failure not in {'unsupported', 'zero_errno', 'init', 'symbol', 'arch',
+                       'fs_unsupported', 'fs_unknown', 'fs_error'}:
+        library.filesec_free.assert_called_once_with(789)
+    library.acl_free.assert_not_called()
+
+
+def test_darwin_x86_64_uses_inode64_symbol(monkeypatch):
+    monkeypatch.setattr(cb.platform, 'machine', lambda: 'x86_64')
+    monkeypatch.setattr(cb.os, 'fpathconf', lambda fd, name: 1, raising=False)
+    library = mock.MagicMock()
+    library.filesec_init.return_value = 789
+    getattr(library, 'fstatx_np$INODE64').return_value = 0
+
+    def query(fsec, prop, output):
+        output._obj.value = 0
+        return 0
+
+    library.filesec_query_property.side_effect = query
+    assert cb._darwin_acl_absent(library, 17)
+    getattr(library, 'fstatx_np$INODE64').assert_called_once()
+    library.fstatx_np.assert_not_called()
+    library.filesec_free.assert_called_once_with(789)
+
+
+@pytest.mark.skipif(sys.platform != 'darwin', reason='Darwin ACL API required')
+@pytest.mark.parametrize('kind', ['absent', 'deny'])
+@pytest.mark.parametrize('directory', [False, True])
+def test_darwin_real_safe_acl(tmp_path, kind, directory):
+    path = tmp_path.resolve() / 'owned-acl-smoke'
+    if directory:
+        path.mkdir(mode=0o700)
+    else:
+        path.write_text('unchanged')
+        path.chmod(0o600)
+    if kind == 'deny':
+        subprocess.run(['/bin/chmod', '+a', 'everyone deny write', str(path)], check=True)
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    try:
+        cb._validate_storage_fd(fd, directory=directory)
+    finally:
+        os.close(fd)
+
+
+@pytest.mark.skipif(sys.platform != 'darwin', reason='Darwin ACL API required')
+def test_darwin_real_closed_fd_rejected(tmp_path):
+    path = tmp_path / 'closed-fd'
+    path.write_text('unchanged')
+    fd = os.open(path, os.O_RDONLY)
+    os.close(fd)
+    with pytest.raises(cb.ClipboardBridgeError):
+        cb._validate_darwin_acl(fd)
