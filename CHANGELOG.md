@@ -4,6 +4,22 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
+## 0.2.43
+
+日付: 2026-10-06
+
+変更:
+- 公開済み記事の扉絵・本文更新を、元下書きなしで公開APIの現在値から照合する読み取り専用ルートを追加。画像変換クエリを除いた素材IDを比較し、仮のdraft来歴は生成しない。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `python scripts/check_version_bump.py`（基準: `origin/main`）
+- `python scripts/docs_sync_check.py --base-ref origin/main`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.2.41
 
 日付: 2026-10-06

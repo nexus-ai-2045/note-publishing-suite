@@ -16,7 +16,7 @@ publication_gate: human_review_required
 **NPS（Note Publishing Suite）** です。Codex / Claude Code から使えます。
 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。
 
-パッケージ版: `0.2.41`
+パッケージ版: `0.2.43`
 
 読書用プレビューは `note_virtual_preview.py`、編集診断は同コマンドの `--diagnostics`、由来レビューは `note_preview.py --review-provenance` を使います。原稿の本人確認・保留は検査で維持します。
 
@@ -133,6 +133,8 @@ note-publishing-suite で進めて。
 | エディタ反映 | [`note-editor-prepublish`](skills/note-editor-prepublish/SKILL.md) | 下書き保存まで |
 | 公開停止線 | [`note-publication-gate`](skills/note-publication-gate/SKILL.md) | 公開ボタン手前で停止 |
 | 公開後台帳 | [`note-postpublish-ledger`](skills/note-postpublish-ledger/SKILL.md) | URL 確認後のみ |
+
+公開済み記事を扉絵・本文だけ更新した場合は、元下書きを仮作成せず、[`verify_published_update.py`](scripts/verify_published_update.py)で公開APIの現在値を照合します。手順は[`post-publish-context-proof.md`](references/post-publish-context-proof.md)を参照してください。
 
 下書き前には問答packetで本人の言葉、判断、避けたい断言、残したい脱線を確認し、
 `voice_profile`と`shortening_budget`を固定します。詳しくは
