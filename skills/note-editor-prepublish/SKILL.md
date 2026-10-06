@@ -103,3 +103,19 @@ Note editor への反映、目次、リンク、画像、埋め込み、タグ�
 ## OSクリップボードの利用前確認
 
 `consented_os_clipboard` は `scripts/clipboard_bridge.py` の利用者・端末・期限・操作範囲ゲートを通る場合だけ利用する。手順は `references/note-image-upload-automation-boundary.md` を参照（package root基準）。所有者の承認を別利用者へ継承せず、AIが確認文を自動入力したり同意記録を偽造したりしない。公開・送信・editor操作は別承認。画像等のclipboardをテキストrestoreで完全復旧できると扱わない。
+
+## 編集後の観測を無効化する条件
+
+`production_candidate` は既存の `note_editor_prepublish_verify.py` を必ず実行し、
+`ready_for_publish` と残る手動境界を記録する。観測JSONの `edit_session` は以下を含める。
+
+- `image_edits`: 変更した画像ごとの `block_id`、`neighbors_verified`、`text_unchanged`、`introduced_empty_paragraphs`。変更なしは空配列。挿入前後を比較し、新設した空段落だけを数える。既存の意図的な改行を削除しない。
+- `settings_visit_id`: 公開設定画面を開くたびに更新する識別子。キャンセル、本文へ戻る、再読込、再入力があれば古い観測を破棄し再取得する。
+- `publish_settings`: 同じ `visit_id`、時差付き `observed_at`、画面から読んだ `tags` と `magazine`、`contest_entries`。本文の保存・再読を先に終え、設定の観測時刻が `save_readback.observed_at` 以降であることを検査する。
+- `contest_entries`: お題参加対象ごとの `tag`、`popup_resolved`、`participation_confirmed`。対象なしは空配列。タグ入力を参加完了の証拠にしない。ポップアップの人間操作が必要なら未確認として停止する。
+
+ツールのタイムアウト後は同じ対象を読み戻してから再試行する。ユーザーの手動変更を自動的に失敗扱いしない。見出しの採否・画像の動作や表情は人間レビューで決め、変更前後の本文と構造を照合する。checkerは提供された観測の整合性を検査し、画面を自動取得したり公開操作を行ったりしない。
+
+## 修正と公開設定の承認記録
+
+`../../references/note-workflow-review-contract.md` に従う。本文・見出し・caption・目次・リンクの変更も誤字も、変更前後と操作計画を先に本人へ示し、write直前に `note_workflow_gate.py --settings USER_SETTINGS_PATH --stage edit` を通す。最新editorの原稿と対象ロックを再確認する。公開設定への移動と設定変更は区別し、設定の採用・変更と最終公開前には現稿と全設定を毎回提示して `--stage settings` を通す。checkerの成功はeditor観測QAに代わらない。

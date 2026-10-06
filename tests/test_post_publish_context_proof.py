@@ -107,3 +107,81 @@ def test_verified_publication_requires_verification_time(tmp_path: Path) -> None
     )
     assert result.returncode == 2
     assert "--verified-at is required" in result.stderr
+
+
+def run_ledger_cli(tmp_path: Path, *options: str):
+    return subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "post_publish.py"),
+         "--url", "https://note.com/example/n/n123?app_launch=false",
+         "--draft", str(tmp_path / "article.md"),
+         "--ledger-dir", str(tmp_path), *options],
+        text=True, capture_output=True, check=False,
+    )
+
+
+def test_unknown_publication_time_and_default_dry_run(tmp_path: Path) -> None:
+    result = run_ledger_cli(tmp_path)
+    assert result.returncode == 0, result.stderr
+    output = json.loads(result.stdout)
+    assert output["mode"] == "dry-run"
+    assert output["published_entry"]["published_at"] is None
+    assert output["published_entry"]["note_id"] == "n123"
+    assert output["published_entry"]["url"] == "https://note.com/example/n/n123"
+    assert output["published_entry"]["plain_status"] == "published_or_scheduled_unverified"
+    assert not (tmp_path / "published_notes.json").exists()
+
+
+def test_rejects_invalid_url_and_mismatched_id(tmp_path: Path) -> None:
+    for options in [
+        ("--url", "https://note.com.attacker.test/example/n/n123"),
+        ("--url", "https://user@note.com/example/n/n123"),
+        ("--url", "https://note.com/example/n/n123/extra"),
+        ("--url", "http://note.com/example/n/n123"),
+        ("--note-id", "n456"),
+    ]:
+        result = run_ledger_cli(tmp_path, *options, "--write-ledger")
+        assert result.returncode == 2
+        assert not (tmp_path / "published_notes.json").exists()
+
+
+def test_distinct_article_same_basename_is_preserved(tmp_path: Path) -> None:
+    rows = [
+        {"draft": str(tmp_path / "article.md"), "note_id": "n456", "status": "draft"},
+        {"draft": str(tmp_path / "elsewhere" / "article.md"), "status": "draft"},
+    ]
+    target = tmp_path / "note_drafts.json"
+    target.write_text(json.dumps(rows), encoding="utf-8")
+    for _ in range(2):
+        result = run_ledger_cli(tmp_path, "--write-ledger")
+        assert result.returncode == 0, result.stderr
+    written = json.loads(target.read_text())
+    assert written[:2] == rows
+    assert len(written) == 3
+    assert written[2]["note_id"] == "n123"
+    assert len(json.loads((tmp_path / "published_notes.json").read_text())) == 1
+
+
+def test_invalid_either_ledger_preserves_both_files(tmp_path: Path) -> None:
+    for broken_name in ["published_notes.json", "note_drafts.json"]:
+        for broken_content in ["{}", "[null]", "not-json"]:
+            published = tmp_path / "published_notes.json"
+            drafts = tmp_path / "note_drafts.json"
+            published.write_text("[]")
+            drafts.write_text("[]")
+            (tmp_path / broken_name).write_text(broken_content)
+            before = {p: p.read_bytes() for p in [published, drafts]}
+            result = run_ledger_cli(tmp_path, "--write-ledger")
+            assert result.returncode != 0
+            assert {p: p.read_bytes() for p in before} == before
+
+
+def test_reregister_preserves_archive_link(tmp_path):
+    ledger = tmp_path / "data"
+    ledger.mkdir()
+    (ledger / "published_notes.json").write_text(json.dumps([{"note_id": "n123", "url": "https://note.com/example/n/n123", "archive_path": "content/published/article.md"}]))
+    command = [sys.executable, str(ROOT / "scripts/post_publish.py"), "--url", "https://note.com/example/n/n123", "--draft", str(tmp_path / "article.md"), "--ledger-dir", str(ledger), "--write-ledger"]
+    result = subprocess.run(command, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    rows = json.loads((ledger / "published_notes.json").read_text())
+    assert len(rows) == 1
+    assert rows[0]["archive_path"] == "content/published/article.md"

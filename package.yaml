@@ -9,6 +9,7 @@ changelog: CHANGELOG.md
 issue_draft: issue-drafts.md
 issue_packet: issue-packet.json
 references:
+  note_workflow_review_contract: references/note-workflow-review-contract.md
   note_draft_authority_and_layout_contract: references/note-draft-authority-and-layout-contract.md
   note_editor_capability_inventory: references/note-editor-capability-inventory.md
   note_editor_pdca_orchestration: references/note-editor-pdca-orchestration.md
@@ -166,6 +167,8 @@ public_policy_examples:
   - data/provenance_leak_policy.example.json
   - data/github_identity_guard_policy.example.json
 existing_scripts:
+  - scripts/draft_topic_coverage_check.py
+  - scripts/note_workflow_gate.py
   - scripts/note_authorship_gate.py
   - scripts/note_interview_packet.py
   - scripts/note_linebreak_gate.py
@@ -195,6 +198,7 @@ existing_scripts:
   - scripts/japanese_closeout_language_check.py
   - scripts/note_image_upload_boundary_check.py
   - scripts/note_editor_prepublish_verify.py
+  - scripts/note_editor_session_check.py
   - scripts/review_draft.py
   - scripts/run_local_draft_qa_proof.py
   - scripts/bump_package_version.py
@@ -287,3 +291,13 @@ roadmap_contract:
   status: draft-for-human-review
   public_actions_allowed: false
   repository_visibility_change_requires_repo_specific_approval: true
+
+workflow_review_contract:
+  schema_version: note-workflow-review/v1
+  routes: [direct_draft, source_article, collaborative]
+  stages: [edit, research, settings, publish]
+  source_snapshot_required: true
+  approval_writer: trusted_runtime
+  receipt_authenticity_verified_by_checker: false
+  final_publish_automation_allowed: false
+  per_message_hook_required: false

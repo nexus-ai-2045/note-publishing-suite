@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import importlib.util
 import subprocess
 import sys
 from pathlib import Path
@@ -8,6 +9,66 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/note_authorship_gate.py"
+
+
+def evaluate_api(draft: Path, **kwargs) -> dict:
+    spec = importlib.util.spec_from_file_location("note_authorship_gate_api", SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.evaluate(draft, None, **kwargs)
+
+
+def test_api_explicit_zero_budget_conflicting_with_frontmatter_blocks(tmp_path: Path):
+    source = tmp_path / "source.md"
+    source.write_text("残すべき説明です。\n", encoding="utf-8")
+    draft = tmp_path / "draft.md"
+    draft.write_text(
+        "---\narticle_lane: production_candidate\nshortening_source: source.md\n"
+        "shortening_budget: 0.5\n---\n\n残すべき説明です。\n",
+        encoding="utf-8",
+    )
+    payload = evaluate_api(draft, shortening_budget=0.0)
+    assert payload["overall"] == "blocked"
+    assert payload["shortening"]["checked"] is False
+    assert payload["shortening"]["stop_causes"] == ["ambiguous_shortening_budget"]
+
+
+def test_api_production_missing_shortening_config_blocks(tmp_path: Path):
+    draft = tmp_path / "draft.md"
+    draft.write_text(
+        "---\narticle_lane: production_candidate\n---\n\n一般的な説明です。\n",
+        encoding="utf-8",
+    )
+    payload = evaluate_api(draft)
+    assert payload["overall"] == "blocked"
+    assert set(payload["shortening"]["stop_causes"]) == {
+        "production_shortening_source_required",
+        "production_shortening_budget_required",
+    }
+
+
+def test_api_production_frontmatter_missing_paragraph_blocks(tmp_path: Path):
+    source = tmp_path / "source.md"
+    source.write_text("最初の説明です。\n\n残すべき具体例です。\n", encoding="utf-8")
+    draft = tmp_path / "draft.md"
+    draft.write_text(
+        "---\narticle_lane: production_candidate\nshortening_source: source.md\n"
+        "shortening_budget: 0.0\n---\n\n最初の説明です。\n",
+        encoding="utf-8",
+    )
+    payload = evaluate_api(draft)
+    assert payload["overall"] == "blocked"
+    assert payload["shortening"]["checked"] is True
+    assert payload["shortening"]["source_resolution"] == "frontmatter"
+    assert payload["shortening"]["missing_paragraph_count"] == 1
+
+
+def test_api_nonproduction_without_source_remains_compatible(tmp_path: Path):
+    draft = tmp_path / "draft.md"
+    draft.write_text("一般的な説明です。\n", encoding="utf-8")
+    payload = evaluate_api(draft)
+    assert payload["overall"] == "ok"
+    assert payload["shortening"]["checked"] is False
 
 
 def run_gate(source: Path, draft: Path, *args: str) -> tuple[int, dict]:

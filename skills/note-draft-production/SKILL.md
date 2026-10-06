@@ -29,6 +29,7 @@ description: "Use inside note-publishing-suite when the user asks to create or r
 1.1. `../../references/note-draft-authority-and-layout-contract.md` を読み、材料不足時は問答 intake を先に行う。許可済み資料から `voice_profile` を作る場合も、本人の発言にない感想や体験を作文しない。
 2. Plan 表を作る。読者、読後に得るもの、嬉しい解決、入口、公開後 PDCA 指標を 1 行ずつ決める。
 3. plot / skeleton を作る。連載や記事の展開、導入、読者の痛み、主張、根拠、具体例、反論処理、締め、Call To Action（CTA）を含める。
+3.1. 複数の壁打ちを使う場合は `../../references/draft-topic-coverage.md` に従い、対話ごとに論点を JSON 台帳へ抽出する。各論点の採否と行き先を記録し、本文に採用した ID を HTML コメントで結び、`draft_topic_coverage_check.py` で照合する。部分取得の対話を全件取得済みと扱わない。
 4. 本文では事実、推定、意見を分ける。根拠が必要な主張は確認対象として残す。
 5. 長い転載、歌詞全文、未承認引用、個人情報、秘密情報、内部メモを本文に入れない。
 6. TOP 画像案を 7 件出す。各案に `concept`、`prompt`、`style`、`avoid`、`fit_reason` を付ける。
@@ -120,3 +121,7 @@ description: "Use inside note-publishing-suite when the user asks to create or r
 - 各段の変更は `<draft.md>` に追記した後、`provenance_label_check.py`
   で `user-said` / `external-fact` / `assistant-organized` / `hold` の
   境界を確認し、`note_preview.py` でプレビューを再生成してから本人へ返す。
+
+## 経路選択と編集承認
+
+`../../references/note-workflow-review-contract.md` を読む。本人原稿、素材記事化、共同執筆の経路を選び、変更前snapshotをworkspaceへ保存して編集稿と分ける。note本文が出発点なら写真・caption・見出し・リンクの構造も保全する。AIの追加案と本人発話を対応表で分ける。草稿候補を作ることと現稿へ採用・反映することを区別し、誤字も変更前後を本人に提示する。承認の照合には `note_workflow_gate.py --settings USER_SETTINGS_PATH --stage edit` を用いる。

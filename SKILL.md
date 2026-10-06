@@ -319,3 +319,13 @@ python scripts\engagement_tracker.py report
   公開package検証と必要な developer check が通る。
 - プロジェクト境界と現在地は `PROJECT_SSOT.md` が単独で保持し、
   内部設計文書や private workspace の path を公開 package へ含めない。
+
+## 編集セッションと公開後の確認
+
+実記事候補では子スキル `skills/note-editor-prepublish/SKILL.md` の `edit_session` を採取し、既存 `scripts/note_editor_prepublish_verify.py` で欠落・古い設定・画像前後の不整合を検査する。公開後は `skills/note-postpublish-ledger/SKILL.md` に従いworkspace台帳を明示し、検査結果回収まで行う。手順の記載だけを実行証拠にしない。
+
+## 3経路と版ごとの承認
+
+記事制作は `direct_draft`（本人原稿の編集）、`source_article`（素材の記事化）、`collaborative`（共同執筆）を区別する。正本は [記事制作と人間レビューの契約](references/note-workflow-review-contract.md)。変更前原文のローカルsnapshotを必須にし、編集稿と分ける。
+
+誤字を含む修正、公開前調査、公開設定、最終公開は、対象の版ごとに人間確認する。各段階の直前に `scripts/note_workflow_gate.py --settings USER_SETTINGS_PATH --packet <review.json> --stage <edit|research|settings|publish> --conversation-id <current>` を通す。欠落・変更・別記事・別会話は停止する。汎用Browser直操作も例外にしない。checkerは承認を生成せず、真正性の照合はruntimeの責務。最終投稿は人間操作とする。

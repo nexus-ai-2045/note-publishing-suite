@@ -8,6 +8,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from note_editor_session_check import validate_edit_session
+
 
 FOOTER_KEYS = ("footer_embeds", "footer_embed_urls", "footer")
 TOP_IMAGE_KEYS = ("top_image", "image_upload")
@@ -203,6 +205,7 @@ def build_result(data: dict[str, Any]) -> dict[str, Any]:
 
     top_issues, top_boundaries = validate_top_image(data)
     footer_issues, footer_boundaries = validate_footer(data)
+    issues.extend(validate_edit_session(data))
     issues.extend(top_issues)
     issues.extend(validate_toc(data))
     issues.extend(footer_issues)

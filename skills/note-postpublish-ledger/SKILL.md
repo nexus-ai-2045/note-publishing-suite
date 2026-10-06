@@ -67,3 +67,11 @@ python scripts\engagement_tracker.py report
 - 表示日時。
 - 更新した、または更新予定の ledger path。
 - 実行しなかった X/SNS action。
+
+## 保存先と完了判定
+
+台帳更新は package の `scripts/post_publish.py` に `--ledger-dir <workspace>/data` を必ず渡す。既定はdry-run。実記録には `--write-ledger` を用い、URLから導出されたnote_idと保存先を読み戻す。公開確認済みは `--verification-status published_verified --verified-at <観測時刻>` を渡す。`--published-at` を取得できないときは未確認（null）のまま保持する。
+
+順序は、公開状態の読取り→workspaceの台帳登録→`sync_note_public_snapshot.py --ledger <workspace>/data/published_notes.json`→公開後チェック→結果回収。各段階で成功・失敗・未確認を分ける。`register_post_publish_check.py` がpackageにない場合はworkspace固有入口を使う。Chromeを使わない運用では、その入口の `--public-api-only` を指定し、取得不能時に別browserへ切り替えない。
+
+`status: ok` だけで完了にしない。`closeout_ready` がfalse、`diff.matches` がfalse、台帳未結線、観測欠落なら残務を明記する。人間編集後の公開版と古い草稿の差を自動的に消したり、両者が一致したと記録したりしない。確認結果の時刻・registered.id・保存先まで回収する。

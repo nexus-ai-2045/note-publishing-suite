@@ -296,6 +296,11 @@ python -m pytest scripts/test_skill_integration.py tests</code></pre>
 <p>失敗や手動境界は、原因・復旧方法・次回の禁止事項を残します。再発防止できる ものは検査器、契約テスト、スキルへ反映し、UI依存は無理に自動化しません。</p>
 <p>GitHubではこのREADMEをそのまま読めます。ローカル整形版は <code>python scripts/render_readme.py</code> で <code>README.rendered.html</code> に生成できます。</p>
 </details>
+<h2>編集後の再確認と台帳</h2>
+<p>実記事候補の公開前検査は <code>edit_session</code> で画像前後の本文保持、新設空段落、現在の公開設定画面、お題参加の確認を必須とする。観測欠落は公開可能にしない。詳細は <code>skills/note-editor-prepublish/SKILL.md</code>。公開後の台帳更新は <code>scripts/post_publish.py --ledger-dir &lt;workspace&gt;/data</code> で保存先を指定する。URLから記事IDを照合し、日時が未取得ならnullを保持する。これは観測JSONとローカル記録の検証であり、実画面取得・公開操作・全環境への配布を保証しない。</p>
+<h2>記事制作の入口と毎回の確認</h2>
+<p>音声書き起こしやnote本文から始める編集、既存素材の記事化、壁打ちを重ねる共同執筆の3経路を扱います。原文を先にローカル保存し、編集稿と区別します。本人発話、AI整理・追加案、外部事実、採否を既存の由来検査に結び付けます。</p>
+<p>誤字も修正前後を確認し、公開前調査・公開設定・最終公開も毎回本人に確認します。<a href="references/note-workflow-review-contract.md">版ごとの承認契約</a>と <code>scripts/note_workflow_gate.py</code> で対象の版と承認記録を照合します。古い承認では進めません。checkerだけで人間発言の真正性や任意のBrowser経路を保証せず、runtimeが接続と証拠照合を担います。毎発言のフックは導入せず、最終投稿ボタンは人間が操作します。</p>
     </article>
   </main>
 </body>

@@ -1,0 +1,491 @@
+{
+  "generated_at": "2026-09-16T11:38:37.653797+00:00",
+  "proof": "one_local_draft_through_qa_and_stop_before_publish",
+  "draft": "content/drafts/2026-09-16-galaxy-day1-observation-note.md",
+  "preview_html": "content/drafts/2026-09-16-galaxy-day1-observation-note.proof.preview.html",
+  "note_url": "Unknown",
+  "phrases": [],
+  "overall": "stopped_before_publish",
+  "qa_lane": "return_to_draft",
+  "pre_publish_overall": "ok",
+  "pre_publish_issues": [],
+  "fact_check_finding_count": 41,
+  "fact_check_findings": [
+    {
+      "line": 2,
+      "code": "number_or_percent",
+      "text": "title: Galaxy Day1で見えたGrok Botの核——永続クラウドPC・承認・Marketplaceまで（要約）"
+    },
+    {
+      "line": 7,
+      "code": "source_provenance_marker",
+      "text": "source_mode: source_pack_locked"
+    },
+    {
+      "line": 9,
+      "code": "number_or_percent",
+      "text": "source_pack: Galaxy/Day1 materials bundle (00-overview, 01-summary-ja, 02-note-brief-ja, 99-adoption-diff, x-article-draft)"
+    },
+    {
+      "line": 9,
+      "code": "source_provenance_marker",
+      "text": "source_pack: Galaxy/Day1 materials bundle (00-overview, 01-summary-ja, 02-note-brief-ja, 99-adoption-diff, x-article-draft)"
+    },
+    {
+      "line": 10,
+      "code": "number_or_percent",
+      "text": "factcheck_ssot: Documents/Galaxy/Day1/factcheck-merged.md"
+    },
+    {
+      "line": 11,
+      "code": "number_or_percent",
+      "text": "skeleton: 2026-09-16-galaxy-day1-production-pack.md"
+    },
+    {
+      "line": 12,
+      "code": "number_or_percent",
+      "text": "stance_brief: 02-note-brief-ja.md (observation memo; facts limited to source pack + merged factcheck)"
+    },
+    {
+      "line": 12,
+      "code": "source_provenance_marker",
+      "text": "stance_brief: 02-note-brief-ja.md (observation memo; facts limited to source pack + merged factcheck)"
+    },
+    {
+      "line": 14,
+      "code": "number_or_percent",
+      "text": "- Day1 ASR要約に基づく観測メモとしての Note 下書き"
+    },
+    {
+      "line": 15,
+      "code": "source_provenance_marker",
+      "text": "- 読者向け要約（詳細は素材正本へ）"
+    },
+    {
+      "line": 20,
+      "code": "uncertain_claim",
+      "text": "- Cody/Eric/Jenny の姓の推測補完"
+    },
+    {
+      "line": 24,
+      "code": "number_or_percent",
+      "text": "shortening_source: 2026-09-16-galaxy-day1-production-pack.md"
+    },
+    {
+      "line": 24,
+      "code": "source_provenance_marker",
+      "text": "shortening_source: 2026-09-16-galaxy-day1-production-pack.md"
+    },
+    {
+      "line": 25,
+      "code": "number_or_percent",
+      "text": "shortening_budget: 0.35"
+    },
+    {
+      "line": 34,
+      "code": "number_or_percent",
+      "text": "- source: Documents/Galaxy/Day1/factcheck-merged.md"
+    },
+    {
+      "line": 34,
+      "code": "source_provenance_marker",
+      "text": "- source: Documents/Galaxy/Day1/factcheck-merged.md"
+    },
+    {
+      "line": 38,
+      "code": "number_or_percent",
+      "text": "- amrita_official_day2_sales_eng_asr_day1_demo_annotated"
+    },
+    {
+      "line": 48,
+      "code": "number_or_percent",
+      "text": "# Galaxy Day1で見えたGrok Botの核——永続クラウドPC・承認・Marketplaceまで（要約）"
+    },
+    {
+      "line": 52,
+      "code": "number_or_percent",
+      "text": "本稿は、Grok Bot Galaxy Day1 の英語ASR起こしを日本語要約した素材束に基づく**観測メモ**です。ライブにいなかった読者向けに、枠組みと繰り返された言葉だけを先に置きます。聞こえていない固有名・数字・契約・料金は足しません。製品カタログではなく、「Day1で実際に見せた型」の地図です。"
+    },
+    {
+      "line": 52,
+      "code": "source_provenance_marker",
+      "text": "本稿は、Grok Bot Galaxy Day1 の英語ASR起こしを日本語要約した素材束に基づく**観測メモ**です。ライブにいなかった読者向けに、枠組みと繰り返された言葉だけを先に置きます。聞こえていない固有名・数字・契約・料金は足しません。製品カタログではなく、「Day1で実際に見せた型」の地図です。"
+    },
+    {
+      "line": 54,
+      "code": "source_provenance_marker",
+      "text": "素材の核は overview・summary・note向けブリーフ・採用差分メモ・X記事下書き案です。必須の事実チェック統合正本は `factcheck-merged.md`（Grok＋ChatGPT採用／Geminiは参考）で、その最小訂正を本文に反映しています。詳細の章起こしは別ファイルにあり、ここでは全文転載しません。"
+    },
+    {
+      "line": 56,
+      "code": "number_or_percent",
+      "text": "## Day1の枠"
+    },
+    {
+      "line": 58,
+      "code": "number_or_percent",
+      "text": "Grok Bot Galaxy Day1（2026-09-15）は、サンフランシスコの **The Howard（661 Howard St）** から「3日で会社を作る」過程をライブ共有した配信でした。会場は Dreamforce（同期間・Moscone／747 Howard St）と同じ Howard Street 周辺、という意味で「Dreamforc"
+    },
+    {
+      "line": 62,
+      "code": "number_or_percent",
+      "text": "途中で公式の職種別枠が挟まります（Day1 公式スケジュール上の**登壇者／セッション担当**）。"
+    },
+    {
+      "line": 64,
+      "code": "number_or_percent",
+      "text": "1. Grok Bot 101（公式掲載は **Roman Ugarte** のみ）"
+    },
+    {
+      "line": 65,
+      "code": "number_or_percent",
+      "text": "2. Engineering（Lingxi Li）"
+    },
+    {
+      "line": 66,
+      "code": "number_or_percent",
+      "text": "3. PM（Kevin Niparko）"
+    },
+    {
+      "line": 67,
+      "code": "number_or_percent",
+      "text": "4. Founders（Shub Gaur）"
+    },
+    {
+      "line": 69,
+      "code": "number_or_percent",
+      "text": "**注記（Amrita）:** 起こし要約では Day1 の 101 枠内**配信デモ**として **Amrita Venkatraman** が登場します。一方、公式スケジュール上の Amrita 掲載は **Day2「Grok Bot for Sales Engineering」** です。本稿では「配信内デモ」と「公式ラベル（Day2）」を分けて書きま"
+    },
+    {
+      "line": 73,
+      "code": "number_or_percent",
+      "text": "## Grok Botの核（Day1で繰り返された言葉）"
+    },
+    {
+      "line": 75,
+      "code": "number_or_percent",
+      "text": "101と以降の枠で、次の言葉が繰り返し出てきます。"
+    },
+    {
+      "line": 95,
+      "code": "number_or_percent",
+      "text": "Engineering（Lingxi Li）では、エージェント艦隊、Cloud Agent、24/7の専用クラウドPC、メモリ／ルーチン、Marketplace、**chief of staff＋専門ボット**、オンボード、P0監視、playbook、証跡付きPRなどが並びました。個別エンジニアと常時話すのではなく、司令塔がルーティングする型も出ます。"
+    },
+    {
+      "line": 97,
+      "code": "number_or_percent",
+      "text": "PM（Kevin Niparko）は、データ → PRD → デザイン → エンジニア／Cloud Agent という EPD風ハンドオフを見せました。「1行handoff」という用語自体は起こしでは弱い一方、ハンドオフ連鎖の実演は強い、というのが採用差分の整理です。"
+    },
+    {
+      "line": 103,
+      "code": "personal_experience_claim",
+      "text": "スタジオ側は X などで市場調査し、方向としてサンフランシスコでの**ポップアップ体験**（公開側でも一夜の pop-up として後から見える）に寄せつつあります。起こし要約にはレストラン案や「ソフト／OS」寄りの言い方も出ますが、公開一次ではレストラン確定がなく、OS企画としても固定できないため、本稿では**ポップアップを主、レストラン／OSは起こし上の揺"
+    },
+    {
+      "line": 107,
+      "code": "uncertain_claim",
+      "text": "Lauren Tan 周辺では、起こし要約上 **Hashbrown**（PRレビュー）や **Tater** にも触れられます（**正本・起こしのみ。公開製品名としては弱い／他プロダクトと推測で結びつけない**）。**P-Stack／pstack** は起こしに加え、Lauren 本人公開（pstack／poteto-mode 等）を一次として扱います（イ"
+    },
+    {
+      "line": 109,
+      "code": "number_or_percent",
+      "text": "Day1末の自己評価では、**アイデアはまだ揺れ**ている一方、公開ブランド **Grok Pot / “ship by thursday.”**、GitHub org slug **`shipbythursday`**（スペース入り org 名は起こしゆれとして扱わない）、ボット工場など**セットアップは進んだ段階**、と振り返ります。ミス前提で過程を見せ"
+    },
+    {
+      "line": 113,
+      "code": "number_or_percent",
+      "text": "- スタジオの事業アイデア着地は Day1時点では揺れ中（完成した会社、とは言わない）"
+    },
+    {
+      "line": 114,
+      "code": "uncertain_claim",
+      "text": "- Cody / Eric / Jenny など、起こしでは姓や一部所属が特定できないものは、**姓を推測で足さず**特定できないままにする（公開の同名関係者と同一視しない）"
+    },
+    {
+      "line": 122,
+      "code": "number_or_percent",
+      "text": "## 読者が持ち帰る1行"
+    },
+    {
+      "line": 124,
+      "code": "number_or_percent",
+      "text": "Grok Bot Galaxy Day1で繰り返し示された核は、チャット相手ではなく**Bot専用の永続クラウドコンピュータ**を持つ同僚AIであり、メモリとスキルを持ち、危険な操作は人の承認を待つ点にあります。スタジオ側は市場調査からポップアップ体験づくりへ動いていましたが、Day1時点ではアイデアは揺れ、基盤セットアップが進んだ段階、と要約できます。"
+    },
+    {
+      "line": 124,
+      "code": "personal_experience_claim",
+      "text": "Grok Bot Galaxy Day1で繰り返し示された核は、チャット相手ではなく**Bot専用の永続クラウドコンピュータ**を持つ同僚AIであり、メモリとスキルを持ち、危険な操作は人の承認を待つ点にあります。スタジオ側は市場調査からポップアップ体験づくりへ動いていましたが、Day1時点ではアイデアは揺れ、基盤セットアップが進んだ段階、と要約できます。"
+    }
+  ],
+  "diff_check": {
+    "overall": "skipped",
+    "reason": "note_url_unknown",
+    "checks": []
+  },
+  "diff_fetch_method": "not_performed",
+  "publication_gate": {
+    "state": "stopped_before_publish",
+    "stop_causes": [
+      "fact_check_candidates_remain",
+      "note_url_unknown_diff_not_performed",
+      "human_review_required"
+    ],
+    "human_review_required": true,
+    "explicit_current_conversation_approval": false
+  },
+  "external_actions_performed": [],
+  "publication_actions_performed": [],
+  "commands": [
+    {
+      "label": "note_preview",
+      "command": "python scripts/note_preview.py content/drafts/2026-09-16-galaxy-day1-observation-note.md -o content/drafts/2026-09-16-galaxy-day1-observation-note.proof.preview.html",
+      "exit_code": 0,
+      "stdout": "preview_html=content/drafts/2026-09-16-galaxy-day1-observation-note.proof.preview.html",
+      "stderr": "",
+      "parsed_json": null
+    },
+    {
+      "label": "pre_publish_check",
+      "command": "python scripts/pre_publish_check.py content/drafts/2026-09-16-galaxy-day1-observation-note.md --json",
+      "exit_code": 0,
+      "stdout": "{\n  \"draft\": \"content/drafts/2026-09-16-galaxy-day1-observation-note.md\",\n  \"overall\": \"ok\",\n  \"issues\": []\n}",
+      "stderr": "",
+      "parsed_json": {
+        "draft": "content/drafts/2026-09-16-galaxy-day1-observation-note.md",
+        "overall": "ok",
+        "issues": []
+      }
+    },
+    {
+      "label": "note_fact_check",
+      "command": "python scripts/note_fact_check.py local content/drafts/2026-09-16-galaxy-day1-observation-note.md --json",
+      "exit_code": 0,
+      "stdout": "{\n  \"draft\": \"content/drafts/2026-09-16-galaxy-day1-observation-note.md\",\n  \"mode\": \"local\",\n  \"finding_count\": 41,\n  \"findings\": [\n    {\n      \"line\": 2,\n      \"code\": \"number_or_percent\",\n      \"text\": \"title: Galaxy Day1で見えたGrok Botの核——永続クラウドPC・承認・Marketplaceまで（要約）\"\n    },\n    {\n      \"line\": 7,\n      \"code\": \"source_provenance_marker\",\n      \"text\": \"source_mode: source_pack_locked\"\n    },\n    {\n      \"line\": 9,\n      \"code\": \"number_or_percent\",\n      \"text\": \"source_pack: Galaxy/Day1 materials bundle (00-overview, 01-summary-ja, 02-note-brief-ja, 99-adoption-diff, x-article-draft)\"\n    },\n    {\n      \"line\": 9,\n      \"code\": \"source_provenance_marker\",\n      \"text\": \"source_pack: Galaxy/Day1 materials bundle (00-overview, 01-summary-ja, 02-note-brief-ja, 99-adoption-diff, x-article-draft)\"\n    },\n    {\n      \"line\": 10,\n      \"code\": \"number_or_percent\",\n      \"text\": \"factcheck_ssot: Documents/Galaxy/Day1/factcheck-merged.md\"\n    },\n    {\n      \"line\": 11,\n      \"code\": \"number_or_percent\",\n      \"text\": \"skeleton: 2026-09-16-galaxy-day1-production-pack.md\"\n    },\n    {\n      \"line\": 12,\n      \"code\": \"number_or_percent\",\n      \"text\": \"stance_brief: 02-note-brief-ja.md (observation memo; facts limited to source pack + merged factcheck)\"\n    },\n    {\n      \"line\": 12,\n      \"code\": \"source_provenance_marker\",\n      \"text\": \"stance_brief: 02-note-brief-ja.md (observation memo; facts limited to source pack + merged factcheck)\"\n    },\n    {\n      \"line\": 14,\n      \"code\": \"number_or_percent\",\n      \"text\": \"- Day1 ASR要約に基づく観測メモとしての Note 下書き\"\n    },\n    {\n      \"line\": 15,\n      \"code\": \"source_provenance_marker\",\n      \"text\": \"- 読者向け要約（詳細は素材正本へ）\"\n    },\n    {\n      \"line\": 20,\n      \"code\": \"uncertain_claim\",\n      \"text\": \"- Cody/Eric/Jenny の姓の推測補完\"\n    },\n    {\n      \"line\": 24,\n      \"code\": \"number_or_percent\",\n      \"text\": \"shortening_source: 2026-09-16-galaxy-day1-production-pack.md\"\n    },\n    {\n      \"line\": 24,\n      \"code\": \"source_provenance_marker\",\n      \"text\": \"shortening_source: 2026-09-16-galaxy-day1-production-pack.md\"\n    },\n    {\n      \"line\": 25,\n      \"code\": \"number_or_percent\",\n      \"text\": \"shortening_budget: 0.35\"\n    },\n    {\n      \"line\": 34,\n      \"code\": \"number_or_percent\",\n      \"text\": \"- source: Documents/Galaxy/Day1/factcheck-merged.md\"\n    },\n    {\n      \"line\": 34,\n      \"code\": \"source_provenance_marker\",\n      \"text\": \"- source: Documents/Galaxy/Day1/factcheck-merged.md\"\n    },\n    {\n      \"line\": 38,\n      \"code\": \"number_or_percent\",\n      \"text\": \"- amrita_official_day2_sales_eng_asr_day1_demo_annotated\"\n    },\n    {\n      \"line\": 48,\n      \"code\": \"number_or_percent\",\n      \"text\": \"# Galaxy Day1で見えたGrok Botの核——永続クラウドPC・承認・Marketplaceまで（要約）\"\n    },\n    {\n      \"line\": 52,\n      \"code\": \"number_or_percent\",\n      \"text\": \"本稿は、Grok Bot Galaxy Day1 の英語ASR起こしを日本語要約した素材束に基づく**観測メモ**です。ライブにいなかった読者向けに、枠組みと繰り返された言葉だけを先に置きます。聞こえていない固有名・数字・契約・料金は足しません。製品カタログではなく、「Day1で実際に見せた型」の地図です。\"\n    },\n    {\n      \"line\": 52,\n      \"code\": \"source_provenance_marker\",\n      \"text\": \"本稿は、Grok Bot Galaxy Day1 の英語ASR起こしを日本語要約した素材束に基づく**観測メモ**です。ライブにいなかった読者向けに、枠組みと繰り返された言葉だけを先に置きます。聞こえていない固有名・数字・契約・料金は足しません。製品カタログではなく、「Day1で実際に見せた型」の地図です。\"\n    },\n    {\n      \"line\": 54,\n      \"code\": \"source_provenance_marker\",\n      \"text\": \"素材の核は overview・summary・note向けブリーフ・採用差分メモ・X記事下書き案です。必須の事実チェック統合正本は `factcheck-merged.md`（Grok＋ChatGPT採用／Geminiは参考）で、その最小訂正を本文に反映しています。詳細の章起こしは別ファイルにあり、ここでは全文転載しません。\"\n    },\n    {\n      \"line\": 56,\n      \"code\": \"number_or_percent\",\n      \"text\": \"## Day1の枠\"\n    },\n    {\n      \"line\": 58,\n      \"code\": \"number_or_percent\",\n      \"text\": \"Grok Bot Galaxy Day1（2026-09-15）は、サンフランシスコの **The Howard（661 Howard St）** から「3日で会社を作る」過程をライブ共有した配信でした。会場は Dreamforce（同期間・Moscone／747 Howard St）と同じ Howard Street 周辺、という意味で「Dreamforc\"\n    },\n    {\n      \"line\": 62,\n      \"code\": \"number_or_percent\",\n      \"text\": \"途中で公式の職種別枠が挟まります（Day1 公式スケジュール上の**登壇者／セッション担当**）。\"\n    },\n    {\n      \"line\": 64,\n      \"code\": \"number_or_percent\",\n      \"text\": \"1. Grok Bot 101（公式掲載は **Roman Ugarte** のみ）\"\n    },\n    {\n      \"line\": 65,\n      \"code\": \"number_or_percent\",\n      \"text\": \"2. Engineering（Lingxi Li）\"\n    },\n    {\n      \"line\": 66,\n      \"code\": \"number_or_percent\",\n      \"text\": \"3. PM（Kevin Niparko）\"\n    },\n    {\n      \"line\": 67,\n      \"code\": \"number_or_percent\",\n      \"text\": \"4. Founders（Shub Gaur）\"\n    },\n    {\n      \"line\": 69,\n      \"code\": \"number_or_percent\",\n      \"text\": \"**注記（Amrita）:** 起こし要約では Day1 の 101 枠内**配信デモ**として **Amrita Venkatraman** が登場します。一方、公式スケジュール上の Amrita 掲載は **Day2「Grok Bot for Sales Engineering」** です。本稿では「配信内デモ」と「公式ラベル（Day2）」を分けて書きま\"\n    },\n    {\n      \"line\": 73,\n      \"code\": \"number_or_percent\",\n      \"text\": \"## Grok Botの核（Day1で繰り返された言葉）\"\n    },\n    {\n      \"line\": 75,\n      \"code\": \"number_or_percent\",\n      \"text\": \"101と以降の枠で、次の言葉が繰り返し出てきます。\"\n    },\n    {\n      \"line\": 95,\n      \"code\": \"number_or_percent\",\n      \"text\": \"Engineering（Lingxi Li）では、エージェント艦隊、Cloud Agent、24/7の専用クラウドPC、メモリ／ルーチン、Marketplace、**chief of staff＋専門ボット**、オンボード、P0監視、playbook、証跡付きPRなどが並びました。個別エンジニアと常時話すのではなく、司令塔がルーティングする型も出ます。\"\n    },\n    {\n      \"line\": 97,\n      \"code\": \"number_or_percent\",\n      \"text\": \"PM（Kevin Niparko）は、データ → PRD → デザイン → エンジニア／Cloud Agent という EPD風ハンドオフを見せました。「1行handoff」という用語自体は起こしでは弱い一方、ハンドオフ連鎖の実演は強い、というのが採用差分の整理です。\"\n    },\n    {\n      \"line\": 103,\n      \"code\": \"personal_experience_claim\",\n      \"text\": \"スタジオ側は X などで市場調査し、方向としてサンフランシスコでの**ポップアップ体験**（公開側でも一夜の pop-up として後から見える）に寄せつつあります。起こし要約にはレストラン案や「ソフト／OS」寄りの言い方も出ますが、公開一次ではレストラン確定がなく、OS企画としても固定できないため、本稿では**ポップアップを主、レストラン／OSは起こし上の揺\"\n    },\n    {\n      \"line\": 107,\n      \"code\": \"uncertain_claim\",\n      \"text\": \"Lauren Tan 周辺では、起こし要約上 **Hashbrown**（PRレビュー）や **Tater** にも触れられます（**正本・起こしのみ。公開製品名としては弱い／他プロダクトと推測で結びつけない**）。**P-Stack／pstack** は起こしに加え、Lauren 本人公開（pstack／poteto-mode 等）を一次として扱います（イ\"\n    },\n    {\n      \"line\": 109,\n      \"code\": \"number_or_percent\",\n      \"text\": \"Day1末の自己評価では、**アイデアはまだ揺れ**ている一方、公開ブランド **Grok Pot / “ship by thursday.”**、GitHub org slug **`shipbythursday`**（スペース入り org 名は起こしゆれとして扱わない）、ボット工場など**セットアップは進んだ段階**、と振り返ります。ミス前提で過程を見せ\"\n    },\n    {\n      \"line\": 113,\n      \"code\": \"number_or_percent\",\n      \"text\": \"- スタジオの事業アイデア着地は Day1時点では揺れ中（完成した会社、とは言わない）\"\n    },\n    {\n      \"line\": 114,\n      \"code\": \"uncertain_claim\",\n      \"text\": \"- Cody / Eric / Jenny など、起こしでは姓や一部所属が特定できないものは、**姓を推測で足さず**特定できないままにする（公開の同名関係者と同一視しない）\"\n    },\n    {\n      \"line\": 122,\n      \"code\": \"number_or_percent\",\n      \"text\": \"## 読者が持ち帰る1行\"\n    },\n    {\n      \"line\": 124,\n      \"code\": \"number_or_percent\",\n      \"text\": \"Grok Bot Galaxy Day1で繰り返し示された核は、チャット相手ではなく**Bot専用の永続クラウドコンピュータ**を持つ同僚AIであり、メモリとスキルを持ち、危険な操作は人の承認を待つ点にあります。スタジオ側は市場調査からポップアップ体験づくりへ動いていましたが、Day1時点ではアイデアは揺れ、基盤セットアップが進んだ段階、と要約できます。\"\n    },\n    {\n      \"line\": 124,\n      \"code\": \"personal_experience_claim\",\n      \"text\": \"Grok Bot Galaxy Day1で繰り返し示された核は、チャット相手ではなく**Bot専用の永続クラウドコンピュータ**を持つ同僚AIであり、メモリとスキルを持ち、危険な操作は人の承認を待つ点にあります。スタジオ側は市場調査からポップアップ体験づくりへ動いていましたが、Day1時点ではアイデアは揺れ、基盤セットアップが進んだ段階、と要約できます。\"\n    }\n  ]\n}",
+      "stderr": "",
+      "parsed_json": {
+        "draft": "content/drafts/2026-09-16-galaxy-day1-observation-note.md",
+        "mode": "local",
+        "finding_count": 41,
+        "findings": [
+          {
+            "line": 2,
+            "code": "number_or_percent",
+            "text": "title: Galaxy Day1で見えたGrok Botの核——永続クラウドPC・承認・Marketplaceまで（要約）"
+          },
+          {
+            "line": 7,
+            "code": "source_provenance_marker",
+            "text": "source_mode: source_pack_locked"
+          },
+          {
+            "line": 9,
+            "code": "number_or_percent",
+            "text": "source_pack: Galaxy/Day1 materials bundle (00-overview, 01-summary-ja, 02-note-brief-ja, 99-adoption-diff, x-article-draft)"
+          },
+          {
+            "line": 9,
+            "code": "source_provenance_marker",
+            "text": "source_pack: Galaxy/Day1 materials bundle (00-overview, 01-summary-ja, 02-note-brief-ja, 99-adoption-diff, x-article-draft)"
+          },
+          {
+            "line": 10,
+            "code": "number_or_percent",
+            "text": "factcheck_ssot: Documents/Galaxy/Day1/factcheck-merged.md"
+          },
+          {
+            "line": 11,
+            "code": "number_or_percent",
+            "text": "skeleton: 2026-09-16-galaxy-day1-production-pack.md"
+          },
+          {
+            "line": 12,
+            "code": "number_or_percent",
+            "text": "stance_brief: 02-note-brief-ja.md (observation memo; facts limited to source pack + merged factcheck)"
+          },
+          {
+            "line": 12,
+            "code": "source_provenance_marker",
+            "text": "stance_brief: 02-note-brief-ja.md (observation memo; facts limited to source pack + merged factcheck)"
+          },
+          {
+            "line": 14,
+            "code": "number_or_percent",
+            "text": "- Day1 ASR要約に基づく観測メモとしての Note 下書き"
+          },
+          {
+            "line": 15,
+            "code": "source_provenance_marker",
+            "text": "- 読者向け要約（詳細は素材正本へ）"
+          },
+          {
+            "line": 20,
+            "code": "uncertain_claim",
+            "text": "- Cody/Eric/Jenny の姓の推測補完"
+          },
+          {
+            "line": 24,
+            "code": "number_or_percent",
+            "text": "shortening_source: 2026-09-16-galaxy-day1-production-pack.md"
+          },
+          {
+            "line": 24,
+            "code": "source_provenance_marker",
+            "text": "shortening_source: 2026-09-16-galaxy-day1-production-pack.md"
+          },
+          {
+            "line": 25,
+            "code": "number_or_percent",
+            "text": "shortening_budget: 0.35"
+          },
+          {
+            "line": 34,
+            "code": "number_or_percent",
+            "text": "- source: Documents/Galaxy/Day1/factcheck-merged.md"
+          },
+          {
+            "line": 34,
+            "code": "source_provenance_marker",
+            "text": "- source: Documents/Galaxy/Day1/factcheck-merged.md"
+          },
+          {
+            "line": 38,
+            "code": "number_or_percent",
+            "text": "- amrita_official_day2_sales_eng_asr_day1_demo_annotated"
+          },
+          {
+            "line": 48,
+            "code": "number_or_percent",
+            "text": "# Galaxy Day1で見えたGrok Botの核——永続クラウドPC・承認・Marketplaceまで（要約）"
+          },
+          {
+            "line": 52,
+            "code": "number_or_percent",
+            "text": "本稿は、Grok Bot Galaxy Day1 の英語ASR起こしを日本語要約した素材束に基づく**観測メモ**です。ライブにいなかった読者向けに、枠組みと繰り返された言葉だけを先に置きます。聞こえていない固有名・数字・契約・料金は足しません。製品カタログではなく、「Day1で実際に見せた型」の地図です。"
+          },
+          {
+            "line": 52,
+            "code": "source_provenance_marker",
+            "text": "本稿は、Grok Bot Galaxy Day1 の英語ASR起こしを日本語要約した素材束に基づく**観測メモ**です。ライブにいなかった読者向けに、枠組みと繰り返された言葉だけを先に置きます。聞こえていない固有名・数字・契約・料金は足しません。製品カタログではなく、「Day1で実際に見せた型」の地図です。"
+          },
+          {
+            "line": 54,
+            "code": "source_provenance_marker",
+            "text": "素材の核は overview・summary・note向けブリーフ・採用差分メモ・X記事下書き案です。必須の事実チェック統合正本は `factcheck-merged.md`（Grok＋ChatGPT採用／Geminiは参考）で、その最小訂正を本文に反映しています。詳細の章起こしは別ファイルにあり、ここでは全文転載しません。"
+          },
+          {
+            "line": 56,
+            "code": "number_or_percent",
+            "text": "## Day1の枠"
+          },
+          {
+            "line": 58,
+            "code": "number_or_percent",
+            "text": "Grok Bot Galaxy Day1（2026-09-15）は、サンフランシスコの **The Howard（661 Howard St）** から「3日で会社を作る」過程をライブ共有した配信でした。会場は Dreamforce（同期間・Moscone／747 Howard St）と同じ Howard Street 周辺、という意味で「Dreamforc"
+          },
+          {
+            "line": 62,
+            "code": "number_or_percent",
+            "text": "途中で公式の職種別枠が挟まります（Day1 公式スケジュール上の**登壇者／セッション担当**）。"
+          },
+          {
+            "line": 64,
+            "code": "number_or_percent",
+            "text": "1. Grok Bot 101（公式掲載は **Roman Ugarte** のみ）"
+          },
+          {
+            "line": 65,
+            "code": "number_or_percent",
+            "text": "2. Engineering（Lingxi Li）"
+          },
+          {
+            "line": 66,
+            "code": "number_or_percent",
+            "text": "3. PM（Kevin Niparko）"
+          },
+          {
+            "line": 67,
+            "code": "number_or_percent",
+            "text": "4. Founders（Shub Gaur）"
+          },
+          {
+            "line": 69,
+            "code": "number_or_percent",
+            "text": "**注記（Amrita）:** 起こし要約では Day1 の 101 枠内**配信デモ**として **Amrita Venkatraman** が登場します。一方、公式スケジュール上の Amrita 掲載は **Day2「Grok Bot for Sales Engineering」** です。本稿では「配信内デモ」と「公式ラベル（Day2）」を分けて書きま"
+          },
+          {
+            "line": 73,
+            "code": "number_or_percent",
+            "text": "## Grok Botの核（Day1で繰り返された言葉）"
+          },
+          {
+            "line": 75,
+            "code": "number_or_percent",
+            "text": "101と以降の枠で、次の言葉が繰り返し出てきます。"
+          },
+          {
+            "line": 95,
+            "code": "number_or_percent",
+            "text": "Engineering（Lingxi Li）では、エージェント艦隊、Cloud Agent、24/7の専用クラウドPC、メモリ／ルーチン、Marketplace、**chief of staff＋専門ボット**、オンボード、P0監視、playbook、証跡付きPRなどが並びました。個別エンジニアと常時話すのではなく、司令塔がルーティングする型も出ます。"
+          },
+          {
+            "line": 97,
+            "code": "number_or_percent",
+            "text": "PM（Kevin Niparko）は、データ → PRD → デザイン → エンジニア／Cloud Agent という EPD風ハンドオフを見せました。「1行handoff」という用語自体は起こしでは弱い一方、ハンドオフ連鎖の実演は強い、というのが採用差分の整理です。"
+          },
+          {
+            "line": 103,
+            "code": "personal_experience_claim",
+            "text": "スタジオ側は X などで市場調査し、方向としてサンフランシスコでの**ポップアップ体験**（公開側でも一夜の pop-up として後から見える）に寄せつつあります。起こし要約にはレストラン案や「ソフト／OS」寄りの言い方も出ますが、公開一次ではレストラン確定がなく、OS企画としても固定できないため、本稿では**ポップアップを主、レストラン／OSは起こし上の揺"
+          },
+          {
+            "line": 107,
+            "code": "uncertain_claim",
+            "text": "Lauren Tan 周辺では、起こし要約上 **Hashbrown**（PRレビュー）や **Tater** にも触れられます（**正本・起こしのみ。公開製品名としては弱い／他プロダクトと推測で結びつけない**）。**P-Stack／pstack** は起こしに加え、Lauren 本人公開（pstack／poteto-mode 等）を一次として扱います（イ"
+          },
+          {
+            "line": 109,
+            "code": "number_or_percent",
+            "text": "Day1末の自己評価では、**アイデアはまだ揺れ**ている一方、公開ブランド **Grok Pot / “ship by thursday.”**、GitHub org slug **`shipbythursday`**（スペース入り org 名は起こしゆれとして扱わない）、ボット工場など**セットアップは進んだ段階**、と振り返ります。ミス前提で過程を見せ"
+          },
+          {
+            "line": 113,
+            "code": "number_or_percent",
+            "text": "- スタジオの事業アイデア着地は Day1時点では揺れ中（完成した会社、とは言わない）"
+          },
+          {
+            "line": 114,
+            "code": "uncertain_claim",
+            "text": "- Cody / Eric / Jenny など、起こしでは姓や一部所属が特定できないものは、**姓を推測で足さず**特定できないままにする（公開の同名関係者と同一視しない）"
+          },
+          {
+            "line": 122,
+            "code": "number_or_percent",
+            "text": "## 読者が持ち帰る1行"
+          },
+          {
+            "line": 124,
+            "code": "number_or_percent",
+            "text": "Grok Bot Galaxy Day1で繰り返し示された核は、チャット相手ではなく**Bot専用の永続クラウドコンピュータ**を持つ同僚AIであり、メモリとスキルを持ち、危険な操作は人の承認を待つ点にあります。スタジオ側は市場調査からポップアップ体験づくりへ動いていましたが、Day1時点ではアイデアは揺れ、基盤セットアップが進んだ段階、と要約できます。"
+          },
+          {
+            "line": 124,
+            "code": "personal_experience_claim",
+            "text": "Grok Bot Galaxy Day1で繰り返し示された核は、チャット相手ではなく**Bot専用の永続クラウドコンピュータ**を持つ同僚AIであり、メモリとスキルを持ち、危険な操作は人の承認を待つ点にあります。スタジオ側は市場調査からポップアップ体験づくりへ動いていましたが、Day1時点ではアイデアは揺れ、基盤セットアップが進んだ段階、と要約できます。"
+          }
+        ]
+      }
+    },
+    {
+      "label": "note_diff_check",
+      "command": "python scripts/note_diff_check.py Unknown content/drafts/2026-09-16-galaxy-day1-observation-note.md --json",
+      "exit_code": 0,
+      "stdout": "{\n  \"overall\": \"skipped\",\n  \"reason\": \"note_url_unknown\",\n  \"checks\": []\n}",
+      "stderr": "",
+      "parsed_json": {
+        "overall": "skipped",
+        "reason": "note_url_unknown",
+        "checks": []
+      }
+    }
+  ]
+}

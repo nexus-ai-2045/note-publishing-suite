@@ -9,8 +9,8 @@ from __future__ import annotations
 import argparse
 import json
 import re
-from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,7 +21,9 @@ def load_list(path: Path) -> list[dict]:
     if not path.exists():
         return []
     data = json.loads(path.read_text(encoding="utf-8"))
-    return data if isinstance(data, list) else []
+    if not isinstance(data, list) or any(not isinstance(row, dict) for row in data):
+        raise ValueError(f"Invalid ledger schema: {path}")
+    return data
 
 
 def write_list(path: Path, rows: list[dict]) -> None:
@@ -29,13 +31,25 @@ def write_list(path: Path, rows: list[dict]) -> None:
     path.write_text(json.dumps(rows, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+def note_identity(url: str) -> tuple[str, str]:
+    parsed = urlsplit(url)
+    match = re.fullmatch(r"/([A-Za-z0-9_-]+)/n/(n[A-Za-z0-9_-]+)/?", parsed.path)
+    if parsed.scheme != "https" or parsed.netloc != "note.com" or match is None:
+        raise ValueError("Expected an https://note.com/<account>/n/<note_id> URL")
+    return match.group(2), f"https://note.com/{match.group(1)}/n/{match.group(2)}"
+
+
 def same_draft(row: dict, draft: Path, note_id: str | None) -> bool:
-    if note_id and row.get("note_id") == note_id:
-        return True
+    if row.get("note_id"):
+        return row["note_id"] == note_id
+    row_url = row.get("published_url") or row.get("url")
+    if row_url:
+        existing_id, _ = note_identity(str(row_url))
+        return existing_id == note_id
     row_draft = str(row.get("draft") or row.get("local_source") or "")
     if not row_draft:
         return False
-    return Path(row_draft).name == draft.name
+    return Path(row_draft).resolve() == draft.resolve()
 
 
 def upsert_draft_transition(
@@ -44,7 +58,7 @@ def upsert_draft_transition(
     draft: Path,
     note_id: str | None,
     url: str,
-    published_at: str,
+    published_at: str | None,
     title: str,
     snapshot: str,
     body_sha256: str,
@@ -106,6 +120,14 @@ def main() -> int:
     mode.add_argument("--write-ledger", action="store_true")
     args = parser.parse_args()
 
+    try:
+        note_id, args.url = note_identity(args.url)
+    except ValueError as exc:
+        parser.error(str(exc))
+    if args.note_id and args.note_id != note_id:
+        parser.error("--note-id does not match --url")
+    args.note_id = note_id
+
     if args.verification_status != "published_or_scheduled_unverified" and not args.verified_at:
         parser.error("--verified-at is required for a verified publication status")
     if args.published_body_sha256 and not re.fullmatch(r"[0-9a-fA-F]{64}", args.published_body_sha256):
@@ -114,7 +136,7 @@ def main() -> int:
     if not args.dry_run and not args.write_ledger:
         args.dry_run = True
 
-    published_at = args.published_at or datetime.now(timezone.utc).isoformat()
+    published_at = args.published_at
     title = args.title or args.draft.stem
     entry = {
         "url": args.url,
@@ -144,12 +166,21 @@ def main() -> int:
         published_ledger = args.ledger_dir / "published_notes.json"
         draft_ledger = args.ledger_dir / "note_drafts.json"
         published = load_list(published_ledger)
-        published = [row for row in published if row.get("url") != args.url]
+        draft_rows = load_list(draft_ledger)
+        matches = [row for row in published if row.get("note_id") == note_id or (row.get("url") and note_identity(str(row["url"]))[0] == note_id)]
+        if len(matches) > 1:
+            raise ValueError("同じ記事の台帳行が複数あります。統合判断が必要です")
+        if matches and matches[0].get("archive_path"):
+            entry["archive_path"] = matches[0]["archive_path"]
+        published = [
+            row for row in published
+            if row.get("note_id") != note_id
+            and (not row.get("url") or note_identity(str(row["url"]))[0] != note_id)
+        ]
         published.append(entry)
-        write_list(published_ledger, published)
 
         drafts = upsert_draft_transition(
-            load_list(draft_ledger),
+            draft_rows,
             draft=args.draft,
             note_id=args.note_id,
             url=args.url,
@@ -158,6 +189,7 @@ def main() -> int:
             snapshot=args.published_snapshot,
             body_sha256=args.published_body_sha256,
         )
+        write_list(published_ledger, published)
         write_list(draft_ledger, drafts)
         result["updated_ledgers"] = [str(published_ledger), str(draft_ledger)]
 

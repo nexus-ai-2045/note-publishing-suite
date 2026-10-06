@@ -294,3 +294,13 @@ GitHubではこのREADMEをそのまま読めます。ローカル整形版は
 `python scripts/render_readme.py` で `README.rendered.html` に生成できます。
 
 </details>
+
+## 編集後の再確認と台帳
+
+実記事候補の公開前検査は `edit_session` で画像前後の本文保持、新設空段落、現在の公開設定画面、お題参加の確認を必須とする。観測欠落は公開可能にしない。詳細は `skills/note-editor-prepublish/SKILL.md`。公開後の台帳更新は `scripts/post_publish.py --ledger-dir <workspace>/data` で保存先を指定する。URLから記事IDを照合し、日時が未取得ならnullを保持する。これは観測JSONとローカル記録の検証であり、実画面取得・公開操作・全環境への配布を保証しない。
+
+## 記事制作の入口と毎回の確認
+
+音声書き起こしやnote本文から始める編集、既存素材の記事化、壁打ちを重ねる共同執筆の3経路を扱います。原文を先にローカル保存し、編集稿と区別します。本人発話、AI整理・追加案、外部事実、採否を既存の由来検査に結び付けます。
+
+誤字も修正前後を確認し、公開前調査・公開設定・最終公開も毎回本人に確認します。[版ごとの承認契約](references/note-workflow-review-contract.md)と `scripts/note_workflow_gate.py` で対象の版と承認記録を照合します。古い承認では進めません。checkerだけで人間発言の真正性や任意のBrowser経路を保証せず、runtimeが接続と証拠照合を担います。毎発言のフックは導入せず、最終投稿ボタンは人間が操作します。

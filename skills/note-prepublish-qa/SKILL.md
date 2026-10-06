@@ -63,3 +63,7 @@ python scripts\note_diff_check.py <note_url> <draft.md> <phrase...>
 - 存在する場合: 過去記事の Check/Act (反応・改善点) を 1 度読み、今回の draft に反映漏れがないか見る。
 - 存在しない場合: 雛形作成を提案する (公開は止めない)。
 - 同梱 scripts/content_pdca_check.py が使える workspace ではそれを実行する。
+
+## 公開前調査の毎回確認
+
+`../../references/note-workflow-review-contract.md` に従い、現稿に対する調査報告を作成する。根拠・調査結果・未確認点を毎回本人に提示し、承認発言を当該会話のreceiptに記録する。`note_workflow_gate.py --settings USER_SETTINGS_PATH --stage research` が通らなければ公開手前へ進まない。本人の意見を外部事実と混ぜず、検査CLIの成功だけで本人確認済みとしない。
