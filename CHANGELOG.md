@@ -6,6 +6,8 @@ GitHub リリースやタグは別の公開操作として扱い、ここには�
 
 ## 未リリース
 
+- `note_work_packet_check.py` を追加し、Note運用の引継ぎ・返却・完了判定を既存のPDCA/QA経路へ接続した。accepted/closed の証拠不足、blocked/unknown の次 action 欠落、残務付き完了を停止する。
+- `post_publish.py --write-ledger` が未確認状態を書き込まないよう停止線を接続した。未確認状態はdry-runに限定する。
 - 既存POSIX配布入口にCodexを追加。作業場所の省略・不存在を拒否し、生成前後に正本参照を検査する。
 - pointerのスクリプト参照をpackage実装へ統一し、記事・台帳のworkspaceと分離する。
 - 配布検査と新規セッションの発見・実行確認を区別する。Windows専用installerは変更しない。

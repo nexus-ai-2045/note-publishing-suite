@@ -20,6 +20,13 @@ cursor drift は fresh DOM からやり直す。禁止リトライは ledger の
 `stopline` / `next_action` に従う。mutation の action前 URL / title / DOM
 を残し、目的状態が成立済みなら already-completed として重複操作しない。
 
+タスクを別 agent / skill へ渡す場合は、`note-work-packet/v1` の JSON packet
+を `../scripts/note_work_packet_check.py` で検査する。`owner`、`chain_from`、
+`return_to`、`done_when`、`stop_when`、`evidence`、`residual` を必須とし、
+`accepted` / `closed` は証拠あり・残務なしでなければ通さない。`blocked` /
+`unknown` は次の行動を必須とする。この検査は routing / closeout 契約だけを
+保証し、editor操作・公開・外部送信は実行しない。
+
 本文の短縮防止、著者性、改行、図、キャプションは
 `references/note-draft-authority-and-layout-contract.md` を参照する。
 

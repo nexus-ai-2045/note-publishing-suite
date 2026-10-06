@@ -113,6 +113,8 @@ def main() -> int:
 
     if not args.dry_run and not args.write_ledger:
         args.dry_run = True
+    if args.write_ledger and args.verification_status == "published_or_scheduled_unverified":
+        parser.error("--write-ledger requires published_verified or scheduled_verified")
 
     published_at = args.published_at or datetime.now(timezone.utc).isoformat()
     title = args.title or args.draft.stem

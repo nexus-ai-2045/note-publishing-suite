@@ -243,6 +243,7 @@ Noteログイン、常時接続、画像アップロードの完全自動化は�
 - `scripts/note_linebreak_gate.py` / `scripts/note_figure_structure_gate.py`: 改行、図、captionを検査。
 - `scripts/note_browser_transport_recovery.py` / `scripts/note_editor_timeout_recovery.py`: Browser切断とtimeoutを分類。前者はread-only復旧計画専用で、process終了や人間承認の真正性確認は行わない。
 - `scripts/note_editor_pdca_failure_check.py`: Note editor 失敗パターン台帳を検査。
+- `scripts/note_work_packet_check.py`: agent / skill 間の owner、chain、return、完了・停止条件、証拠・残務を fail-closed で検査する（編集・公開は行わない）。
 - `scripts/topic_status_check.py`: 話題統合台帳の配線を検査。
 - `scripts/package_consistency_check.py`: 宣言したスクリプトの実在を検査。
 - `adapters/codex/install.ps1`: WindowsのCodex skill pointerを配置し、参照切れを検査。

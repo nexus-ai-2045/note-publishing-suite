@@ -9,7 +9,7 @@ description: "Use when the user wants repo-local, end-to-end Note publishing sup
 
 このスキルは repo root 内で、Note 投稿の「企画 → 素材探索 → 下書き → 公開前検査 → Note editor 反映 → 公開直前停止 → 公開後確認 → ローカル台帳更新」を束ねる親スキル。
 
-正の作業場所はこの repo の `content/drafts/`、`content/assets/`、`published/`、`data/`、`scripts/`。新しい helper 名を勝手に作らず、まず既存 script を使う。
+正の作業場所はこの repo の `content/drafts/`、`content/assets/`、`published/`、`data/`、`scripts/`。新しい helper 名を勝手に作らず、まず既存 script を使う。agent / skill 間の引継ぎがある場合は、既存の work packet 契約を使い、`scripts/note_work_packet_check.py <packet.json> --json` で owner、chain_from、return_to、done_when、stop_when、evidence、residual を確認する。これは routing / closeout の検査であり、editor 操作や公開の代替ではない。
 
 子スキル実体は `skills/` 配下に置く。実行時はこの親スキルで全体 gate を確認してから、該当する子スキルを読む。
 

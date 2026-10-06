@@ -107,3 +107,23 @@ def test_verified_publication_requires_verification_time(tmp_path: Path) -> None
     )
     assert result.returncode == 2
     assert "--verified-at is required" in result.stderr
+
+
+def test_write_ledger_rejects_unverified_status(tmp_path: Path) -> None:
+    draft = tmp_path / "article.md"
+    draft.write_text("# article\n", encoding="utf-8")
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "post_publish.py"),
+            "--url", "https://note.com/example/n/n123",
+            "--draft", str(draft),
+            "--write-ledger",
+            "--ledger-dir", str(tmp_path / "ledgers"),
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 2
+    assert "--write-ledger requires" in result.stderr

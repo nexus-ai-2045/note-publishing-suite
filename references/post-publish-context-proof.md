@@ -23,6 +23,7 @@ Note editorで公開直前に本文が変わっても、ローカルdraftを公�
 - 公開済み一次台帳: `published_notes.json`
 
 packageをworkspaceへコピーしてscriptsを二重化しない。利用側は`post_publish.py --ledger-dir <dir>`でprivate台帳を注入する。
+`--write-ledger` は `published_verified` または `scheduled_verified` と `--verified-at` が揃った場合だけ許可する。未確認状態は dry-run の証跡に留める。
 
 ## 最小フロー
 
