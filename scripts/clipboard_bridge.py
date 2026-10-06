@@ -127,6 +127,56 @@ def _require_consent(action: str, consent_path: str | Path | None = None) -> Non
         )
 
 
+class _DarwinStat64(ctypes.Structure):
+    # Apple sys/stat.h の64bit inode ABI。arm64とx86_64だけを対象とする。
+    _fields_ = [
+        ("dev", ctypes.c_int32), ("mode", ctypes.c_uint16),
+        ("nlink", ctypes.c_uint16), ("ino", ctypes.c_uint64),
+        ("uid", ctypes.c_uint32), ("gid", ctypes.c_uint32),
+        ("rdev", ctypes.c_int32), ("times", ctypes.c_int64 * 8),
+        ("size", ctypes.c_int64), ("blocks", ctypes.c_int64),
+        ("blksize", ctypes.c_int32), ("flags", ctypes.c_uint32),
+        ("gen", ctypes.c_uint32), ("lspare", ctypes.c_int32),
+        ("qspare", ctypes.c_int64 * 2),
+    ]
+
+
+def _darwin_acl_absent(libc, fd: int) -> bool:
+    # acl_get_fd_np は情報取得失敗とACL属性不在をどちらもNULLで返す。
+    # 同じfdの情報取得成功と属性不在を確認し、errnoだけで許可しない。
+    machine = platform.machine()
+    if machine not in {"arm64", "x86_64"}:
+        raise ValueError
+    # Apple sys/unistd.h: _PC_EXTENDED_SECURITY_NP=13。
+    # ACL非対応のfilesystemも属性不在に見えるため、対応確認を先に行う。
+    if os.fpathconf(fd, 13) != 1:
+        raise ValueError
+    fstatx = getattr(libc, "fstatx_np$INODE64" if machine == "x86_64" else "fstatx_np")
+    fstatx.argtypes = [ctypes.c_int, ctypes.POINTER(_DarwinStat64), ctypes.c_void_p]
+    fstatx.restype = ctypes.c_int
+    libc.filesec_init.argtypes = []
+    libc.filesec_init.restype = ctypes.c_void_p
+    libc.filesec_free.argtypes = [ctypes.c_void_p]
+    libc.filesec_free.restype = None
+    libc.filesec_query_property.argtypes = [
+        ctypes.c_void_p, ctypes.c_int, ctypes.POINTER(ctypes.c_int)
+    ]
+    libc.filesec_query_property.restype = ctypes.c_int
+    fsec = libc.filesec_init()
+    if not fsec:
+        raise ValueError
+    try:
+        info = _DarwinStat64()
+        if fstatx(fd, ctypes.byref(info), fsec) != 0:
+            raise ValueError
+        present = ctypes.c_int(-1)
+        if libc.filesec_query_property(fsec, 5, ctypes.byref(present)) != 0:
+            raise ValueError
+        return present.value == 0  # FILESEC_ACL=5。不明値・存在は許可しない。
+    finally:
+        libc.filesec_free(fsec)
+
+
 def _validate_darwin_acl(fd: int) -> None:
     if platform.system() != "Darwin":
         return
@@ -148,8 +198,11 @@ def _validate_darwin_acl(fd: int) -> None:
         libc.acl_get_tag_type.restype = ctypes.c_int
         libc.acl_free.argtypes = [ctypes.c_void_p]
         libc.acl_free.restype = ctypes.c_int
+        ctypes.set_errno(0)
         acl = libc.acl_get_fd_np(fd, 0x100)
         if not acl:
+            if ctypes.get_errno() == errno.ENOENT and _darwin_acl_absent(libc, fd):
+                return
             raise ValueError
         try:
             if libc.acl_valid(acl) != 0:

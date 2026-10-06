@@ -22,6 +22,22 @@ GitHub リリースやタグは別の公開操作として扱い、ここには�
 - Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
 - GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
 
+## 0.2.41
+
+日付: 2026-10-06
+
+変更:
+- macOSのクリップボード同意ファイル検査で、ACL属性が存在しないことを同じファイル記述子で確かめてから許可するようにした。ACL非対応や判定失敗は従来どおり拒否する。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `python scripts/check_version_bump.py`（基準: `origin/main`）
+- `python scripts/docs_sync_check.py --base-ref origin/main`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.2.40
 
 日付: 2026-10-06
@@ -547,29 +563,6 @@ GitHub リリースやタグは別の公開操作として扱い、ここには�
 - Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
 - GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
 
-## 0.2.8
-
-日付: 2026-07-13
-
-変更:
-- `note-publishing-suite` の独立 repo worktree を復旧し、Claude Code pointer の
-  package root を独立正本へ再インストールした。
-- 2026-07-13 の Note editor 実測として、`text/html` paste、hidden WebView、
-  DOM selection の tick、連続画像 separator、CDN 取りこぼしを正本へ反映した。
-- `cmux_dom_file_paste` を明示確認必須の画像経路として追加し、OS clipboard、
-  Cookie、note API を使わない browser-scoped route に限定した。
-- `scripts/skill_pointer_check.py`、回帰テスト、CI、pre-commit hook template を追加し、
-  正本 pointer の消失を fail-closed で検知するようにした。
-
-検証:
-- `python3 -m pytest scripts/test_skill_integration.py tests -q`
-- `python3 scripts/skill_pointer_check.py --installed-root "$HOME/.claude/skills" --json`
-- `python3 scripts/note_image_upload_boundary_check.py --json`
-
-公開境界:
-- Note 投稿、下書き保存、予約投稿、SNS 共有、外部告知は未実行。
-- git push、GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
-
 ## 0.2.7
 
 日付: 2026-06-22
@@ -621,6 +614,29 @@ GitHub リリースやタグは別の公開操作として扱い、ここには�
 - Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
 - GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
 
+## 0.2.8
+
+日付: 2026-07-13
+
+変更:
+- `note-publishing-suite` の独立 repo worktree を復旧し、Claude Code pointer の
+  package root を独立正本へ再インストールした。
+- 2026-07-13 の Note editor 実測として、`text/html` paste、hidden WebView、
+  DOM selection の tick、連続画像 separator、CDN 取りこぼしを正本へ反映した。
+- `cmux_dom_file_paste` を明示確認必須の画像経路として追加し、OS clipboard、
+  Cookie、note API を使わない browser-scoped route に限定した。
+- `scripts/skill_pointer_check.py`、回帰テスト、CI、pre-commit hook template を追加し、
+  正本 pointer の消失を fail-closed で検知するようにした。
+
+検証:
+- `python3 -m pytest scripts/test_skill_integration.py tests -q`
+- `python3 scripts/skill_pointer_check.py --installed-root "$HOME/.claude/skills" --json`
+- `python3 scripts/note_image_upload_boundary_check.py --json`
+
+公開境界:
+- Note 投稿、下書き保存、予約投稿、SNS 共有、外部告知は未実行。
+- git push、GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.2.4
 
 日付: 2026-06-20
@@ -642,31 +658,6 @@ GitHub リリースやタグは別の公開操作として扱い、ここには�
 - `sh scripts/verify_public_package.sh`
 - `python3 -m pytest scripts/test_skill_integration.py tests -q`
 - `python3 scripts/note_editor_prepublish_verify.py data/note_editor_prepublish_observation.fixture.json --json`
-
-公開境界:
-- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
-- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
-
-## 0.2.3
-
-日付: 2026-06-18
-
-変更:
-- package version と README / CHANGELOG の整合性を公開検証の必須条件にした。
-- verifier の実行要件を PowerShell、Python、git として明記し、
-  Python なしで動くように読める誤保証を禁止語として検査するようにした。
-- standalone clone fixture から verifier 自身を再実行し、単独 repo 形態でも
-  公開操作なしで検証できることを確認するようにした。
-- `scripts/provenance_label_check.py` を追加し、
-  `source_pack_locked_with_user_speech_priority` の draft で `user-said`、
-  `external-fact`、`assistant-organized`、`hold` の境界を検査できるようにした。
-- Caramel 完全解説風の draft fixture を追加し、本人発言優先構成の
-  provenance label 回帰ケースにした。
-
-検証:
-- `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1`
-- `python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py`
-- `python scripts/provenance_label_check.py content/drafts/caramel-provenance-label-fixture.md --json`
 
 公開境界:
 - Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
@@ -704,6 +695,31 @@ GitHub リリースやタグは別の公開操作として扱い、ここには�
 - `python scripts/github_identity_guard.py --policy data/github_identity_guard_policy.local.json --json`
 - `python scripts/note_editor_prepublish_verify.py <observation.json> --json`
 - `python scripts/check_version_bump.py`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
+## 0.2.3
+
+日付: 2026-06-18
+
+変更:
+- package version と README / CHANGELOG の整合性を公開検証の必須条件にした。
+- verifier の実行要件を PowerShell、Python、git として明記し、
+  Python なしで動くように読める誤保証を禁止語として検査するようにした。
+- standalone clone fixture から verifier 自身を再実行し、単独 repo 形態でも
+  公開操作なしで検証できることを確認するようにした。
+- `scripts/provenance_label_check.py` を追加し、
+  `source_pack_locked_with_user_speech_priority` の draft で `user-said`、
+  `external-fact`、`assistant-organized`、`hold` の境界を検査できるようにした。
+- Caramel 完全解説風の draft fixture を追加し、本人発言優先構成の
+  provenance label 回帰ケースにした。
+
+検証:
+- `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1`
+- `python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py`
+- `python scripts/provenance_label_check.py content/drafts/caramel-provenance-label-fixture.md --json`
 
 公開境界:
 - Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
