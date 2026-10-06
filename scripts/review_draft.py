@@ -84,11 +84,14 @@ def unique_ordered(items: list[str]) -> list[str]:
     return result
 
 
-def build_context_card(draft: Path) -> dict[str, Any]:
+def build_context_card(draft: Path, *, prepublish_review_receipt: Path | None = None,
+                       article_id: str | None = None, conversation_id: str | None = None) -> dict[str, Any]:
     text = draft.read_text(encoding="utf-8")
     metadata, body = parse_frontmatter(text)
     pre_publish_check = load_pre_publish_check()
-    issues = pre_publish_check.collect_issues(text)
+    issues = pre_publish_check.apply_editorial_review(
+        pre_publish_check.collect_issues(text), prepublish_review_receipt, text,
+        article_id=article_id, conversation_id=conversation_id)
     provenance_check = load_provenance_label_check()
     provenance_result = provenance_check.check_draft(draft)
     counts = {label: 0 for label in provenance_check.ALLOWED_LABELS}
@@ -120,7 +123,8 @@ def build_context_card(draft: Path) -> dict[str, Any]:
         "prepublish": {
             "overall": "error"
             if any(issue.get("severity") == "error" for issue in issues)
-            else ("warning" if issues else "ok"),
+            else ("review_required" if any(issue.get("severity") == "review_required" for issue in issues)
+                  else ("warning" if issues else "ok")),
             "issues": issues,
         },
         "provenance": {
@@ -145,8 +149,8 @@ def build_context_card(draft: Path) -> dict[str, Any]:
     return context_card
 
 
-def review_draft(draft: Path) -> dict[str, Any]:
-    context_card = build_context_card(draft)
+def review_draft(draft: Path, **review_options: Any) -> dict[str, Any]:
+    context_card = build_context_card(draft, **review_options)
     reason_codes = normalize_reason_codes(context_card["prepublish"]["issues"])
     provenance = context_card["provenance"]
     reason_codes.extend(
@@ -181,7 +185,9 @@ def review_draft(draft: Path) -> dict[str, Any]:
         confirmation_questions.append("この draft は実記事の公開候補ではありません。review 対象から除外しますか。")
     if publication_gate == "human_review_required":
         confirmation_questions.append("Note 公開、予約投稿、SNS 共有を実行しないまま、人間レビューへ渡しますか。")
-    if context_card["prepublish"]["issues"]:
+    if any(issue.get("severity") == "review_required" for issue in context_card["prepublish"]["issues"]):
+        confirmation_questions.append("本人が採用した構成を保持しています。機械検査の合格とは分けて人間レビューへ渡しますか。")
+    elif context_card["prepublish"]["issues"]:
         confirmation_questions.append("pre-publish warning / error を解消するまで editor 反映を止めますか。")
 
     reason_codes = unique_ordered(reason_codes)
@@ -230,13 +236,19 @@ def main() -> int:
     review_parser.add_argument("draft", type=Path)
     review_parser.add_argument("--json", action="store_true")
 
+    for command_parser in (context_parser, review_parser):
+        command_parser.add_argument("--prepublish-review-receipt", type=Path)
+        command_parser.add_argument("--article-id")
+        command_parser.add_argument("--conversation-id")
     args = parser.parse_args()
+    review_options = dict(prepublish_review_receipt=args.prepublish_review_receipt,
+                          article_id=args.article_id, conversation_id=args.conversation_id)
     if args.command == "build-context-card":
-        payload = build_context_card(args.draft)
+        payload = build_context_card(args.draft, **review_options)
         print_payload(payload, args.json)
         return 0
 
-    payload = review_draft(args.draft)
+    payload = review_draft(args.draft, **review_options)
     print_payload(payload, args.json)
     if payload["verdict"] == "blocked":
         return 2

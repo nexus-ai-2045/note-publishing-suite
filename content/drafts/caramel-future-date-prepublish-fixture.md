@@ -1,4 +1,5 @@
 ---
+article_lane: editor_fixture
 title: Caramel future-date guard fixture
 status: draft
 source_mode: fixture_only
@@ -8,6 +9,8 @@ external_action: none
 ---
 
 # Caramel future-date guard fixture
+
+先に結論。このfixtureは公開日時より後の日付と、公開時の再確認が必要な記述を警告にする。
 
 これは caramel materials の未来配信予定ケースを最小再現する
 ローカル QA fixture です。実記事ではなく、公開候補でもありません。

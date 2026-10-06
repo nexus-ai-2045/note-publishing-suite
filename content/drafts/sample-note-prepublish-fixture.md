@@ -19,6 +19,8 @@ external_action: none
 
 # Note QA fixture draft
 
+先に結論。このfixtureはNote editor操作検証のための無害な下書きです。
+
 これは Note editor 操作検証用の fixture です。
 実記事ではなく、公開候補でもありません。
 
