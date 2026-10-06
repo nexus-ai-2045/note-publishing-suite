@@ -16,7 +16,7 @@ publication_gate: human_review_required
 **NPS（Note Publishing Suite）** です。Codex / Claude Code から使えます。
 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。
 
-パッケージ版: `0.2.40`
+パッケージ版: `0.2.42`
 
 読書用プレビューは `note_virtual_preview.py`、編集診断は同コマンドの `--diagnostics`、由来レビューは `note_preview.py --review-provenance` を使います。原稿の本人確認・保留は検査で維持します。
 
@@ -50,6 +50,8 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
 この verifier は Python と git も使って各 checker を実行するため、
 先に利用可能か確認してください。
 検証は公開操作を行わず、`embedded copy` と `standalone clone` の契約を確認します。
+自動テストのあとに行うユーザー受け入れ確認は `USER_TEST.md` の4ケースを使います。
+受け入れテストの合格は Note 公開の承認ではなく、公開操作は別の人間承認で扱います。
 
 ### 2. Codex に登録する（Windows 推奨）
 
@@ -215,6 +217,7 @@ Noteログイン、常時接続、画像アップロードの完全自動化は�
 | 機械可読の契約 | [package.yaml](package.yaml) |
 | 今後の計画 | [ROADMAP.md](ROADMAP.md) |
 | 公開前の準備 | [PUBLIC_READY.md](PUBLIC_READY.md) / [PUBLIC_RELEASE_CHECKLIST.md](PUBLIC_RELEASE_CHECKLIST.md) |
+| 初見ユーザーの受け入れテスト | [USER_TEST.md](USER_TEST.md) |
 | セキュリティ | [SECURITY.md](SECURITY.md) |
 | 変更履歴 | [CHANGELOG.md](CHANGELOG.md) |
 | （任意）デモ動画の置き場 | [assets/demo/README.md](assets/demo/README.md) |
