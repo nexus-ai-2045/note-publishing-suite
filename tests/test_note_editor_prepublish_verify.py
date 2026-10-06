@@ -391,3 +391,12 @@ def test_missing_nodes_is_not_optional_empty_observation(tmp_path):
     obs["footer"].pop("nodes")
     code, payload = run_checker(tmp_path, obs)
     assert code == 1 and "footer_nodes_missing" in issue_codes(payload)
+
+
+def test_production_candidate_requires_edit_session_readback(tmp_path):
+    obs = ready_observation()
+    obs["article_lane"] = "production_candidate"
+    obs["save_readback"] = {"observed_at": "2026-09-22T12:00:00Z"}
+    code, payload = run_checker(tmp_path, obs)
+    assert code == 1
+    assert "edit_session_missing" in issue_codes(payload)

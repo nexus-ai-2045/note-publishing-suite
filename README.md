@@ -314,3 +314,8 @@ GitHubではこのREADMEをそのまま読めます。ローカル整形版は
 承認の確認は `note_workflow_gate.py --list-gates` で現在版・根拠・失効理由・依存する未承認項目を表示する。本文校正、目次／末尾カード、公開設定、最終公開の承認を区別し、本人が変更したタグを上書きしない。公開済みの観測と全ゲート通過は別の事実として残す。
 
 詳しくは [人間レビュー契約](references/note-workflow-review-contract.md) と [公開後手順](skills/note-postpublish-ledger/SKILL.md) を参照する。
+
+
+## 既存ローカル差分の統合候補
+
+上流0.2.40に、検索QA、POSIX pointer、原稿保全・目次・編集session・論点対応・packet検査の既存追加を統合した未配送候補です。上流採用済みのプレビューと公開後処理は最新版を保持します。入口と強制接続の範囲は `SKILL.md` を参照してください。最終公開の本人操作境界は維持します。

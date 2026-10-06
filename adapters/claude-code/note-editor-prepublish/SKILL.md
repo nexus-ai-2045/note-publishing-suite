@@ -23,7 +23,7 @@ description: "Repo-local wrapper for using the global note-editor-prepublish ski
 
 - drafts: `{{WORKSPACE_ROOT}}/content/drafts`
 - data 台帳: `{{WORKSPACE_ROOT}}/data`
-- scripts: `{{WORKSPACE_ROOT}}/scripts`
+- scripts: `{{PACKAGE_ROOT}}/scripts`
 
 ## 公開 gate
 

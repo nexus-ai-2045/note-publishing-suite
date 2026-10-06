@@ -68,6 +68,69 @@ def test_package_pointer_targets_exist() -> None:
     assert payload["checked_targets"]
 
 
+def test_posix_codex_install_replaces_stale_pointer_and_removes_translation(tmp_path: Path) -> None:
+    require_native_posix_bash()
+    destination = tmp_path / "codex skills & space"
+    pointer = destination / "note-postpublish-ledger" / "SKILL.md"
+    pointer.parent.mkdir(parents=True)
+    pointer.write_text("`/c/missing-package/SKILL.md`\n", encoding="utf-8")
+    (tmp_path / "workspace").mkdir()
+    env = dict(os.environ, NOTE_SKILL_RUNTIME="codex", CODEX_SKILLS_DIR=str(destination))
+    result = subprocess.run(
+        ["bash", "adapters/claude-code/install.sh", str(tmp_path / "workspace")],
+        cwd=ROOT, env=env, text=True, capture_output=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    body = pointer.read_text(encoding="utf-8")
+    assert "Codex pointer" in body
+    assert "読み替え" not in body
+    assert "/c/missing-package" not in body
+    assert "## 作業場所" in body
+    assert f"{ROOT}/scripts" in body
+    assert f"{tmp_path / 'workspace'}/data" in body
+    assert f"{tmp_path / 'workspace'}/scripts" not in body
+    assert run_checker("--installed-root", str(destination)).returncode == 0
+
+
+def test_unknown_posix_runtime_does_not_write(tmp_path: Path) -> None:
+    require_native_posix_bash()
+    destination = tmp_path / "skills"
+    result = subprocess.run(
+        ["bash", "adapters/claude-code/install.sh"], cwd=ROOT,
+        env=dict(os.environ, NOTE_SKILL_RUNTIME="unknown", CODEX_SKILLS_DIR=str(destination)),
+        text=True, capture_output=True,
+    )
+    assert result.returncode == 1
+    assert "unknown NOTE_SKILL_RUNTIME" in result.stderr
+    assert not destination.exists()
+
+
+def test_posix_codex_uses_codex_home(tmp_path: Path) -> None:
+    require_native_posix_bash()
+    env = dict(os.environ, NOTE_SKILL_RUNTIME="codex", CODEX_HOME=str(tmp_path / "codex"))
+    env.pop("CODEX_SKILLS_DIR", None)
+    result = subprocess.run(
+        ["bash", "adapters/claude-code/install.sh", str(tmp_path)], cwd=ROOT,
+        env=env, text=True, capture_output=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert (tmp_path / "codex/skills/note-postpublish-ledger/SKILL.md").is_file()
+
+
+def test_codex_missing_or_nonexistent_workspace_does_not_write(tmp_path: Path) -> None:
+    require_native_posix_bash()
+    destination = tmp_path / "skills"
+    for arguments in ([], [str(tmp_path / "missing")]):
+        result = subprocess.run(
+            ["bash", "adapters/claude-code/install.sh", *arguments], cwd=ROOT,
+            env=dict(os.environ, NOTE_SKILL_RUNTIME="codex", CODEX_SKILLS_DIR=str(destination)),
+            text=True, capture_output=True,
+        )
+        assert result.returncode == 1
+        assert "explicit existing workspace" in result.stderr
+        assert not destination.exists()
+
+
 def test_installed_target_parser_requires_path_boundary() -> None:
     checker = load_checker_module()
     assert checker.INSTALLED_TARGET_RE.findall("`/tmp/package/SKILL.md`") == [

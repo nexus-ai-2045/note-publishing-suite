@@ -307,6 +307,8 @@ python -m pytest scripts/test_skill_integration.py tests</code></pre>
 <p>内部ブラウザで取得した公開現物JSONを <code>--local-observation</code> で供給できる。指定時はネットワーク取得へ戻らない。公開／下書き台帳は <code>--published-ledger</code>／<code>--draft-ledger</code> でworkspace正本を指定し、既定dry-runの確認後、<code>--write-ledger</code> で更新する。原稿・公開snapshot・採否履歴はpackage外に保管する。</p>
 <p>承認の確認は <code>note_workflow_gate.py --list-gates</code> で現在版・根拠・失効理由・依存する未承認項目を表示する。本文校正、目次／末尾カード、公開設定、最終公開の承認を区別し、本人が変更したタグを上書きしない。公開済みの観測と全ゲート通過は別の事実として残す。</p>
 <p>詳しくは <a href="references/note-workflow-review-contract.md">人間レビュー契約</a> と <a href="skills/note-postpublish-ledger/SKILL.md">公開後手順</a> を参照する。</p>
+<h2>既存ローカル差分の統合候補</h2>
+<p>上流0.2.40に、検索QA、POSIX pointer、原稿保全・目次・編集session・論点対応・packet検査の既存追加を統合した未配送候補です。上流採用済みのプレビューと公開後処理は最新版を保持します。入口と強制接続の範囲は <code>SKILL.md</code> を参照してください。最終公開の本人操作境界は維持します。</p>
     </article>
   </main>
 </body>
