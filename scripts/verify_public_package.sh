@@ -54,6 +54,7 @@ for item in \
   CHANGELOG.md \
   PUBLIC_READY.md \
   PUBLIC_RELEASE_CHECKLIST.md \
+  USER_TEST.md \
   scripts/review_draft.py \
   scripts/verify_public_package.sh \
   scripts/verify_public_package.ps1 \
@@ -66,12 +67,14 @@ done
 
 contains package.yaml "scripts/review_draft.py"
 contains package.yaml "scripts/verify_public_package.sh"
+contains package.yaml "user_test: USER_TEST.md"
 contains package.yaml "data/note_editor_prepublish_observation.fixture.json"
 contains package.yaml "sh scripts/verify_public_package.sh"
 contains README.md "review-draft"
 contains README.md "build-context-card"
 contains README.md "sh scripts/verify_public_package.sh"
 contains README.md "scripts/note_editor_prepublish_verify.py data/note_editor_prepublish_observation.fixture.json --json"
+contains README.md "[USER_TEST.md](USER_TEST.md)"
 contains PUBLIC_READY.md "sh scripts/verify_public_package.sh"
 contains PUBLIC_RELEASE_CHECKLIST.md "sh scripts/verify_public_package.sh"
 
@@ -81,7 +84,21 @@ run_json_ok "GitHub identity guard" python3 scripts/github_identity_guard.py --j
 run_json_ok "Japanese closeout language check" python3 scripts/japanese_closeout_language_check.py --json
 run_json_ok "Note image upload boundary check" python3 scripts/note_image_upload_boundary_check.py --json
 run_json_ok "Note editor prepublish observation fixture" python3 scripts/note_editor_prepublish_verify.py data/note_editor_prepublish_observation.fixture.json --json
-run_json_ok "local draft QA proof" python3 scripts/run_local_draft_qa_proof.py --json
+QA_PROOF_OUTPUT=$(mktemp "${TMPDIR:-/tmp}/note-publishing-suite-qa-proof.XXXXXX") || exit 1
+QA_PROOF_PREVIEW=$(mktemp "${TMPDIR:-/tmp}/note-publishing-suite-qa-preview.XXXXXX") || {
+  rm -f "$QA_PROOF_OUTPUT"
+  exit 1
+}
+cleanup_qa_proof() {
+  rm -f "$QA_PROOF_OUTPUT" "$QA_PROOF_PREVIEW"
+}
+trap cleanup_qa_proof 0 1 2 3 15
+run_json_ok "local draft QA proof" python3 scripts/run_local_draft_qa_proof.py \
+  --preview "$QA_PROOF_PREVIEW" \
+  --output "$QA_PROOF_OUTPUT" \
+  --json
+cleanup_qa_proof
+trap - 0 1 2 3 15
 run_json_ok "review context card fixture" python3 scripts/review_draft.py build-context-card content/drafts/sample-note-prepublish-fixture.md --json
 
 review_output=$(cd "$ROOT" && python3 scripts/review_draft.py review-draft content/drafts/sample-note-prepublish-fixture.md --json 2>&1)

@@ -11,7 +11,7 @@ publication_gate: human_review_required
 このパッケージは、Note 記事投稿をリポジトリ内で一気通貫に扱うための
 スキル群。
 
-パッケージ版: `0.2.8`
+パッケージ版: `0.2.9`
 
 使命は、記事アイデア、下書き、投稿前検査、Note エディタ反映、
 公開直前停止、公開後台帳までを、Codex が安全に迷わず進めること。
@@ -22,6 +22,7 @@ publication_gate: human_review_required
 - [README.rendered.html](README.rendered.html): この README の整形 HTML 表示。
 - [PUBLIC_READY.md](PUBLIC_READY.md): 公開リポジトリとして見せてよいかの確認。
 - [PUBLIC_RELEASE_CHECKLIST.md](PUBLIC_RELEASE_CHECKLIST.md): 公開前の最終チェック。
+- [USER_TEST.md](USER_TEST.md): 初見ユーザーが実施するローカル受け入れテスト。
 
 ## 30秒でわかること
 
@@ -577,6 +578,9 @@ Windows で POSIX sh がない場合は、PowerShell verifier を使う。
 ```powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
 ```
+
+自動テスト完了後のユーザー受け入れ確認は `USER_TEST.md` の4ケースを使う。
+UAT合格はNote公開の承認ではなく、公開操作は別ゲートとして扱う。
 
 Python と pytest が使える開発環境では、追加で以下を実行してよい。
 
