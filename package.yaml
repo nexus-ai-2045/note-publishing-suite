@@ -1,11 +1,12 @@
 name: note-publishing-suite
-version: 0.2.43
+version: 0.2.44
 scope: repo-local
 repo_root: .
 entrypoint: SKILL.md
 rendered_readme: README.rendered.html
 roadmap: ROADMAP.md
 changelog: CHANGELOG.md
+user_test: USER_TEST.md
 issue_draft: issue-drafts.md
 issue_packet: issue-packet.json
 references:

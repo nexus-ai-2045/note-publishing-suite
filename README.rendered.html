@@ -117,7 +117,7 @@
 <p><strong>書くところまで自動化。公開は、人が決める。</strong></p>
 <p><img src="assets/note-publishing-workflow.svg" alt="素材からNote下書き保存までは自動化し、公開直前で停止して人が判断するワークフロー" loading="lazy"></p>
 <p>ローカル素材から Note の下書きを作り、検査し、エディタへ反映する <strong>NPS（Note Publishing Suite）</strong> です。Codex / Claude Code から使えます。 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。</p>
-<p>パッケージ版: <code>0.2.43</code></p>
+<p>パッケージ版: <code>0.2.44</code></p>
 <p>読書用プレビューは <code>note_virtual_preview.py</code>、編集診断は同コマンドの <code>--diagnostics</code>、由来レビューは <code>note_preview.py --review-provenance</code> を使います。原稿の本人確認・保留は検査で維持します。</p>
 <div class="table-wrap"><table>
 <thead><tr><th>すぐやる</th><th>あとで読む</th></tr></thead>
@@ -135,7 +135,7 @@ cd note-publishing-suite
 sh scripts/verify_public_package.sh</code></pre>
 <p>Windows では PowerShell verifier も使えます。</p>
 <pre><code>pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1</code></pre>
-<p><code>-ExecutionPolicy Bypass</code> はこのプロセスだけに適用されます。 この verifier は Python と git も使って各 checker を実行するため、 先に利用可能か確認してください。 検証は公開操作を行わず、<code>embedded copy</code> と <code>standalone clone</code> の契約を確認します。</p>
+<p><code>-ExecutionPolicy Bypass</code> はこのプロセスだけに適用されます。 この verifier は Python と git も使って各 checker を実行するため、 先に利用可能か確認してください。 検証は公開操作を行わず、<code>embedded copy</code> と <code>standalone clone</code> の契約を確認します。 自動テストのあとに行うユーザー受け入れ確認は <code>USER_TEST.md</code> の4ケースを使います。 受け入れテストの合格は Note 公開の承認ではなく、公開操作は別の人間承認で扱います。</p>
 <h3>2. Codex に登録する（Windows 推奨）</h3>
 <p>installer は実体を複製せず、package を指す pointer だけを置きます。</p>
 <pre><code>pwsh -NoProfile -File adapters/codex/install.ps1 `
@@ -249,6 +249,7 @@ python scripts/provenance_label_check.py &lt;draft.md&gt; --public-output &lt;pu
 <tr><td>機械可読の契約</td><td><a href="package.yaml">package.yaml</a></td></tr>
 <tr><td>今後の計画</td><td><a href="ROADMAP.md">ROADMAP.md</a></td></tr>
 <tr><td>公開前の準備</td><td><a href="PUBLIC_READY.md">PUBLIC_READY.md</a> / <a href="PUBLIC_RELEASE_CHECKLIST.md">PUBLIC_RELEASE_CHECKLIST.md</a></td></tr>
+<tr><td>初見ユーザーの受け入れテスト</td><td><a href="USER_TEST.md">USER_TEST.md</a></td></tr>
 <tr><td>セキュリティ</td><td><a href="SECURITY.md">SECURITY.md</a></td></tr>
 <tr><td>変更履歴</td><td><a href="CHANGELOG.md">CHANGELOG.md</a></td></tr>
 <tr><td>（任意）デモ動画の置き場</td><td><a href="assets/demo/README.md">assets/demo/README.md</a></td></tr>
