@@ -4,6 +4,41 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
+## 0.2.44
+
+日付: 2026-10-07
+
+変更:
+- main の 0.2.43（#53）に追従し、受け入れテスト手順書を含む本 PR のパッケージ版を 0.2.44 に上げた。
+- 初めて使う人がローカルだけで主要な流れと公開直前の停止位置を確かめる受け入れテスト手順書 `USER_TEST.md`（4ケース）を追加し、README と package.yaml から参照できるようにした。受け入れテストの合格は Note 公開の承認ではないことを明記した。
+- 公開パッケージ検証スクリプトで、ローカル下書きQAの証跡を一時ファイルへ出力して終了後に削除し、検証後もリポジトリ内の追跡ファイルが変わらないことをテストで確かめるようにした。
+- CHANGELOG の版の並びを新しい順に直し、その順序を確かめるテストを追加した。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `sh scripts/verify_public_package.sh`
+- `python scripts/docs_sync_check.py --base-ref origin/main`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
+## 0.2.43
+
+日付: 2026-10-06
+
+変更:
+- 公開済み記事の扉絵・本文更新を、元下書きなしで公開APIの現在値から照合する読み取り専用ルートを追加。画像変換クエリを除いた素材IDを比較し、仮のdraft来歴は生成しない。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `python scripts/check_version_bump.py`（基準: `origin/main`）
+- `python scripts/docs_sync_check.py --base-ref origin/main`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.2.42
 
 日付: 2026-10-06
