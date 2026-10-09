@@ -339,6 +339,12 @@ python scripts\verify_published_update.py --url <note_url> --expected-title <tit
 
 誤字を含む修正、公開前調査、公開設定、最終公開は、対象の版ごとに人間確認する。各段階の直前に `scripts/note_workflow_gate.py --settings USER_SETTINGS_PATH --packet <review.json> --stage <edit|research|settings|publish> --conversation-id <current>` を通す。欠落・変更・別記事・別会話は停止する。汎用Browser直操作も例外にしない。checkerは承認を生成せず、真正性の照合はruntimeの責務。最終投稿は人間操作とする。
 
+## 調査品質と段階別PDCA
+
+workspace settingsの任意の `research_quality_policy` を有効にした場合、research段階にJSON品質報告を供給する。SEO・AIO・Note・タグ・PDCA・関連作者と旬の各採否を、読戻した資料と観測日時、保存物ハッシュへ結ぶ。必要資料の欠落、未来時刻、鮮度切れ、未確認を成功に変換しない。再利用と適用外には理由が必要。詳細は既存の人間レビュー契約を参照する。
+
+小さい記事改善、公開直後の照合、記事成果、同テーマの比較、運用戦略の5段階を既存feedbackへ記録する。未到来の成果は計画であり、未取得と0を区別する。画像の調整では保持条件と変更条件、加工前後と実解像度を分けて確認する。新しい公開権限、巡回スキ、定期通知はこの契約から生成しない。
+
 ## 公開後の読戻しと承認一覧
 
 内部ブラウザで取得した公開現物JSONを `--local-observation` で供給できる。指定時はネットワーク取得へ戻らない。公開／下書き台帳は `--published-ledger`／`--draft-ledger` でworkspace正本を指定し、既定dry-runの確認後、`--write-ledger` で更新する。原稿・公開snapshot・採否履歴はpackage外に保管する。

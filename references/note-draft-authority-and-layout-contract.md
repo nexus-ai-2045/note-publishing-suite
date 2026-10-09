@@ -56,6 +56,9 @@ transport切断やtimeoutから復旧しても、古いカーソル、DOM、本�
 次の `footer-selection` JSON ブロックを一つだけ保持する。別の選定台帳を作らない。
 
 - `article_id`、`reader`、`series`、`reader_action`: 記事、読者、シリーズ、読後行動。
+- `decision`、`reason`: `include`（採用）または `omit`（非採用）と空でない理由。
+  非採用は `links: []` を明示し、採否と理由を含む計画を人間が承認する。
+  採否が未指定の既存計画は従来の採用として照合し、空配列から非採用を推測しない。
 - `links`: DOM順に並べた採用リンク。各項目は `url`、`registry_ref`、`reason`、
   `presentation`（`card` または `text_link`）、`required`（真偽値）を持つ。
 - `registry_ref`: 公開記事なら既存 `data/published_notes.json` の該当登録、
@@ -71,6 +74,8 @@ transport切断やtimeoutから復旧しても、古いカーソル、DOM、本�
   "reader": "関連する入門記事を読みたい読者",
   "series": "example-series",
   "reader_action": "次の解説を読む",
+  "decision": "include",
+  "reason": "読後の疑問を関連資料で解消する",
   "links": [{
     "url": "https://example.com/archive",
     "registry_ref": "既存登録の参照先を人間が確認して記入",
@@ -84,7 +89,11 @@ transport切断やtimeoutから復旧しても、古いカーソル、DOM、本�
 
 この例は未レビューなので検査に通らない。fixtureの承認記録は人工の試験入力で、
 人間レビューが実施された証明にはしない。意味の適合性や承認の真正性を機械が創作しない。
-空計画、空のlinks、未レビューは停止する。任意リンクは省略できるが、追加時の順序と形式を守る。
+空計画、採用時の空のlinks、未レビューは停止する。承認済み非採用では
+`links: []` と観測の `footer.nodes: []` を必要とし、リンクや観測の欠落は空配列扱いしない。
+非採用なのにリンクや観測ノードがある場合も停止する。採否や理由の変更は承認を失効させる。
+workflowの `layout.footer_cards` と同じ採否・理由の考え方を使うが、各入口の承認証拠は別に必要。
+任意リンクは省略できるが、追加時の順序と形式を守る。
 
 公開前の実入口:
 

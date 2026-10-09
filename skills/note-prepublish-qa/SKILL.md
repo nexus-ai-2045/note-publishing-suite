@@ -70,3 +70,7 @@ python scripts\note_diff_check.py <note_url> <draft.md> <phrase...>
 ## 公開前調査の毎回確認
 
 `../../references/note-workflow-review-contract.md` に従い、現稿に対する調査報告を作成する。根拠・調査結果・未確認点を毎回本人に提示し、承認発言を当該会話のreceiptに記録する。`note_workflow_gate.py --settings USER_SETTINGS_PATH --packet USER_REVIEW_PACKET --conversation-id CURRENT_CONVERSATION --stage research` が通らなければ公開手前へ進まない。本人の意見を外部事実と混ぜず、検査CLIの成功だけで本人確認済みとしない。
+
+外部workspace settingsで `research_quality_policy.required` を有効にしている利用者は、既存 `research_report` に `note-research-quality/v1` JSONを渡す。上と同じresearchコマンドがSEO・AIO・Note・タグ・PDCA・書き手/トレンドの6領域、資料の観測日時・保存内容・鮮度・再利用理由・適用外理由を検査する。形式は `../../references/note-workflow-review-contract.md` と `../../data/note_research_quality.example.json` を参照する。資料の分類と意味、本文への採否は本人に確認し、未確認をpassへ変換しない。
+
+PDCAの5段階は公開前には担当・変更・測定対象・測定時期の計画を既存feedbackへ記録する。公開後の実測値を公開前に要求しない。品質契約がない利用者の従来Markdown報告と本人確認は引き続き有効である。

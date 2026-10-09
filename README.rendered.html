@@ -117,7 +117,7 @@
 <p><strong>書くところまで自動化。公開は、人が決める。</strong></p>
 <p><img src="assets/note-publishing-workflow.svg" alt="素材からNote下書き保存までは自動化し、公開直前で停止して人が判断するワークフロー" loading="lazy"></p>
 <p>ローカル素材から Note の下書きを作り、検査し、エディタへ反映する <strong>NPS（Note Publishing Suite）</strong> です。Codex / Claude Code から使えます。 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。</p>
-<p>パッケージ版: <code>0.2.44</code></p>
+<p>パッケージ版: <code>0.2.45</code></p>
 <p>読書用プレビューは <code>note_virtual_preview.py</code>、編集診断は同コマンドの <code>--diagnostics</code>、由来レビューは <code>note_preview.py --review-provenance</code> を使います。原稿の本人確認・保留は検査で維持します。</p>
 <div class="table-wrap"><table>
 <thead><tr><th>すぐやる</th><th>あとで読む</th></tr></thead>
@@ -267,6 +267,7 @@ python scripts/provenance_label_check.py &lt;draft.md&gt; --public-output &lt;pu
 <li><code>scripts/docs_sync_check.py</code>: 生成物と関連文書をread-onlyで同期検査。</li>
 <li><code>scripts/note_interview_packet.py</code>: 低負担な問答packetを生成。</li>
 <li><code>scripts/note_authorship_gate.py</code>: 本人発言にない作文や無断短縮を検査。</li>
+<li><code>scripts/note_research_quality.py</code>: 任意の品質ポリシーに従い、調査報告の根拠・鮮度・採否と5段階のPDCA計画を読み取り専用で検査。実行入口は既存の <code>note_workflow_gate.py</code> のresearch段階。</li>
 <li><code>scripts/note_linebreak_gate.py</code> / <code>scripts/note_figure_structure_gate.py</code>: 改行、図、captionを検査。改行gateは段落順の期待・観測soft-break配列を照合できる。プレビューは空行で段落を分け、同じ段落内の改行を <code>&lt;br&gt;</code> にする。</li>
 <li><code>scripts/note_browser_transport_recovery.py</code> / <code>scripts/note_editor_timeout_recovery.py</code>: Browser切断とtimeoutを分類。前者はread-only復旧計画専用で、process終了や人間承認の真正性確認は行わない。</li>
 <li><code>scripts/note_editor_pdca_failure_check.py</code>: Note editor 失敗パターン台帳を検査。</li>
@@ -305,6 +306,10 @@ python -m pytest scripts/test_skill_integration.py tests</code></pre>
 <h2>記事制作の入口と毎回の確認</h2>
 <p>音声書き起こしやnote本文から始める編集、既存素材の記事化、壁打ちを重ねる共同執筆の3経路を扱います。原文を先にローカル保存し、編集稿と区別します。本人発話、AI整理・追加案、外部事実、採否を既存の由来検査に結び付けます。</p>
 <p>誤字も修正前後を確認し、公開前調査・公開設定・最終公開も毎回本人に確認します。<a href="references/note-workflow-review-contract.md">版ごとの承認契約</a>と <code>scripts/note_workflow_gate.py</code> で対象の版と承認記録を照合します。古い承認では進めません。checkerだけで人間発言の真正性や任意のBrowser経路を保証せず、runtimeが接続と証拠照合を担います。毎発言のフックは導入せず、最終投稿ボタンは人間が操作します。</p>
+<h2>SEO・AIO・Note・PDCAの調査確認</h2>
+<p>workspace settingsで <code>research_quality_policy</code> を有効にした利用者は、既存research段階でSEO、AI検索で読み取れる根拠（AIO）、Noteの表示・設定、タグ、PDCA、関連作者・旬の6分野を確認します。実際に読んだ資料、観測日時、保存物のハッシュ、採否と未確認事項を結び、欠落・改変・鮮度切れは停止します。適用外や既存資料の再利用には理由が必要です。設定しない利用者の既存Markdown報告は継続利用できます。</p>
+<p>PDCAは「記事内の改善→公開直後の確認→記事の成果→同テーマの比較→運用戦略」の5段階を既存feedbackへ結びます。将来の測定は計画として扱い、未取得を0や成功に変えません。順位・AI引用・収益・画像品質の実効果は、この構造検査だけで保証しません。画像は保持条件・変更条件を分け、加工前後、実解像度、文字や顔の変化を確認します。</p>
+<p>フッターを省略する場合は、制作計画の明示的な <code>decision: omit</code> と理由を承認ハッシュへ含め、空のリンク計画と空の観測ノードを照合します。省略を指定しない旧計画では従来の必須リンク検査を維持します。</p>
 <h2>公開後の読戻しと承認一覧</h2>
 <p>内部ブラウザで取得した公開現物JSONを <code>--local-observation</code> で供給できる。指定時はネットワーク取得へ戻らない。公開／下書き台帳は <code>--published-ledger</code>／<code>--draft-ledger</code> でworkspace正本を指定し、既定dry-runの確認後、<code>--write-ledger</code> で更新する。原稿・公開snapshot・採否履歴はpackage外に保管する。</p>
 <p>承認の確認は <code>note_workflow_gate.py --list-gates</code> で現在版・根拠・失効理由・依存する未承認項目を表示する。本文校正、目次／末尾カード、公開設定、最終公開の承認を区別し、本人が変更したタグを上書きしない。公開済みの観測と全ゲート通過は別の事実として残す。</p>

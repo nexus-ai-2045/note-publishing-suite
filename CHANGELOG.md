@@ -4,6 +4,23 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
+## 0.2.45
+
+日付: 2026-10-09
+
+変更:
+- 既存research段階に任意の品質ポリシーを接続し、SEO・AIO・Note・タグ・PDCA・関連作者と旬の根拠、鮮度、保存ハッシュ、採否と5段階の計画を検査する。旧Markdown報告はポリシー未設定時に維持する。
+- 承認済み制作計画の明示的なフッター省略を空links・空nodesと照合する。未承認省略と矛盾は停止し、採用時の必須リンク検査は維持する。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `sh scripts/verify_public_package.sh`
+- `python scripts/docs_sync_check.py --base-ref origin/main`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.2.44
 
 日付: 2026-10-07

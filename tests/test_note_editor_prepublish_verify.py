@@ -368,6 +368,75 @@ def test_all_optional_links_can_be_omitted(tmp_path):
     assert payload["ready_for_publish"] is False
 
 
+def omitted_footer_observation() -> dict:
+    obs = ready_observation()
+    plan = obs["production_plan"]
+    plan.update(decision="omit", reason="本文内で読後行動が完結する", links=[])
+    reviewed(plan)
+    obs["footer"]["nodes"] = []
+    return obs
+
+
+def test_human_approved_footer_omission_passes(tmp_path):
+    code, payload = run_checker(tmp_path, omitted_footer_observation())
+    assert code == 0 and payload["issues"] == []
+    assert payload["ready_for_publish"] is False
+    assert payload["live_dom_verified"] is False
+
+
+@pytest.mark.parametrize("fault,expected_code", [
+    ("missing_decision", "footer_plan_links_missing"),
+    ("unknown_decision", "footer_plan_decision_invalid"),
+    ("missing_reason", "footer_plan_decision_invalid"),
+    ("unapproved", "footer_plan_unapproved"),
+    ("changed_reason", "footer_review_hash_mismatch"),
+    ("missing_links", "footer_plan_links_missing"),
+    ("links_on_omit", "footer_plan_decision_mismatch"),
+    ("nodes_on_omit", "footer_extra_url"),
+    ("missing_nodes", "footer_nodes_missing"),
+    ("include_empty_links", "footer_plan_links_missing"),
+])
+def test_footer_omission_rejects_missing_or_conflicting_evidence(tmp_path, fault, expected_code):
+    obs = omitted_footer_observation()
+    plan = obs["production_plan"]
+    if fault == "missing_decision":
+        plan.pop("decision")
+    elif fault == "unknown_decision":
+        plan["decision"] = "unknown"
+    elif fault == "missing_reason":
+        plan.pop("reason")
+    elif fault == "unapproved":
+        plan["review"]["status"] = "pending"
+    elif fault == "changed_reason":
+        plan["reason"] = "採用理由を変更"
+    elif fault == "missing_links":
+        plan.pop("links")
+    elif fault == "links_on_omit":
+        plan["links"] = selection_plan()["links"]
+    elif fault == "nodes_on_omit":
+        obs["footer"]["nodes"] = ready_observation()["footer"]["nodes"]
+    elif fault == "missing_nodes":
+        obs["footer"].pop("nodes")
+    elif fault == "include_empty_links":
+        plan["decision"] = "include"
+    if fault not in {"unapproved", "changed_reason"}:
+        reviewed(plan)
+    code, payload = run_checker(tmp_path, obs)
+    assert code == 1 and expected_code in issue_codes(payload)
+
+
+def test_explicit_include_preserves_required_link_check(tmp_path):
+    obs = ready_observation()
+    plan = obs["production_plan"]
+    plan.update(decision="include", reason="次の資料へ案内する")
+    reviewed(plan)
+    code, payload = run_checker(tmp_path, obs)
+    assert code == 0 and payload["ok"] is True
+    obs["footer"]["nodes"].pop()
+    code, payload = run_checker(tmp_path, obs)
+    assert code == 1 and "footer_required_missing" in issue_codes(payload)
+
+
 def test_conflicting_legacy_footer_is_rejected(tmp_path):
     obs = ready_observation()
     obs["footer"]["raw_counts"] = {"https://automata-lab.example/": 1}
