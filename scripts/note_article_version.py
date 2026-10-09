@@ -8,21 +8,15 @@ import json
 import re
 from datetime import datetime
 from pathlib import Path
+from contextlib import nullcontext
+
+from post_publish import load_list, transaction_path, write_list
+from sync_note_public_snapshot import ledger_file_lock, transaction_path as snapshot_transaction_path
 
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def find_default_ledger() -> Path:
-    """repo-local package copyからも公開台帳を解決する。"""
-    for base in (ROOT, *ROOT.parents):
-        candidate = base / "data" / "published_notes.json"
-        if candidate.is_file():
-            return candidate
-    return ROOT / "data" / "published_notes.json"
-
-
-LEDGER = find_default_ledger()
 VERSION_RE = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
 TITLE_VERSION_RE = re.compile(r"(?:\s*[（(｜|]\s*v\d+\.\d+\.\d+\s*[）)]?)$")
 
@@ -122,8 +116,10 @@ def cancel(record: dict, reason: str) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--note-id", required=True)
-    parser.add_argument("--ledger", type=Path, default=LEDGER)
-    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--ledger", type=Path, required=True, help="workspaceが明示選択したpackage外の公開台帳")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--dry-run", action="store_true")
+    mode.add_argument("--write-ledger", action="store_true", help="検証後に台帳を書き込む。既定はdry-run")
     sub = parser.add_subparsers(dest="action", required=True)
     prepare_parser = sub.add_parser("prepare")
     prepare_parser.add_argument("--part", choices=("major", "minor", "patch"), default="patch")
@@ -136,17 +132,22 @@ def main() -> int:
         cancel_parser.add_argument("--reason", required=True)
     args = parser.parse_args()
 
-    records = json.loads(args.ledger.read_text(encoding="utf-8"))
-    record = find_record(records, args.note_id)
-    if args.action == "prepare":
-        prepare(record, args.part, args.initial, args.reason)
-    elif args.action == "finalize":
-        finalize(record, args.observed_title)
-    else:
-        cancel(record, args.reason)
-
-    if not args.dry_run:
-        args.ledger.write_text(json.dumps(records, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    ledger = args.ledger.expanduser().resolve()
+    if ledger.is_relative_to(ROOT):
+        raise ValueError("台帳はNPS package外のworkspaceから明示してください")
+    with ledger_file_lock(ledger) if args.write_ledger else nullcontext():
+        if transaction_path(ledger).exists() or snapshot_transaction_path(ledger).exists():
+            raise ValueError("未完了transactionがあります。元の台帳更新処理で復旧してください")
+        records = load_list(ledger)
+        record = find_record(records, args.note_id)
+        if args.action == "prepare":
+            prepare(record, args.part, args.initial, args.reason)
+        elif args.action == "finalize":
+            finalize(record, args.observed_title)
+        else:
+            cancel(record, args.reason)
+        if args.write_ledger:
+            write_list(ledger, records)
     print(json.dumps(record, ensure_ascii=False, indent=2))
     return 0
 

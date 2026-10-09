@@ -59,6 +59,7 @@ def test_required_files_exist():
         "assets/note-publishing-workflow.svg",
         "CHANGELOG.md",
         "PUBLIC_RELEASE_CHECKLIST.md",
+        "USER_TEST.md",
         ".github/pull_request_template.md",
         "issue-drafts.md",
         "issue-packet.json",
@@ -186,6 +187,28 @@ def test_public_package_version_is_current_commit_target():
     assert "changelog: CHANGELOG.md" in package
     assert changelog.index(f"## {package_version}") < changelog.index("## 0.2.0")
     assert "verify:local" in readme
+
+
+def test_changelog_versions_are_newest_first():
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    versions = [
+        tuple(int(part) for part in match.split("."))
+        for match in re.findall(r"^## ([0-9]+\.[0-9]+\.[0-9]+)$", changelog, re.MULTILINE)
+    ]
+    assert versions == sorted(versions, reverse=True)
+
+
+def test_user_acceptance_guide_contract():
+    package = (ROOT / "package.yaml").read_text(encoding="utf-8")
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    guide = (ROOT / "USER_TEST.md").read_text(encoding="utf-8")
+
+    assert "user_test: USER_TEST.md" in package
+    assert "[USER_TEST.md](USER_TEST.md)" in readme
+    assert "公開操作を行わない" in guide
+    assert "実際結果" in guide
+    for case_id in ("UAT-01", "UAT-02", "UAT-03", "UAT-04"):
+        assert case_id in guide
 
 
 def test_verifier_runtime_requirements_are_honest():
@@ -1114,6 +1137,16 @@ def test_public_package_verifier_runs_from_standalone_clone_fixture(tmp_path: Pa
     assert payload["verification_lanes"] == ["embedded_copy", "standalone_clone"]
     assert payload["external_actions_performed"] == []
     assert payload["publication_actions_performed"] == []
+    status = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=standalone,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert status.returncode == 0, status.stderr
+    assert status.stdout == ""
 
 
 def test_github_identity_guard_local_policy_blocks_identity_leaks(tmp_path: Path):

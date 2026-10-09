@@ -16,7 +16,7 @@ publication_gate: human_review_required
 **NPS（Note Publishing Suite）** です。Codex / Claude Code から使えます。
 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。
 
-パッケージ版: `0.2.40`
+パッケージ版: `0.2.46`
 
 読書用プレビューは `note_virtual_preview.py`、編集診断は同コマンドの `--diagnostics`、由来レビューは `note_preview.py --review-provenance` を使います。原稿の本人確認・保留は検査で維持します。
 
@@ -50,6 +50,8 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1
 この verifier は Python と git も使って各 checker を実行するため、
 先に利用可能か確認してください。
 検証は公開操作を行わず、`embedded copy` と `standalone clone` の契約を確認します。
+自動テストのあとに行うユーザー受け入れ確認は `USER_TEST.md` の4ケースを使います。
+受け入れテストの合格は Note 公開の承認ではなく、公開操作は別の人間承認で扱います。
 
 ### 2. Codex に登録する（Windows 推奨）
 
@@ -134,6 +136,8 @@ note-publishing-suite で進めて。
 | 公開停止線 | [`note-publication-gate`](skills/note-publication-gate/SKILL.md) | 公開ボタン手前で停止 |
 | 公開後台帳 | [`note-postpublish-ledger`](skills/note-postpublish-ledger/SKILL.md) | URL 確認後のみ |
 
+公開済み記事を扉絵・本文だけ更新した場合は、元下書きを仮作成せず、[`verify_published_update.py`](scripts/verify_published_update.py)で公開APIの現在値を照合します。手順は[`post-publish-context-proof.md`](references/post-publish-context-proof.md)を参照してください。
+
 下書き前には問答packetで本人の言葉、判断、避けたい断言、残したい脱線を確認し、
 `voice_profile`と`shortening_budget`を固定します。詳しくは
 [`note-draft-authority-and-layout-contract.md`](references/note-draft-authority-and-layout-contract.md)。
@@ -215,6 +219,7 @@ Noteログイン、常時接続、画像アップロードの完全自動化は�
 | 機械可読の契約 | [package.yaml](package.yaml) |
 | 今後の計画 | [ROADMAP.md](ROADMAP.md) |
 | 公開前の準備 | [PUBLIC_READY.md](PUBLIC_READY.md) / [PUBLIC_RELEASE_CHECKLIST.md](PUBLIC_RELEASE_CHECKLIST.md) |
+| 初見ユーザーの受け入れテスト | [USER_TEST.md](USER_TEST.md) |
 | セキュリティ | [SECURITY.md](SECURITY.md) |
 | 変更履歴 | [CHANGELOG.md](CHANGELOG.md) |
 | （任意）デモ動画の置き場 | [assets/demo/README.md](assets/demo/README.md) |
@@ -237,6 +242,7 @@ Noteログイン、常時接続、画像アップロードの完全自動化は�
 - `scripts/docs_sync_check.py`: 生成物と関連文書をread-onlyで同期検査。
 - `scripts/note_interview_packet.py`: 低負担な問答packetを生成。
 - `scripts/note_authorship_gate.py`: 本人発言にない作文や無断短縮を検査。
+- `scripts/note_research_quality.py`: 任意の品質ポリシーに従い、調査報告の根拠・鮮度・採否と5段階のPDCA計画を読み取り専用で検査。実行入口は既存の `note_workflow_gate.py` のresearch段階。
 - `scripts/note_linebreak_gate.py` / `scripts/note_figure_structure_gate.py`: 改行、図、captionを検査。改行gateは段落順の期待・観測soft-break配列を照合できる。プレビューは空行で段落を分け、同じ段落内の改行を `<br>` にする。
 - `scripts/note_browser_transport_recovery.py` / `scripts/note_editor_timeout_recovery.py`: Browser切断とtimeoutを分類。前者はread-only復旧計画専用で、process終了や人間承認の真正性確認は行わない。
 - `scripts/note_editor_pdca_failure_check.py`: Note editor 失敗パターン台帳を検査。
@@ -307,6 +313,14 @@ GitHubではこのREADMEをそのまま読めます。ローカル整形版は
 
 誤字も修正前後を確認し、公開前調査・公開設定・最終公開も毎回本人に確認します。[版ごとの承認契約](references/note-workflow-review-contract.md)と `scripts/note_workflow_gate.py` で対象の版と承認記録を照合します。古い承認では進めません。checkerだけで人間発言の真正性や任意のBrowser経路を保証せず、runtimeが接続と証拠照合を担います。毎発言のフックは導入せず、最終投稿ボタンは人間が操作します。
 
+## SEO・AIO・Note・PDCAの調査確認
+
+workspace settingsで `research_quality_policy` を有効にした利用者は、既存research段階でSEO、AI検索で読み取れる根拠（AIO）、Noteの表示・設定、タグ、PDCA、関連作者・旬の6分野を確認します。実際に読んだ資料、観測日時、保存物のハッシュ、採否と未確認事項を結び、欠落・改変・鮮度切れは停止します。適用外や既存資料の再利用には理由が必要です。設定しない利用者の既存Markdown報告は継続利用できます。
+
+PDCAは「記事内の改善→公開直後の確認→記事の成果→同テーマの比較→運用戦略」の5段階を既存feedbackへ結びます。将来の測定は計画として扱い、未取得を0や成功に変えません。順位・AI引用・収益・画像品質の実効果は、この構造検査だけで保証しません。画像は保持条件・変更条件を分け、加工前後、実解像度、文字や顔の変化を確認します。
+
+フッターを省略する場合は、制作計画の明示的な `decision: omit` と理由を承認ハッシュへ含め、空のリンク計画と空の観測ノードを照合します。省略を指定しない旧計画では従来の必須リンク検査を維持します。
+
 ## 公開後の読戻しと承認一覧
 
 内部ブラウザで取得した公開現物JSONを `--local-observation` で供給できる。指定時はネットワーク取得へ戻らない。公開／下書き台帳は `--published-ledger`／`--draft-ledger` でworkspace正本を指定し、既定dry-runの確認後、`--write-ledger` で更新する。原稿・公開snapshot・採否履歴はpackage外に保管する。
@@ -316,6 +330,10 @@ GitHubではこのREADMEをそのまま読めます。ローカル整形版は
 詳しくは [人間レビュー契約](references/note-workflow-review-contract.md) と [公開後手順](skills/note-postpublish-ledger/SKILL.md) を参照する。
 
 
-## 既存ローカル差分の統合候補
+## 原稿保全・検索QA・編集検査の統合
 
-上流0.2.40に、検索QA、POSIX pointer、原稿保全・目次・編集session・論点対応・packet検査の既存追加を統合した未配送候補です。上流採用済みのプレビューと公開後処理は最新版を保持します。入口と強制接続の範囲は `SKILL.md` を参照してください。最終公開の本人操作境界は維持します。
+検索QA、POSIX pointer、原稿保全・目次・編集session・論点対応・packet検査を既存の入口へ統合しました。明示した検索語だけを検索し、候補の取得を出典確認と区別します。原稿版・公式資料の保存先はworkspaceを明示し、既定のローカル書込みを避けます。editorの途中失敗では後続操作を止め、供給した観測JSONの成功を公開準備完了へ変換しません。詳細と検査の接続範囲は `SKILL.md` を参照してください。最終公開の本人操作境界は維持します。
+
+## 読書プレビューの表示範囲
+
+ローカルの読書プレビューは白背景のlight表示を基本に、本文の読書と構成確認に使います。簡易表示はNote実物のテーマやエディタUIを完全再現するものではありません。メタデータや診断表示を本文と分け、実画面の読戻しを別に行います。

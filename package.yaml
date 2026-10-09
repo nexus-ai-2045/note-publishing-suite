@@ -1,11 +1,12 @@
 name: note-publishing-suite
-version: 0.2.40
+version: 0.2.46
 scope: repo-local
 repo_root: .
 entrypoint: SKILL.md
 rendered_readme: README.rendered.html
 roadmap: ROADMAP.md
 changelog: CHANGELOG.md
+user_test: USER_TEST.md
 issue_draft: issue-drafts.md
 issue_packet: issue-packet.json
 references:
@@ -186,6 +187,7 @@ existing_scripts:
   - scripts/test_skill_integration.py
   - scripts/note_feedback.py
   - scripts/note_workflow_gate.py
+  - scripts/note_research_quality.py
   - scripts/note_footer_selection.py
   - scripts/note_authorship_gate.py
   - scripts/note_interview_packet.py
@@ -199,6 +201,7 @@ existing_scripts:
   - scripts/note_cover_image_upload_check.py
   - scripts/note_editor_toolbar_measurement_check.py
   - scripts/sync_note_public_snapshot.py
+  - scripts/verify_published_update.py
   - scripts/package_consistency_check.py
   - scripts/clipboard_bridge.py
   - scripts/note_preview.py

@@ -36,7 +36,7 @@ def load_script_module(script_name: str):
 def test_preview_and_pre_publish_on_clean_draft(tmp_path: Path):
     draft = tmp_path / "draft.md"
     draft.write_text(
-        "# テスト記事\n\n"
+        "---\narticle_lane: editor_fixture\n---\n# テスト記事\n\n"
         "先に結論。この検査は公開前の見落としを減らすために使います。\n\n"
         "これは公開前検査のためのローカル下書きです。十分な本文量を確保し、"
         "非公開情報や秘密情報を含めず、読者に伝える内容を確認するための文章です。"

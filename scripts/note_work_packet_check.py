@@ -52,23 +52,27 @@ def validate_packet(packet: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     if packet.get("schema_version") != "note-work-packet/v1":
         errors.append("schema_version must be note-work-packet/v1")
+    list_fields = {"input", "expected_output", "done_when", "stop_when", "evidence", "residual"}
     for field in REQUIRED_FIELDS:
         value = packet.get(field)
-        if value is None or value == "" or (value == [] and field != "residual"):
-            errors.append(f"{field} must be present and non-empty")
+        if field in list_fields:
+            valid = isinstance(value, list) and (bool(value) or field == "residual") and all(
+                isinstance(item, str) and bool(item.strip()) for item in value
+            )
+        else:
+            valid = isinstance(value, str) and bool(value.strip())
+        if not valid:
+            errors.append(f"{field} must be present and non-empty" if field not in list_fields
+                          else f"{field} must be a list of non-empty strings")
     status = packet.get("status")
-    if status not in ALLOWED_STATUS:
+    if not isinstance(status, str) or status not in ALLOWED_STATUS:
         errors.append(f"status must be one of {sorted(ALLOWED_STATUS)}")
-    if not isinstance(packet.get("evidence"), list):
-        errors.append("evidence must be a list")
-    if not isinstance(packet.get("residual"), list):
-        errors.append("residual must be a list")
-    if status in {"accepted", "closed"}:
+    if status in ("accepted", "closed"):
         if not packet.get("evidence"):
             errors.append("accepted/closed packet requires evidence")
         if packet.get("residual"):
             errors.append("accepted/closed packet cannot have residual work")
-    if status in {"blocked", "unknown"} and not packet.get("next_action"):
+    if status in ("blocked", "unknown") and not packet.get("next_action"):
         errors.append("blocked/unknown packet requires next_action")
     evidence_paths = packet.get("evidence_paths", [])
     if not isinstance(evidence_paths, list):
@@ -110,7 +114,7 @@ def main() -> int:
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
     elif result["ok"]:
-        print("OK residual_work_zero=true")
+        print(f"OK residual_work_zero={str(result['residual_work_zero']).lower()}")
     else:
         print("NG")
         for cause in result["stop_causes"]:

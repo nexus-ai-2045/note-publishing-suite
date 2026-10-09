@@ -278,6 +278,7 @@ python scripts\note_diff_check.py <note_url> <draft.md> <phrase...> --snapshot-o
 python scripts\post_publish.py --url <note_url> --draft <draft.md> --dry-run
 python scripts\note_diff_check.py <note_url> <draft.md> <phrase...>
 python scripts\engagement_tracker.py report
+python scripts\verify_published_update.py --url <note_url> --expected-title <title> --expected-eyecatch-url <image_url> --contains <new_phrase>
 ```
 
 - `scripts/post_publish.py` は X 投稿や schedule option を持つため、`--x-text`、`--x-schedule` はこの suite から使わない。
@@ -285,6 +286,7 @@ python scripts\engagement_tracker.py report
 - `data/note_drafts.json` は draft/stale/superseded/published_from_note_editor_record の状態を保ち、公開済み一次台帳に混ぜない。
 - package 外の workspace 固有台帳を使う場合は `scripts/post_publish.py --ledger-dir <dir>` を使う。script の複製は作らない。
 - editor で公開版が変わった場合は、公開本文 snapshot、SHA-256、`local_draft_differs_from_published` を ledger に残す。
+- 公開済み記事を更新し元draftがない場合は、`references/post-publish-context-proof.md` の更新ルートで公開APIの現在値を照合し、仮draftやdraft台帳遷移を作らない。
 - Note 表示日時はユーザーの手動確認値を優先して記録する。
 
 ## Issue Drafts
@@ -337,6 +339,12 @@ python scripts\engagement_tracker.py report
 
 誤字を含む修正、公開前調査、公開設定、最終公開は、対象の版ごとに人間確認する。各段階の直前に `scripts/note_workflow_gate.py --settings USER_SETTINGS_PATH --packet <review.json> --stage <edit|research|settings|publish> --conversation-id <current>` を通す。欠落・変更・別記事・別会話は停止する。汎用Browser直操作も例外にしない。checkerは承認を生成せず、真正性の照合はruntimeの責務。最終投稿は人間操作とする。
 
+## 調査品質と段階別PDCA
+
+workspace settingsの任意の `research_quality_policy` を有効にした場合、research段階にJSON品質報告を供給する。SEO・AIO・Note・タグ・PDCA・関連作者と旬の各採否を、読戻した資料と観測日時、保存物ハッシュへ結ぶ。必要資料の欠落、未来時刻、鮮度切れ、未確認を成功に変換しない。再利用と適用外には理由が必要。詳細は既存の人間レビュー契約を参照する。
+
+小さい記事改善、公開直後の照合、記事成果、同テーマの比較、運用戦略の5段階を既存feedbackへ記録する。未到来の成果は計画であり、未取得と0を区別する。画像の調整では保持条件と変更条件、加工前後と実解像度を分けて確認する。新しい公開権限、巡回スキ、定期通知はこの契約から生成しない。
+
 ## 公開後の読戻しと承認一覧
 
 内部ブラウザで取得した公開現物JSONを `--local-observation` で供給できる。指定時はネットワーク取得へ戻らない。公開／下書き台帳は `--published-ledger`／`--draft-ledger` でworkspace正本を指定し、既定dry-runの確認後、`--write-ledger` で更新する。原稿・公開snapshot・採否履歴はpackage外に保管する。
@@ -348,8 +356,7 @@ python scripts\engagement_tracker.py report
 
 ## 統合したローカル機能の入口
 
-この作業面は上流 `0.2.40` と、既存ローカルの追加機能を合わせた未配送候補。
-上流と同一の配布版とは扱わない。
+この機能群は既存スクリプトを正本とし、利用者の原稿・資料・台帳をpackage外に置く。利用者側で残したWIPと上流版の差分は配送証跡で区別し、全環境への反映済みと推定しない。
 
 - ローカル原稿の保全・再読は `references/note-draft-durability-contract.md` と `scripts/note_draft_durability.py`。
 - 編集CLIは `scripts/note_editor_apply.py`。write直前のworkflow承認を検査する。ブラウザから直接操作する経路への自動強制接続はない。
@@ -359,3 +366,5 @@ python scripts\engagement_tracker.py report
 - 壁打ち論点の対応は `references/draft-topic-coverage.md`。packet検査は `scripts/note_work_packet_check.py`。独立CLIがあることと公開経路への強制接続を区別する。
 
 公開・設定採用・画像採用・本文採用の人間判断は既存のworkflow契約に従う。
+
+読書プレビューは白背景のlight表示で本文を確認するための表示であり、Noteのthemeやeditor UIの完全な再現ではない。実画面の読戻しと由来の検査を分ける。

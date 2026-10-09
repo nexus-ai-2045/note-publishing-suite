@@ -235,3 +235,16 @@ reference と skill が次の測定済み境界を持ち続けることを contr
 `iframe.note-embed` と構造が異なるため、外部記事カードにiframeを一律必須としない。
 通常の `a[href]` や生URLだけを成功としない。未知の構造はreceiptへ記録して確認する。
 これらはlocal policyであり、公式仕様や全外部サービスでの成功を保証しない。
+
+
+## 統合後の自動変更と検証範囲
+
+`note_editor_apply.py` は、元原稿・変更後原稿・設定・現在会話に結び付いたworkflow承認と、対象記事・ログイン名義の現物照合が揃うまで変更しない。埋め込み、目次、タグのいずれかが失敗・未確認なら、後続の変更と下書き保存を停止する。
+
+現時点の組込Orca読取りは、汎用DOMの表示名や画像altを名義の手掛かりとして返すだけで、ログイン中アカウントを検証するtransportではない。`account_identity_verified=false`、`account_identity_source=generic_dom_hint` を返し、実記事の自動変更は手動境界で止まる。これを迂回するCLIフラグはない。
+
+変更入口の契約は、信頼したtransportによる `authenticated_account_menu` の観測元、対象と一致する `account_identity_id`、検証済み状態を合わせて確認する。単独の自己申告boolや記事画像altでは通過しない。このtransportの実機実装・受入確認は未完了であり、fixtureで注入する観測はテスト用authorityに限る。fixture通過を実機名義検証の成功と扱わない。
+
+`note_editor_prepublish_verify.py` と編集session検査は供給されたsnapshotだけを照合する。全項目が合格しても `ready_for_publish=false`、`live_dom_verified=false` を維持する。画像upload境界、クリップボード同意、最終公開操作の人間確認は別途必要となる。
+
+通常の編集観測では `article_lane` を必須とし、`production_candidate` / `exploratory_draft` / `editor_fixture` / `continuation_article` の完全一致だけを受け入れる。欠落、大文字違い、余分な空白、未定義の値によるsession検査の省略は拒否する。明示した非production区分と、末尾リンクだけを対象とする `--footer-only` は編集session全体の検証を行わない。

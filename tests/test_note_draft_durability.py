@@ -487,3 +487,9 @@ def test_malformed_receipt_is_boundary_error(tmp_path: Path, payload: object) ->
     receipt.write_text(json.dumps(payload), encoding="utf-8")
     with pytest.raises(durability.BoundaryError, match="receipt_schema_invalid"):
         durability.verify(receipt)
+
+
+def test_no_platform_backup_location_requires_explicit_root(monkeypatch):
+    monkeypatch.delenv("LOCALAPPDATA", raising=False)
+    with pytest.raises(durability.BoundaryError, match="pass --backup-root"):
+        durability.default_backup_root()

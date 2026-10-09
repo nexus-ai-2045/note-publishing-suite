@@ -6,12 +6,17 @@ from typing import Any
 
 def validate_edit_session(data: dict[str, Any]) -> list[dict[str, str]]:
     """Fail closed on post-edit image and publish-settings readback."""
-    if data.get("article_lane") != "production_candidate":
-        return []
     errors: list[dict[str, str]] = []
 
     def reject(code: str, message: str) -> None:
         errors.append({"severity": "error", "code": code, "message": message})
+
+    lane = data.get("article_lane")
+    if lane not in ("production_candidate", "exploratory_draft", "editor_fixture", "continuation_article"):
+        reject("invalid_article_lane", "対象の記事laneが欠落または不正です")
+        return errors
+    if lane != "production_candidate":
+        return errors
 
     session = data.get("edit_session")
     if not isinstance(session, dict):

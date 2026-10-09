@@ -69,3 +69,21 @@ def test_non_production_lane_does_not_require_session():
     data["article_lane"] = "exploratory_draft"
     data.pop("edit_session")
     assert "edit_session_missing" not in {item["code"] for item in build_result(data)["issues"]}
+
+
+def test_complete_production_session_remains_snapshot_only():
+    import hashlib
+    import json
+    data = observation()
+    plan = data["production_plan"]
+    data["series"] = plan["series"]
+    plan.pop("review")
+    plan.update(decision="omit", reason="この記事では末尾リンク不要")
+    digest = hashlib.sha256(json.dumps(plan, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    plan["review"] = dict(status="approved", reviewer="fixture-human", reviewed_at="2026-01-01T00:00:00+00:00", plan_sha256=digest)
+    result = build_result(data)
+    assert result["issues"] == []
+    assert result["ok"] is True
+    assert result["ready_for_publish"] is False
+    assert result["live_dom_verified"] is False
+    assert result["verification_scope"] == "supplied_snapshot_only"

@@ -113,3 +113,6 @@ python scripts/run_local_draft_qa_proof.py <draft.md> --search-query "公開情�
 `--footer-only` は末尾照合専用で、全体QAを通した扱いにしない。
 `scripts/note_editor_apply.py` のwrite入口にはworkflow検査があるが、直接のブラウザ操作を自動遮断しない。
 必要な検査を実行し、その結果と実画面の読み戻しを本人レビューへ提示する。
+外部workspace settingsで `research_quality_policy.required` を有効にしている利用者は、既存 `research_report` に `note-research-quality/v1` JSONを渡す。上と同じresearchコマンドがSEO・AIO・Note・タグ・PDCA・書き手/トレンドの6領域、資料の観測日時・保存内容・鮮度・再利用理由・適用外理由を検査する。形式は `../../references/note-workflow-review-contract.md` と `../../data/note_research_quality.example.json` を参照する。資料の分類と意味、本文への採否は本人に確認し、未確認をpassへ変換しない。
+
+PDCAの5段階は公開前には担当・変更・測定対象・測定時期の計画を既存feedbackへ記録する。公開後の実測値を公開前に要求しない。品質契約がない利用者の従来Markdown報告と本人確認は引き続き有効である。

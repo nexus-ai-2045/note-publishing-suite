@@ -45,7 +45,8 @@ def draft_markers(text: str) -> list[str]:
             run = fence.group(1)
             if not fence_character:
                 fence_character, fence_length = run[0], len(run)
-            elif run[0] == fence_character and len(run) >= fence_length:
+            elif (run[0] == fence_character and len(run) >= fence_length
+                  and not line[fence.end():].strip()):
                 fence_character, fence_length = "", 0
             continue
         if not fence_character:

@@ -221,6 +221,11 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=5)
     parser.add_argument("--dry-run", action="store_true", help="検索と公開ページ取得を実行せずQAを記録")
     parser.add_argument("--step-timeout", type=float, default=240, help="各QAコマンドの制限秒数")
+    parser.add_argument("--settings", type=Path)
+    parser.add_argument("--article-id")
+    parser.add_argument("--conversation-id")
+    parser.add_argument("--authorship-evidence", type=Path)
+    parser.add_argument("--prepublish-review-receipt", type=Path)
     args = parser.parse_args()
     if not 0 < args.step_timeout <= 600:
         parser.error("制限秒数は0秒超600秒以下です")
@@ -236,9 +241,14 @@ def main() -> int:
         fact_args.extend(["--search-query", query])
     if args.dry_run:
         fact_args.append("--dry-run")
+    pre_publish_args = ["scripts/pre_publish_check.py", rel(draft), "--json"]
+    for option in ("settings", "article_id", "conversation_id", "authorship_evidence", "prepublish_review_receipt"):
+        value = getattr(args, option)
+        if value is not None:
+            pre_publish_args.extend(["--" + option.replace("_", "-"), str(value)])
     steps = [
         run_step("note_preview", ["scripts/note_preview.py", rel(draft), "-o", rel(preview)], args.step_timeout),
-        run_step("pre_publish_check", ["scripts/pre_publish_check.py", rel(draft), "--json"], args.step_timeout),
+        run_step("pre_publish_check", pre_publish_args, args.step_timeout),
         run_step("note_fact_check", fact_args, args.step_timeout),
     ]
     if args.dry_run:

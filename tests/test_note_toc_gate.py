@@ -58,3 +58,19 @@ def test_toc_after_first_heading_fails(tmp_path):
     returncode, payload = run_gate(tmp_path, observation)
     assert returncode == 1
     assert "toc_position_invalid" in {issue["code"] for issue in payload["issues"]}
+
+
+def test_invalid_lane_or_root_fails_closed(tmp_path):
+    for observation in ({}, {"article_lane": "typo"}, {"article_lane": []}, [], False):
+        code, result = run_gate(tmp_path, observation)
+        assert code == 1
+        assert result["ready_for_draft_save"] is False
+
+
+def test_boolean_counts_fail_closed(tmp_path):
+    for field in ("h2_count", "h3_count", "toc_count", "toc_ref_count"):
+        observation = valid_observation()
+        observation[field] = True
+        code, result = run_gate(tmp_path, observation)
+        assert code == 1, field
+        assert result["ready_for_draft_save"] is False

@@ -4,15 +4,16 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib.util
 import json
 import re
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
 try:
-    from note_authorship_gate import evaluate
+    from note_authorship_gate import evaluate, frontmatter_fields
 except ModuleNotFoundError:
     _AUTHORSHIP_SPEC = importlib.util.spec_from_file_location(
         "note_authorship_gate", Path(__file__).with_name("note_authorship_gate.py")
@@ -22,6 +23,20 @@ except ModuleNotFoundError:
     _AUTHORSHIP_MODULE = importlib.util.module_from_spec(_AUTHORSHIP_SPEC)
     _AUTHORSHIP_SPEC.loader.exec_module(_AUTHORSHIP_MODULE)
     evaluate = _AUTHORSHIP_MODULE.evaluate
+    frontmatter_fields = _AUTHORSHIP_MODULE.frontmatter_fields
+
+
+try:
+    from note_workflow_gate import read_workspace_settings
+except ModuleNotFoundError:
+    _WORKFLOW_SPEC = importlib.util.spec_from_file_location(
+        "note_workflow_gate", Path(__file__).with_name("note_workflow_gate.py")
+    )
+    if _WORKFLOW_SPEC is None or _WORKFLOW_SPEC.loader is None:
+        raise
+    _WORKFLOW_MODULE = importlib.util.module_from_spec(_WORKFLOW_SPEC)
+    _WORKFLOW_SPEC.loader.exec_module(_WORKFLOW_MODULE)
+    read_workspace_settings = _WORKFLOW_MODULE.read_workspace_settings
 
 
 SECRET_PATTERNS = [
@@ -58,6 +73,110 @@ RECHECK_REQUIRED_PATTERN = re.compile(
 )
 
 
+EDITORIAL_REVIEW_SCHEMA = "nps-prepublish-review/v1"
+
+
+def _sha256(value: bytes) -> str:
+    return hashlib.sha256(value).hexdigest()
+
+
+def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate receipt key: {key}")
+        result[key] = value
+    return result
+
+
+def _reject_json_constant(value: str) -> Any:
+    raise ValueError(f"invalid JSON constant: {value}")
+
+
+def load_editorial_review_receipt(path: Path) -> dict[str, Any]:
+    """Load a strict receipt; JSON files are data, not authenticity proof."""
+    receipt = json.loads(
+        path.read_text(encoding="utf-8"),
+        object_pairs_hook=_reject_duplicate_pairs,
+        parse_constant=_reject_json_constant,
+    )
+    if not isinstance(receipt, dict):
+        raise ValueError("editorial review receipt must be an object")
+    return receipt
+
+
+def validate_pre_publish_review_receipt(
+    receipt: dict[str, Any],
+    text: str,
+    *,
+    article_id: str | None,
+    conversation_id: str | None,
+) -> list[str]:
+    """Validate binding; trusted runtime remains responsible for authenticity."""
+    errors: list[str] = []
+    if not isinstance(article_id, str) or not article_id.strip():
+        errors.append("article_id is missing")
+    if not isinstance(conversation_id, str) or not conversation_id.strip():
+        errors.append("conversation_id is missing")
+    if receipt.get("schema_version") != EDITORIAL_REVIEW_SCHEMA:
+        errors.append("schema_version is invalid")
+    for key, expected in (
+        ("article_id", article_id),
+        ("conversation_id", conversation_id),
+        ("status", "review_required"),
+        ("actor", "user"),
+        ("draft_sha256", _sha256(text.encode("utf-8"))),
+    ):
+        if receipt.get(key) != expected:
+            errors.append(f"{key} does not match current review target")
+    _, body = split_frontmatter(text)
+    if receipt.get("body_sha256") != _sha256(body.encode("utf-8")):
+        errors.append("body_sha256 does not match current review target")
+    if receipt.get("issue_codes") != ["missing_early_takeaway"]:
+        errors.append("issue_codes must contain only missing_early_takeaway")
+    for key in ("reason", "evidence_ref"):
+        if not isinstance(receipt.get(key), str) or not receipt[key].strip():
+            errors.append(f"{key} is missing")
+    try:
+        observed_at = datetime.fromisoformat(receipt.get("observed_at"))
+        if observed_at.utcoffset() is None:
+            errors.append("observed_at must include timezone")
+    except (TypeError, ValueError):
+        errors.append("observed_at is invalid")
+    return errors
+
+
+def apply_editorial_review(
+    issues: list[dict[str, Any]],
+    receipt_path: Path | None,
+    text: str,
+    *,
+    article_id: str | None,
+    conversation_id: str | None,
+) -> list[dict[str, Any]]:
+    """Classify one explicitly reviewed editorial issue without clearing errors."""
+    if receipt_path is None:
+        return issues
+    try:
+        receipt = load_editorial_review_receipt(receipt_path)
+        errors = validate_pre_publish_review_receipt(
+            receipt, text, article_id=article_id, conversation_id=conversation_id
+        )
+    except (OSError, UnicodeError, ValueError, json.JSONDecodeError) as exc:
+        errors = [str(exc)]
+    if errors:
+        issues.append({
+            "severity": "error",
+            "code": "invalid_editorial_review_receipt",
+            "message": "; ".join(errors),
+        })
+        return issues
+    for issue in issues:
+        if issue.get("code") == "missing_early_takeaway":
+            issue["severity"] = "review_required"
+    return issues
+
+
 def split_frontmatter(text: str) -> tuple[dict[str, str], str]:
     if not text.startswith("---\n"):
         return {}, text
@@ -65,12 +184,7 @@ def split_frontmatter(text: str) -> tuple[dict[str, str], str]:
     if end == -1:
         return {}, text
 
-    metadata: dict[str, str] = {}
-    for line in text[4:end].splitlines():
-        if ":" not in line or line[:1].isspace():
-            continue
-        key, value = line.split(":", 1)
-        metadata[key.strip().lower()] = value.strip().strip("'\"")
+    metadata = frontmatter_fields(text)
     metadata["__raw_frontmatter"] = text[4:end]
     return metadata, text[end + len("\n---") :]
 
@@ -244,60 +358,76 @@ def collect_production_structure_issues(text: str) -> list[dict[str, str]]:
 
 
 
+def check_draft(
+    draft: Path, *, authorship_evidence: Path | None = None,
+    prepublish_review_receipt: Path | None = None,
+    article_id: str | None = None, conversation_id: str | None = None,
+    settings_path: Path | None = None,
+) -> dict[str, Any]:
+    """CLIとレビュー入口で同じ原稿・文体・原文保持契約を検査する。"""
+    text = draft.read_text(encoding="utf-8")
+    issues = apply_editorial_review(
+        collect_issues(text), prepublish_review_receipt, text,
+        article_id=article_id, conversation_id=conversation_id,
+    )
+    metadata, _ = split_frontmatter(text)
+    lane = metadata.get("article_lane")
+    if lane not in {"production_candidate", "exploratory_draft", "editor_fixture", "continuation_article"}:
+        issues.append({"severity": "error", "code": "missing_or_invalid_article_lane", "message": "article_lane がないか未定義です"})
+    if lane == "production_candidate":
+        try:
+            if not isinstance(article_id, str) or not article_id.strip():
+                raise ValueError("production_candidate には article_id が必要です")
+            read_workspace_settings(settings_path, article_id)
+        except (OSError, ValueError, TypeError, RuntimeError, RecursionError, ImportError) as exc:
+            issues.append({"severity": "error", "code": "workspace_style_unverified",
+                           "message": f"外部settingsと文体参照の読み戻しが必要です: {exc}"})
+        issues.extend(collect_production_structure_issues(text))
+        evidence = authorship_evidence or draft.with_suffix(".authorship.json")
+        try:
+            detail = evaluate(draft, evidence)
+        except (OSError, ValueError, TypeError, AttributeError, KeyError) as exc:
+            issues.append({"severity": "error", "code": "authorship_gate_execution_failed", "message": str(exc)})
+        else:
+            if detail["unresolved_count"]:
+                issues.append({"severity": "error", "code": "unverified_personal_voice",
+                               "message": f"本人語り {detail['unresolved_count']} 件に根拠確認がありません"})
+            if detail["shortening"]["overall"] == "blocked":
+                issues.append({"severity": "error", "code": "authorship_preservation_blocked",
+                               "message": "比較元の指定と原文保持の検査を通過していません",
+                               "detail": detail["shortening"]})
+    overall = "error" if any(i["severity"] == "error" for i in issues) else (
+        "review_required" if any(i["severity"] == "review_required" for i in issues)
+        else ("warning" if issues else "ok")
+    )
+    return {"draft": str(draft), "overall": overall, "issues": issues}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("draft", type=Path)
     parser.add_argument("--fix", action="store_true", help="Remove HTML comments only; other issues remain manual.")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--authorship-evidence", type=Path)
+    parser.add_argument("--article-id")
+    parser.add_argument("--conversation-id")
+    parser.add_argument("--prepublish-review-receipt", type=Path)
+    parser.add_argument("--settings", type=Path, help="外部workspace設定と文体参照を読み戻す")
     args = parser.parse_args()
-
-    text = args.draft.read_text(encoding="utf-8")
     if args.fix:
-        text = re.sub(r"<!--.*?-->", "", text, flags=re.S)
+        text = re.sub(r"<!--.*?-->", "", args.draft.read_text(encoding="utf-8"), flags=re.S)
         args.draft.write_text(text, encoding="utf-8", newline="\n")
-
-    issues = collect_issues(text)
-    frontmatter_match = re.match(r"\A---\s*\n(.*?)\n---\s*(?:\n|\Z)", text, re.S)
-    lane_match = re.search(r"^article_lane:\s*['\"]?([^'\"\s]+)['\"]?\s*$", frontmatter_match.group(1), re.M) if frontmatter_match else None
-    lane = lane_match.group(1) if lane_match else None
-    allowed_lanes = {"production_candidate", "exploratory_draft", "editor_fixture", "continuation_article"}
-    if frontmatter_match and lane not in allowed_lanes:
-        issues.append({"severity": "error", "code": "missing_or_invalid_article_lane", "message": "article_lane がないか未定義です"})
-    if lane == "production_candidate":
-        voice_match = re.search(r"^voice_profile:\s*['\"]?([^'\"\n]+)['\"]?\s*$", frontmatter_match.group(1), re.M) if frontmatter_match else None
-        voice_profile = voice_match.group(1).strip() if voice_match else ""
-        if not voice_profile.startswith("obsidian:"):
-            issues.append({
-                "severity": "error",
-                "code": "missing_obsidian_voice_profile",
-                "message": "production_candidate には Obsidian 読み戻し由来の voice_profile が必要です",
-            })
-        issues.extend(collect_production_structure_issues(text))
-        evidence = args.authorship_evidence or args.draft.with_suffix(".authorship.json")
-        try:
-            detail = evaluate(args.draft, evidence)
-        except (OSError, ValueError, json.JSONDecodeError) as exc:
-            issues.append({"severity": "error", "code": "authorship_gate_execution_failed", "message": str(exc)})
-        else:
-            if detail["overall"] == "blocked":
-                issues.append({
-                    "severity": "error",
-                    "code": "unverified_personal_voice",
-                    "message": f"本人語り {detail['unresolved_count']} 件に根拠確認がありません",
-                })
-    result = {
-        "draft": str(args.draft),
-        "overall": "error" if any(i["severity"] == "error" for i in issues) else ("warning" if issues else "ok"),
-        "issues": issues,
-    }
+    result = check_draft(args.draft, authorship_evidence=args.authorship_evidence,
+                         article_id=args.article_id, conversation_id=args.conversation_id,
+                         prepublish_review_receipt=args.prepublish_review_receipt,
+                         settings_path=args.settings)
     if args.json:
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+        print(json.dumps(result, ensure_ascii=True, indent=2))
     else:
         print(f"overall={result['overall']}")
-        for issue in issues:
+        for issue in result["issues"]:
             print(f"{issue['severity']}:{issue['code']} {issue['message']}")
-    return 1 if result["overall"] == "error" else 0
+    return 1 if result["overall"] in {"error", "review_required"} else 0
 
 
 if __name__ == "__main__":

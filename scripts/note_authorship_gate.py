@@ -46,7 +46,7 @@ def draft_digest(path: Path) -> str:
 
 
 def frontmatter_fields(text: str) -> dict[str, str]:
-    """依存を増やさず、短縮gateに必要な単純scalarだけを読む。"""
+    """公開前検査と著者性検査で共有する単純scalar。キーは小文字へ正規化する。"""
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
         return {}
@@ -57,7 +57,7 @@ def frontmatter_fields(text: str) -> dict[str, str]:
         if ":" not in line or line[:1].isspace():
             continue
         key, value = line.split(":", 1)
-        fields[key.strip()] = value.strip().strip("\"'")
+        fields[key.strip().lower()] = value.strip().strip("\"'")
     return fields
 
 

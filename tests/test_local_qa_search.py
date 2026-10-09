@@ -202,3 +202,20 @@ def test_both_upstream_and_consumer_date_guards_are_retained(code):
                               note_url="Unknown", phrases=[], steps=all_steps)
     assert "future_date_guard" in result["publication_gate"]["stop_causes"]
     assert result["diff_fetch_method"] == "not_performed"
+
+
+def test_cli_forwards_production_review_inputs(monkeypatch, tmp_path):
+    calls = []
+    def run(label, args, timeout):
+        calls.append((label, args))
+        payload = {"finding_count": 0, "findings": []} if label == "note_fact_check" else {"overall": "ok"}
+        return {"label": label, "exit_code": 0, "parsed_json": payload}
+    options = ["--settings", str(tmp_path / "settings.json"), "--article-id", "article",
+               "--conversation-id", "current", "--authorship-evidence", str(tmp_path / "authorship.json"),
+               "--prepublish-review-receipt", str(tmp_path / "review.json")]
+    monkeypatch.setattr(qa, "run_step", run)
+    monkeypatch.setattr(sys, "argv", [str(SCRIPT), "--output", str(tmp_path / "out.json"), "--dry-run", *options])
+    assert qa.main() == 0
+    command = dict(calls)["pre_publish_check"]
+    for i in range(0, len(options), 2):
+        assert command[command.index(options[i]) + 1] == options[i + 1]

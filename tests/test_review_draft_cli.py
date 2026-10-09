@@ -99,3 +99,18 @@ def test_build_context_card_cli_json_contract():
     payload = json.loads(result.stdout)
     assert payload["schema"] == "note_review_context_card.v1"
     assert payload["prepublish"]["overall"] == "warning"
+
+
+def test_review_does_not_pass_missing_human_or_action_boundary(monkeypatch):
+    import copy
+    review = load_review_draft_module()
+    valid_card = dict(article_lane="production_candidate", source_mode="author_source",
+                      publication_gate="human_review_required", external_action="none",
+                      prepublish=dict(overall="ok", issues=[]),
+                      provenance=dict(overall="ok", findings=[]))
+    for field, value in (("publication_gate", ""), ("publication_gate", "approved"),
+                         ("external_action", "publish")):
+        card = copy.deepcopy(valid_card)
+        card[field] = value
+        monkeypatch.setattr(review, "build_context_card", lambda *args, **kwargs: card)
+        assert review.review_draft(Path("unused.md"))["verdict"] == "blocked"

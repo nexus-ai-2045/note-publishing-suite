@@ -7,7 +7,7 @@ source_scope: note official help and official announcements
 external_action: none
 ---
 
-# note official spec cache
+# note公式仕様のローカル保存
 
 ## 目的
 
@@ -19,17 +19,23 @@ Note 公式仕様を、毎回ブラウザ検索だけに頼らずローカルで
 | 用途 | path |
 |---|---|
 | URL manifest | `references/official-note-specs/sources.json` |
-| HTML cache | `references/official-note-specs/html/` |
-| Markdown extract | `references/official-note-specs/markdown/` |
+| HTML cache | 明示したworkspace保存先の `html/` |
+| Markdown extract | 明示したworkspace保存先の `markdown/` |
 | 再取得 script | `scripts/fetch_note_official_specs.py` |
 
 ## 更新手順
 
 ```bash
-python3 scripts/fetch_note_official_specs.py --json
+python3 scripts/fetch_note_official_specs.py --output-dir <private-workspace>/official-note-specs --json
+# 計画確認後、公式公開HTTPSの取得を明示許可
+python3 scripts/fetch_note_official_specs.py --output-dir <private-workspace>/official-note-specs --allow-public-http --json
 ```
 
-実行場所は `note-publishing-suite/`。ログイン、Cookie、非公開URL、投稿操作は使わない。
+既定は取得計画の表示だけで、通信・ファイル作成を行わない。出力先は必須で、NPS package内への保存を拒否する。既存の同梱cacheは参照できるが、再取得でpackageへ書き戻さない。
+
+ログイン、Cookie、非公開URL、投稿操作は使わない。対象は `www.help-note.com` / `help-note.com` の `/hc/ja/articles/` 以下のHTTPS記事。redirect先にも同じ制約を適用する。manifest全体の型・重複key・URL・保存先を通信前に検査する。
+
+HTMLとMarkdownは原子的に保存し、保存後のbytes読戻しを照合する。結果JSONには実際に使用したmanifest、HTML、MarkdownのSHA-256と絶対保存先を返す。これはローカル確認用であり、公開packageに個人の保存先や取得記録を追加しない。
 
 ## 現在の対象
 

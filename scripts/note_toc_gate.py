@@ -11,7 +11,11 @@ from typing import Any
 
 def validate(data: dict[str, Any]) -> list[dict[str, str]]:
     issues: list[dict[str, str]] = []
-    if data.get("article_lane") != "production_candidate":
+    if not isinstance(data, dict) or data.get("article_lane") not in (
+        "production_candidate", "exploratory_draft", "editor_fixture", "continuation_article"
+    ):
+        return [{"code": "invalid_article_lane", "message": "対象の記事laneが欠落または不正です"}]
+    if data["article_lane"] != "production_candidate":
         return issues
 
     h2_count = data.get("h2_count")
@@ -19,19 +23,19 @@ def validate(data: dict[str, Any]) -> list[dict[str, str]]:
     toc_count = data.get("toc_count")
     toc_ref_count = data.get("toc_ref_count")
 
-    if not isinstance(h2_count, int) or h2_count < 2:
+    if type(h2_count) is not int or h2_count < 2:
         issues.append({"code": "headings_missing", "message": "大見出し（H2）が2件以上必要です"})
-    if not isinstance(h3_count, int) or h3_count < 0:
+    if type(h3_count) is not int or h3_count < 0:
         issues.append({"code": "heading_count_invalid", "message": "小見出し（H3）の件数が不正です"})
-    if toc_count != 1:
+    if type(toc_count) is not int or toc_count != 1:
         issues.append({"code": "toc_missing", "message": "Note固有の目次ブロックが正確に1件必要です"})
 
     heading_total = (
         h2_count + h3_count
-        if isinstance(h2_count, int) and isinstance(h3_count, int)
+        if type(h2_count) is int and type(h3_count) is int
         else None
     )
-    if heading_total is None or toc_ref_count != heading_total:
+    if heading_total is None or type(toc_ref_count) is not int or toc_ref_count != heading_total:
         issues.append({"code": "toc_refs_incomplete", "message": "目次がH2/H3見出しをすべて参照していません"})
     if data.get("toc_before_first_heading") is not True:
         issues.append({"code": "toc_position_invalid", "message": "目次は導入文の後、最初の見出しの前に置いてください"})

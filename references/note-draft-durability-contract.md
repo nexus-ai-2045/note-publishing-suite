@@ -19,6 +19,8 @@ Git未追跡の下書きが別worktreeに残っている、または元の場所
 ## 保存形式
 
 既定保存先は `%LOCALAPPDATA%\nexus-ai\draft-history\<repo-id>`。repository外を必須とする。
+macOS / Linuxなど `LOCALAPPDATA` のない環境では、workspaceが選択したrepository外の
+保存先を `--backup-root <private-backup-root>` で必ず明示する。package内へフォールバックしない。
 
 - `blobs/<sha256>.<suffix>`: 内容アドレス方式の本文。同内容は再利用する。
 - `receipts/*.json`: 1回のsnapshotにつき1件の不変receipt。backup rootからreceiptまでの

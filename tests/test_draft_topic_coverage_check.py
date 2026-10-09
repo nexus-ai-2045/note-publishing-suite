@@ -108,3 +108,18 @@ def test_cli_json_contract(tmp_path: Path) -> None:
     payload = json.loads(result.stdout)
     assert payload["ok"] is True
     assert payload["external_actions_performed"] == []
+
+
+def test_info_string_does_not_close_fenced_example() -> None:
+    for marker in ("```", "~~~"):
+        draft = f"{marker}markdown\n{marker}html\n<!-- topic: a3-income -->\n{marker}\n"
+        result = evaluate(ledger(), draft)
+        assert result["coverage_complete"] is False
+        assert "included topic missing draft marker: a3-income" in result["stop_causes"]
+
+
+def test_only_valid_fence_close_restores_body_markers() -> None:
+    draft = "````markdown\n```\n<!-- topic: fake -->\n~~~~\n````html\n<!-- topic: fake -->\n`````  \t\n<!-- topic: a3-income -->\n"
+    result = evaluate(ledger(), draft)
+    assert result["coverage_complete"] is True, result
+    assert result["marker_count"] == 1

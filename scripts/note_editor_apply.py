@@ -21,6 +21,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 SCRIPT_DIRECTORY = str(Path(__file__).resolve().parent)
 if SCRIPT_DIRECTORY not in sys.path:
@@ -80,7 +81,7 @@ def extract_note_id(url: str) -> str:
     return match.group(1) if match else ""
 
 
-def preflight_errors(observed: dict[str, Any], expected: dict[str, str]) -> list[str]:
+def preflight_errors(observed: dict[str, Any], expected: dict[str, str], *, require_verified_account: bool = False) -> list[str]:
     """Compare read-only page identity with caller-fixed expectations."""
     errors: list[str] = []
     note_id = str(observed.get("note_id") or extract_note_id(str(observed.get("url") or "")))
@@ -111,6 +112,22 @@ def preflight_errors(observed: dict[str, Any], expected: dict[str, str]) -> list
             f"account_mismatch: observed={account!r} expected={expect_account!r}"
         )
 
+    if require_verified_account:
+        try:
+            target = urlsplit(url)
+            valid_target = (target.scheme == "https" and target.netloc == "editor.note.com"
+                            and target.path.rstrip("/") in {f"/notes/{expect_note_id}/edit", f"/notes/{expect_note_id}/publish"})
+        except ValueError:
+            valid_target = False
+        if not valid_target:
+            errors.append("editor_target_url_unverified")
+    if require_verified_account and (
+        not expect_account
+        or observed.get("account_identity_verified") is not True
+        or observed.get("account_identity_source") != "authenticated_account_menu"
+        or observed.get("account_identity_id") != expect_account
+    ):
+        errors.append("authenticated_account_identity_unverified")
     return errors
 
 
@@ -301,7 +318,12 @@ def read_page_identity(orca: str, page: str) -> dict[str, Any]:
           return JSON.stringify({url, title, note_id: noteId, account, body_sample: body.slice(0, 200)});
         })()""",
     )
-    return value if isinstance(value, dict) else {}
+    observed = value if isinstance(value, dict) else {}
+    # 汎用DOMの表示名・画像altはログイン中名義の証拠にならない。
+    # 信頼したtransportの現物読戻しが実装されるまで変更は手動境界で止める。
+    observed.update(account_identity_verified=False,
+                    account_identity_source="generic_dom_hint", account_identity_id=None)
+    return observed
 
 
 def read_selection_state(orca: str, page: str) -> dict[str, Any]:
@@ -582,9 +604,10 @@ def main() -> int:
         "account": args.expect_account,
     }
     report["expected"] = expected
-    errors = preflight_errors(observed, expected)
+    errors = preflight_errors(observed, expected, require_verified_account=bool(args.urls_file or args.tags or args.toc or args.save))
     report["preflight_errors"] = errors
     if errors:
+        report["manual_boundary"] = True
         report["failures"] = collect_failures(report)
         if args.json:
             print(json.dumps(report, ensure_ascii=False, indent=2))
@@ -621,14 +644,27 @@ def main() -> int:
                 report["manual_boundary"] = True
             print(f"{status}\t{url}", flush=True)
             if not embed_status_ok(status):
-                # Stop further embeds after the first unconfirmed/failed attempt.
-                break
+                # 未確認の変更後はTOC・タグ・保存を含む全変更を停止する。
+                report["failures"] = collect_failures(report)
+                if args.json:
+                    print(json.dumps(report, ensure_ascii=False, indent=2))
+                return 1
     if args.toc:
         report["toc"] = insert_toc(args.orca, args.page)
         print(f"toc\t{json.dumps(report['toc'], ensure_ascii=False)}", flush=True)
+        if not toc_ok(report["toc"]):
+            report["failures"] = collect_failures(report)
+            if args.json:
+                print(json.dumps(report, ensure_ascii=False, indent=2))
+            return 1
     if args.tags:
         report["tags"] = add_tags(args.orca, args.page, args.tags)
         print(f"tags\t{json.dumps(report['tags'], ensure_ascii=False)[:1000]}", flush=True)
+        if not tags_ok(report["tags"]):
+            report["failures"] = collect_failures(report)
+            if args.json:
+                print(json.dumps(report, ensure_ascii=False, indent=2))
+            return 1
     if args.save:
         report["save"] = click_label(args.orca, args.page, "下書き保存")
         print(f"save\t{report['save']}", flush=True)

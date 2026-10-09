@@ -88,3 +88,35 @@ def test_missing_evidence_path_fails_closed(tmp_path: Path):
     payload = json.loads(result.stdout)
     assert result.returncode == 1
     assert "evidence path does not exist" in payload["stop_causes"][0]
+
+
+def test_required_fields_reject_invalid_types(tmp_path):
+    for field in ("task_id", "owner", "input", "expected_output", "done_when", "stop_when", "status", "evidence", "residual"):
+        for value in (False, {}, [False], "   "):
+            data = valid_packet()
+            data[field] = value
+            packet = tmp_path / "packet.json"
+            packet.write_text(json.dumps(data), encoding="utf-8")
+            result = run_check(packet)
+            assert result.returncode == 1, (field, value, result.stdout)
+            assert json.loads(result.stdout)["ok"] is False
+
+
+def test_unhashable_status_fails_closed(tmp_path):
+    data = valid_packet()
+    data["status"] = []
+    packet = tmp_path / "packet.json"
+    packet.write_text(json.dumps(data), encoding="utf-8")
+    result = run_check(packet)
+    assert result.returncode == 1
+    assert json.loads(result.stdout)["ok"] is False
+
+
+def test_text_output_reports_remaining_work(tmp_path):
+    data = valid_packet()
+    data["residual"] = ["人間レビュー"]
+    packet = tmp_path / "packet.json"
+    packet.write_text(json.dumps(data), encoding="utf-8")
+    result = subprocess.run([sys.executable, str(SCRIPT), str(packet)], text=True, capture_output=True)
+    assert result.returncode == 0
+    assert "residual_work_zero=false" in result.stdout

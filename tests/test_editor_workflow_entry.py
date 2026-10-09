@@ -50,9 +50,11 @@ def packet_file(tmp_path):
     return path
 
 
-@pytest.mark.parametrize("case", ["missing", "plan", "article", "account", "conversation", "settings", "readback", "missing_settings"])
+@pytest.mark.parametrize("case", ["missing", "plan", "article", "account", "conversation", "settings", "readback", "missing_settings", "missing_source"])
 def test_rejected_before_external_read(tmp_path, monkeypatch, capsys, case):
     path = packet_file(tmp_path)
+    if case == "missing_source":
+        (tmp_path / "source").unlink()
     args = ["apply", "--page", "fixture", "--expect-note-id", "nexample", "--expect-account", "example", "--toc", "--nps-settings", str(tmp_path / "workspace-settings.json")]
     if case != "missing":
         args += ["--workflow-packet", str(path), "--conversation-id", "wrong" if case == "conversation" else "current"]
@@ -94,7 +96,8 @@ def test_url_plan_is_not_reread_after_preflight(tmp_path, monkeypatch):
     def external_read(*args):
         urls_path.write_text(json.dumps(["https://example.com/not-approved"]))
         path.write_text("{}")
-        return {"note_id": "nexample", "account": "example"}
+        return {"note_id": "nexample", "url": "https://editor.note.com/notes/nexample/edit/", "account": "example", "account_identity_verified": True,
+                "account_identity_source": "authenticated_account_menu", "account_identity_id": "example"}
     seen = []
     def capture_embed(orca, page, url):
         seen.append(url)

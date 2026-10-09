@@ -6,17 +6,55 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import html
+import hashlib
 import json
 import re
 import sys
 import urllib.request
 from html.parser import HTMLParser
 from pathlib import Path
+from urllib.parse import urlsplit
+
+from sync_note_public_snapshot import atomic_write_bytes, reject_file_aliases
 
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MANIFEST = ROOT / "references" / "official-note-specs" / "sources.json"
-DEFAULT_OUTPUT = ROOT / "references" / "official-note-specs"
+
+def validate_url(url: object) -> str:
+    if not isinstance(url, str):
+        raise ValueError("公式URLが文字列ではありません")
+    parsed = urlsplit(url)
+    if (parsed.scheme != "https" or parsed.netloc not in {"www.help-note.com", "help-note.com"}
+            or not re.fullmatch(r"/hc/ja/articles/[0-9]+(?:-[^/?#]+)?", parsed.path)
+            or parsed.query or parsed.fragment):
+        raise ValueError("対象は認証情報を含まないnote公式ヘルプ記事のHTTPS URLに限定します")
+    return url
+
+
+class OfficialRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        validate_url(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def validate_manifest(manifest: object) -> list[dict]:
+    if not isinstance(manifest, dict) or not isinstance(manifest.get("sources"), list) or not manifest["sources"]:
+        raise ValueError("sourcesには空でない配列が必要です")
+    keys = set()
+    for source in manifest["sources"]:
+        if not isinstance(source, dict):
+            raise ValueError("sourceはobjectである必要があります")
+        key = source.get("key")
+        if not isinstance(key, str) or not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,99}", key) or key in keys:
+            raise ValueError("source keyが不正または重複しています")
+        keys.add(key)
+        for name in ("title", "category"):
+            if not isinstance(source.get(name), str) or not source[name].strip() or "\n" in source[name] or "\r" in source[name]:
+                raise ValueError(f"source {name}が不正です")
+        validate_url(source.get("url"))
+    return manifest["sources"]
+
 
 
 class TextExtractor(HTMLParser):
@@ -55,7 +93,7 @@ class TextExtractor(HTMLParser):
 
 def fetch(url: str, timeout: float) -> bytes:
     request = urllib.request.Request(
-        url,
+        validate_url(url),
         headers={
             "User-Agent": (
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -67,7 +105,8 @@ def fetch(url: str, timeout: float) -> bytes:
             "Accept-Language": "ja,en-US;q=0.8,en;q=0.6",
         },
     )
-    with urllib.request.urlopen(request, timeout=timeout) as response:
+    with urllib.request.build_opener(OfficialRedirectHandler()).open(request, timeout=timeout) as response:
+        validate_url(response.geturl())
         return response.read()
 
 
@@ -87,45 +126,58 @@ def write_markdown(
     text = extractor.text()
     excerpt = "\n".join(text.splitlines()[:240])
     md_path = output_dir / "markdown" / f"{key}.md"
-    md_path.write_text(
-        "\n".join(
-            [
-                "---",
-                f"title: {title}",
-                f"category: {category}",
-                "source_type: note_official",
-                f"source_url: {url}",
-                f"fetched_on: {fetched_on}",
-                f"html_cache: ../html/{html_path.name}",
-                "---",
-                "",
-                f"# {title}",
-                "",
-                f"- 公式URL: {url}",
-                f"- 取得日: {fetched_on}",
-                f"- HTMLキャッシュ: `../html/{html_path.name}`",
-                "",
-                "## 抽出テキスト",
-                "",
-                excerpt,
-                "",
-            ]
-        ),
-        encoding="utf-8",
-    )
+    markdown = "\n".join(
+        [
+            "---",
+            f"title: {title}",
+            f"category: {category}",
+            "source_type: note_official",
+            f"source_url: {url}",
+            f"fetched_on: {fetched_on}",
+            f"html_cache: ../html/{html_path.name}",
+            "---",
+            "",
+            f"# {title}",
+            "",
+            f"- 公式URL: {url}",
+            f"- 取得日: {fetched_on}",
+            f"- HTMLキャッシュ: `../html/{html_path.name}`",
+            "",
+            "## 抽出テキスト",
+            "",
+            excerpt,
+            "",
+        ]
+    ).encode("utf-8")
+    atomic_write_bytes(md_path, markdown)
+    if md_path.read_bytes() != markdown:
+        raise ValueError("Markdown保存後の読戻しが一致しません")
     return md_path
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
-    parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--output-dir", type=Path, required=True, help="workspaceが選択したpackage外のprivate参照保存先")
+    parser.add_argument("--allow-public-http", action="store_true", help="公式公開HTTPSの取得とcache保存を明示許可。既定は計画表示のみ")
     parser.add_argument("--timeout", type=float, default=20.0)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
-    manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
-    output_dir = args.output_dir
+    manifest_bytes = args.manifest.read_bytes()
+    manifest = json.loads(manifest_bytes.decode("utf-8"))
+    sources = validate_manifest(manifest)
+    output_dir = args.output_dir.expanduser().resolve()
+    if output_dir.is_relative_to(ROOT):
+        raise ValueError("cache保存先はNPS package外を指定してください")
+    outputs = [output_dir / kind / f"{source['key']}.{suffix}"
+               for source in sources for kind, suffix in (("html", "html"), ("markdown", "md"))]
+    if any(not path.resolve().is_relative_to(output_dir) for path in outputs):
+        raise ValueError("cache保存先から外へ出るsymlinkは使用できません")
+    reject_file_aliases([args.manifest], outputs)
+    if not args.allow_public_http:
+        print(json.dumps({"mode": "dry-run", "output_dir": str(output_dir), "source_count": len(sources), "sources": sources}, ensure_ascii=False, indent=2))
+        return 0
     html_dir = output_dir / "html"
     markdown_dir = output_dir / "markdown"
     html_dir.mkdir(parents=True, exist_ok=True)
@@ -133,12 +185,14 @@ def main() -> int:
 
     fetched_on = dt.date.today().isoformat()
     results = []
-    for source in manifest["sources"]:
+    for source in sources:
         key = source["key"]
         url = source["url"]
         html_bytes = fetch(url, args.timeout)
         html_path = html_dir / f"{key}.html"
-        html_path.write_bytes(html_bytes)
+        atomic_write_bytes(html_path, html_bytes)
+        if html_path.read_bytes() != html_bytes:
+            raise ValueError("HTML保存後の読戻しが一致しません")
         md_path = write_markdown(
             output_dir=output_dir,
             key=key,
@@ -153,15 +207,19 @@ def main() -> int:
             {
                 "key": key,
                 "url": url,
-                "html": str(html_path.relative_to(ROOT)),
-                "markdown": str(md_path.relative_to(ROOT)),
+                "html": str(html_path),
+                "markdown": str(md_path),
+                "html_sha256": hashlib.sha256(html_bytes).hexdigest(),
+                "markdown_sha256": hashlib.sha256(md_path.read_bytes()).hexdigest(),
                 "bytes": len(html_bytes),
             }
         )
 
     result = {
-        "manifest": str(args.manifest.relative_to(ROOT)),
-        "output_dir": str(output_dir.relative_to(ROOT)),
+        "mode": "fetched",
+        "manifest": str(args.manifest.resolve()),
+        "manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
+        "output_dir": str(output_dir),
         "fetched_on": fetched_on,
         "source_count": len(results),
         "sources": results,

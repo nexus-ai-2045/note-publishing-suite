@@ -8,6 +8,109 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
+## 0.2.46
+
+日付: 2026-10-09
+
+変更:
+- 未吸収の検索QA、POSIX pointer、原稿保全、目次・編集session・論点・workpacket検査を既存入口へ統合し、著者構造レビューを共通原稿QAへ接続する。
+- 不正入力の拒否、workspace保存先とdry-run、編集途中失敗後の停止を回帰検査する。既存の品質報告と本人承認・公開手前停止を維持する。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `sh scripts/verify_public_package.sh`
+- `python scripts/docs_sync_check.py --base-ref origin/main`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
+## 0.2.45
+
+日付: 2026-10-09
+
+変更:
+- 既存research段階に任意の品質ポリシーを接続し、SEO・AIO・Note・タグ・PDCA・関連作者と旬の根拠、鮮度、保存ハッシュ、採否と5段階の計画を検査する。旧Markdown報告はポリシー未設定時に維持する。
+- 承認済み制作計画の明示的なフッター省略を空links・空nodesと照合する。未承認省略と矛盾は停止し、採用時の必須リンク検査は維持する。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `sh scripts/verify_public_package.sh`
+- `python scripts/docs_sync_check.py --base-ref origin/main`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
+## 0.2.44
+
+日付: 2026-10-07
+
+変更:
+- main の 0.2.43（#53）に追従し、受け入れテスト手順書を含む本 PR のパッケージ版を 0.2.44 に上げた。
+- 初めて使う人がローカルだけで主要な流れと公開直前の停止位置を確かめる受け入れテスト手順書 `USER_TEST.md`（4ケース）を追加し、README と package.yaml から参照できるようにした。受け入れテストの合格は Note 公開の承認ではないことを明記した。
+- 公開パッケージ検証スクリプトで、ローカル下書きQAの証跡を一時ファイルへ出力して終了後に削除し、検証後もリポジトリ内の追跡ファイルが変わらないことをテストで確かめるようにした。
+- CHANGELOG の版の並びを新しい順に直し、その順序を確かめるテストを追加した。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `sh scripts/verify_public_package.sh`
+- `python scripts/docs_sync_check.py --base-ref origin/main`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
+## 0.2.43
+
+日付: 2026-10-06
+
+変更:
+- 公開済み記事の扉絵・本文更新を、元下書きなしで公開APIの現在値から照合する読み取り専用ルートを追加。画像変換クエリを除いた素材IDを比較し、仮のdraft来歴は生成しない。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `python scripts/check_version_bump.py`（基準: `origin/main`）
+- `python scripts/docs_sync_check.py --base-ref origin/main`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
+## 0.2.42
+
+日付: 2026-10-06
+
+変更:
+- 初めて使う人がローカルだけで主要な流れと公開直前の停止位置を確かめる受け入れテスト手順書 `USER_TEST.md`（4ケース）を追加し、README と package.yaml から参照できるようにした。受け入れテストの合格は Note 公開の承認ではないことを明記した。
+- 公開パッケージ検証スクリプトで、ローカル下書きQAの証跡を一時ファイルへ出力して終了後に削除し、検証後もリポジトリ内の追跡ファイルが変わらないことをテストで確かめるようにした。
+- CHANGELOG の版の並びを新しい順に直し、その順序を確かめるテストを追加した。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `sh scripts/verify_public_package.sh`
+- `python scripts/docs_sync_check.py --base-ref origin/main`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
+## 0.2.41
+
+日付: 2026-10-06
+
+変更:
+- macOSのクリップボード同意ファイル検査で、ACL属性が存在しないことを同じファイル記述子で確かめてから許可するようにした。ACL非対応や判定失敗は従来どおり拒否する。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `python scripts/check_version_bump.py`（基準: `origin/main`）
+- `python scripts/docs_sync_check.py --base-ref origin/main`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.2.40
 
 日付: 2026-10-06
@@ -533,6 +636,29 @@ GitHub リリースやタグは別の公開操作として扱い、ここには�
 - Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
 - GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
 
+## 0.2.8
+
+日付: 2026-07-13
+
+変更:
+- `note-publishing-suite` の独立 repo worktree を復旧し、Claude Code pointer の
+  package root を独立正本へ再インストールした。
+- 2026-07-13 の Note editor 実測として、`text/html` paste、hidden WebView、
+  DOM selection の tick、連続画像 separator、CDN 取りこぼしを正本へ反映した。
+- `cmux_dom_file_paste` を明示確認必須の画像経路として追加し、OS clipboard、
+  Cookie、note API を使わない browser-scoped route に限定した。
+- `scripts/skill_pointer_check.py`、回帰テスト、CI、pre-commit hook template を追加し、
+  正本 pointer の消失を fail-closed で検知するようにした。
+
+検証:
+- `python3 -m pytest scripts/test_skill_integration.py tests -q`
+- `python3 scripts/skill_pointer_check.py --installed-root "$HOME/.claude/skills" --json`
+- `python3 scripts/note_image_upload_boundary_check.py --json`
+
+公開境界:
+- Note 投稿、下書き保存、予約投稿、SNS 共有、外部告知は未実行。
+- git push、GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.2.7
 
 日付: 2026-06-22
@@ -584,29 +710,6 @@ GitHub リリースやタグは別の公開操作として扱い、ここには�
 - Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
 - GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
 
-## 0.2.8
-
-日付: 2026-07-13
-
-変更:
-- `note-publishing-suite` の独立 repo worktree を復旧し、Claude Code pointer の
-  package root を独立正本へ再インストールした。
-- 2026-07-13 の Note editor 実測として、`text/html` paste、hidden WebView、
-  DOM selection の tick、連続画像 separator、CDN 取りこぼしを正本へ反映した。
-- `cmux_dom_file_paste` を明示確認必須の画像経路として追加し、OS clipboard、
-  Cookie、note API を使わない browser-scoped route に限定した。
-- `scripts/skill_pointer_check.py`、回帰テスト、CI、pre-commit hook template を追加し、
-  正本 pointer の消失を fail-closed で検知するようにした。
-
-検証:
-- `python3 -m pytest scripts/test_skill_integration.py tests -q`
-- `python3 scripts/skill_pointer_check.py --installed-root "$HOME/.claude/skills" --json`
-- `python3 scripts/note_image_upload_boundary_check.py --json`
-
-公開境界:
-- Note 投稿、下書き保存、予約投稿、SNS 共有、外部告知は未実行。
-- git push、GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
-
 ## 0.2.4
 
 日付: 2026-06-20
@@ -628,6 +731,31 @@ GitHub リリースやタグは別の公開操作として扱い、ここには�
 - `sh scripts/verify_public_package.sh`
 - `python3 -m pytest scripts/test_skill_integration.py tests -q`
 - `python3 scripts/note_editor_prepublish_verify.py data/note_editor_prepublish_observation.fixture.json --json`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
+## 0.2.3
+
+日付: 2026-06-18
+
+変更:
+- package version と README / CHANGELOG の整合性を公開検証の必須条件にした。
+- verifier の実行要件を PowerShell、Python、git として明記し、
+  Python なしで動くように読める誤保証を禁止語として検査するようにした。
+- standalone clone fixture から verifier 自身を再実行し、単独 repo 形態でも
+  公開操作なしで検証できることを確認するようにした。
+- `scripts/provenance_label_check.py` を追加し、
+  `source_pack_locked_with_user_speech_priority` の draft で `user-said`、
+  `external-fact`、`assistant-organized`、`hold` の境界を検査できるようにした。
+- Caramel 完全解説風の draft fixture を追加し、本人発言優先構成の
+  provenance label 回帰ケースにした。
+
+検証:
+- `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1`
+- `python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py`
+- `python scripts/provenance_label_check.py content/drafts/caramel-provenance-label-fixture.md --json`
 
 公開境界:
 - Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
@@ -665,31 +793,6 @@ GitHub リリースやタグは別の公開操作として扱い、ここには�
 - `python scripts/github_identity_guard.py --policy data/github_identity_guard_policy.local.json --json`
 - `python scripts/note_editor_prepublish_verify.py <observation.json> --json`
 - `python scripts/check_version_bump.py`
-
-公開境界:
-- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
-- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
-
-## 0.2.3
-
-日付: 2026-06-18
-
-変更:
-- package version と README / CHANGELOG の整合性を公開検証の必須条件にした。
-- verifier の実行要件を PowerShell、Python、git として明記し、
-  Python なしで動くように読める誤保証を禁止語として検査するようにした。
-- standalone clone fixture から verifier 自身を再実行し、単独 repo 形態でも
-  公開操作なしで検証できることを確認するようにした。
-- `scripts/provenance_label_check.py` を追加し、
-  `source_pack_locked_with_user_speech_priority` の draft で `user-said`、
-  `external-fact`、`assistant-organized`、`hold` の境界を検査できるようにした。
-- Caramel 完全解説風の draft fixture を追加し、本人発言優先構成の
-  provenance label 回帰ケースにした。
-
-検証:
-- `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1`
-- `python -m pytest scripts/test_skill_integration.py tests/test_content_pdca_check.py tests/test_note_image_upload_boundary.py tests/test_note_editor_prepublish_verify.py`
-- `python scripts/provenance_label_check.py content/drafts/caramel-provenance-label-fixture.md --json`
 
 公開境界:
 - Note 投稿、予約投稿、SNS 共有、外部告知は未実行。

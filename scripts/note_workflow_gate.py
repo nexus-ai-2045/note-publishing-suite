@@ -63,7 +63,11 @@ def read_workspace_settings(settings_path: Path | None, article_id: str) -> tupl
         if not data.strip():
             raise ValueError("文体参照が空です")
         reference_hashes[str(path)] = hashlib.sha256(data).hexdigest()
-    return {"settings_sha256": hashlib.sha256(raw).hexdigest(), "reference_hashes": reference_hashes}, dirs
+    expected = {"settings_sha256": hashlib.sha256(raw).hexdigest(), "reference_hashes": reference_hashes}
+    if "research_quality_policy" in config:
+        from note_research_quality import validate_policy
+        expected["research_quality_policy"] = validate_policy(config["research_quality_policy"])
+    return expected, dirs
 
 
 def validate_layout(layout: Any) -> bool:
@@ -112,8 +116,10 @@ def check_packet(packet: Any, stage: str, conversation_id: str, base_dir: Path =
     if packet.get("route") not in tuple(ROUTES):
         reasons.append("routeが不正です")
     storage_dirs: dict[str, Path] = {}
+    quality_policy = None
     try:
         expected, storage_dirs = read_workspace_settings(settings_path, packet.get("article_id"))
+        quality_policy = expected.get("research_quality_policy")
         result["expected_readback"] = expected
         hashes["workspace_settings"] = expected["settings_sha256"]
         hashes["style_references"] = canonical_sha256(expected["reference_hashes"])
@@ -127,6 +133,8 @@ def check_packet(packet: Any, stage: str, conversation_id: str, base_dir: Path =
     if not isinstance(receipts, list) or any(not isinstance(r, dict) for r in receipts):
         reasons.append("receiptsはオブジェクトの配列である必要があります")
         receipts = []
+
+    file_bytes: dict[str, bytes] = {}
 
     def file_hash(name: str, nonempty: bool = False) -> None:
         value = packet.get(name)
@@ -145,6 +153,7 @@ def check_packet(packet: Any, stage: str, conversation_id: str, base_dir: Path =
             if nonempty and not data.strip():
                 raise ValueError("empty")
             hashes[name] = hashlib.sha256(data).hexdigest()
+            file_bytes[name] = data
         except (OSError, ValueError):
             reasons.append(f"{name}が存在しないか読取不能または空です")
 
@@ -164,6 +173,25 @@ def check_packet(packet: Any, stage: str, conversation_id: str, base_dir: Path =
             reasons.append("feedback_readbackが現在の記事別履歴と一致しません")
     except (OSError, ValueError, TypeError, KeyError, UnicodeError, RuntimeError, RecursionError):
         reasons.append("記事別feedbackが欠落・不正または現在の原稿と不一致です")
+    if "prepublish_review_receipt" in packet:
+        file_hash("prepublish_review_receipt", nonempty=True)
+        try:
+            from pre_publish_check import validate_pre_publish_review_receipt, load_editorial_review_receipt
+            receipt_path = Path(packet["prepublish_review_receipt"])
+            if not receipt_path.is_absolute():
+                receipt_path = base_dir / receipt_path
+            draft_path = Path(packet["draft"])
+            if not draft_path.is_absolute():
+                draft_path = base_dir / draft_path
+            errors = validate_pre_publish_review_receipt(
+                load_editorial_review_receipt(receipt_path), draft_path.read_text(encoding="utf-8"),
+                article_id=packet["article_id"], conversation_id=conversation_id)
+            if errors:
+                reasons.append("本人構成のレビュー記録が現稿と不一致または不正です: " + "; ".join(errors))
+            else:
+                result["editorial_review"] = "review_required"
+        except (OSError, ValueError, TypeError, KeyError, UnicodeError):
+            reasons.append("本人構成のレビュー記録を検証できません")
     edit_plan = packet.get("edit_plan")
     layout_edit = stage == "edit" and isinstance(edit_plan, dict) and (edit_plan.get("toc") is True or bool(edit_plan.get("urls")) or bool(edit_plan.get("footer_embed_urls")) or bool(edit_plan.get("footer_cards")))
     layout_needed = stage in {"layout", "settings", "publish"} or layout_edit
@@ -209,6 +237,23 @@ def check_packet(packet: Any, stage: str, conversation_id: str, base_dir: Path =
                 reasons.append("原資料と原稿の独立性を確認できません")
     if stage in {"research", "publish"}:
         file_hash("research_report", nonempty=True)
+        if quality_policy and quality_policy["required"]:
+            try:
+                from note_research_quality import check_quality_report
+                from note_feedback import article_directory, confined
+                feedback_path = confined(article_directory(storage_dirs, packet["article_id"]), "feedback.json")
+                feedback_bytes = feedback_path.read_bytes()
+                if hashlib.sha256(feedback_bytes).hexdigest() != result.get("expected_feedback_readback", {}).get("record_sha256"):
+                    raise ValueError("検査中にfeedbackが変更されました")
+                feedback_record = parse_packet(feedback_bytes)
+                refs = {entry["evidence_ref"] for entry in feedback_record["entries"]}
+                report_path = Path(packet["research_report"])
+                report_dir = (report_path if report_path.is_absolute() else base_dir / report_path).parent
+                evidence = check_quality_report(file_bytes["research_report"], quality_policy,
+                    article_id=packet["article_id"], base_dir=report_dir, feedback_refs=refs)
+                hashes["research_quality_evidence"] = canonical_sha256(evidence)
+            except (OSError, ValueError, TypeError, KeyError, UnicodeError, RuntimeError, RecursionError) as exc:
+                reasons.append(f"調査品質の検証に失敗しました: {exc}")
     if stage in {"settings", "publish"}:
         settings = packet.get("settings")
         required = {"account", "tags", "magazine", "visibility", "article_type", "price", "sns_share", "publish_mode", "schedule_at", "image_rights_confirmed", "cover_image"}
@@ -257,6 +302,10 @@ def check_packet(packet: Any, stage: str, conversation_id: str, base_dir: Path =
     needed = ("research", "layout", "settings", "publish") if stage == "publish" else ("layout", stage) if stage == "settings" or layout_edit else (stage,)
     for item in needed:
         keys = combinations[item] + ("workspace_settings", "style_references", "feedback")
+        if "prepublish_review_receipt" in packet:
+            keys += ("prepublish_review_receipt",)
+        if item in {"research", "publish"} and quality_policy and quality_policy["required"]:
+            keys += ("research_quality_evidence",)
         if item in {"settings", "publish"} and isinstance(packet.get("settings"), dict) and packet["settings"].get("cover_image") is not None:
             keys = keys + ("cover_image",)
         if not all(key in hashes for key in keys):
