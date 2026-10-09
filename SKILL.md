@@ -352,3 +352,19 @@ workspace settingsの任意の `research_quality_policy` を有効にした場�
 承認の確認は `note_workflow_gate.py --list-gates` で現在版・根拠・失効理由・依存する未承認項目を表示する。本文校正、目次／末尾カード、公開設定、最終公開の承認を区別し、本人が変更したタグを上書きしない。公開済みの観測と全ゲート通過は別の事実として残す。
 
 詳しくは [人間レビュー契約](references/note-workflow-review-contract.md) と [公開後手順](skills/note-postpublish-ledger/SKILL.md) を参照する。
+
+
+## 統合したローカル機能の入口
+
+この機能群は既存スクリプトを正本とし、利用者の原稿・資料・台帳をpackage外に置く。利用者側で残したWIPと上流版の差分は配送証跡で区別し、全環境への反映済みと推定しない。
+
+- ローカル原稿の保全・再読は `references/note-draft-durability-contract.md` と `scripts/note_draft_durability.py`。
+- 編集CLIは `scripts/note_editor_apply.py`。write直前のworkflow承認を検査する。ブラウザから直接操作する経路への自動強制接続はない。
+- 目次の構造照合は `scripts/note_toc_gate.py`。見出しの意味や文章の適切さは本人レビューで確認する。
+- production候補は既存の著者性・見出し構造・編集session検査も通す。観測JSONの成功を実画面取得の証明にしない。
+- 検索QAは `skills/note-prepublish-qa/SKILL.md`。検索候補を裏付け済み事実と扱わない。
+- 壁打ち論点の対応は `references/draft-topic-coverage.md`。packet検査は `scripts/note_work_packet_check.py`。独立CLIがあることと公開経路への強制接続を区別する。
+
+公開・設定採用・画像採用・本文採用の人間判断は既存のworkflow契約に従う。
+
+読書プレビューは白背景のlight表示で本文を確認するための表示であり、Noteのthemeやeditor UIの完全な再現ではない。実画面の読戻しと由来の検査を分ける。

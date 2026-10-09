@@ -8,6 +8,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from note_editor_session_check import validate_edit_session
+
 from note_footer_selection import (
     load_production_plan,
     parse_json,
@@ -240,6 +242,7 @@ def build_result(
         issues.extend(validate_tag_preflight(data))
         issues.extend(validate_article_type(data))
         issues.extend(validate_final_buttons(data))
+        issues.extend(validate_edit_session(data))
         manual_boundaries.extend(top_boundaries)
     return {
         "ok": not any(item["severity"] == "error" for item in issues),

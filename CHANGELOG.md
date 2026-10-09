@@ -1,8 +1,29 @@
 # 変更履歴
 
+## ローカル統合候補（2026-10-06・未配送）
+
+上流0.2.40を基準に、既存の検索QA、POSIX pointer、原稿保全、目次・編集session・論点対応・packet検査を統合。上流と同一の配布版とは扱わない。原文と公開判断の境界は維持する。
+
 このファイルは `note-publishing-suite` パッケージの版管理正本。
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
+
+## 0.2.46
+
+日付: 2026-10-09
+
+変更:
+- 未吸収の検索QA、POSIX pointer、原稿保全、目次・編集session・論点・workpacket検査を既存入口へ統合し、著者構造レビューを共通原稿QAへ接続する。
+- 不正入力の拒否、workspace保存先とdry-run、編集途中失敗後の停止を回帰検査する。既存の品質報告と本人承認・公開手前停止を維持する。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `sh scripts/verify_public_package.sh`
+- `python scripts/docs_sync_check.py --base-ref origin/main`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
 
 ## 0.2.45
 

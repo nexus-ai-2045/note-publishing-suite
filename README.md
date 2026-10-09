@@ -16,7 +16,7 @@ publication_gate: human_review_required
 **NPS（Note Publishing Suite）** です。Codex / Claude Code から使えます。
 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。
 
-パッケージ版: `0.2.45`
+パッケージ版: `0.2.46`
 
 読書用プレビューは `note_virtual_preview.py`、編集診断は同コマンドの `--diagnostics`、由来レビューは `note_preview.py --review-provenance` を使います。原稿の本人確認・保留は検査で維持します。
 
@@ -328,3 +328,12 @@ PDCAは「記事内の改善→公開直後の確認→記事の成果→同テ�
 承認の確認は `note_workflow_gate.py --list-gates` で現在版・根拠・失効理由・依存する未承認項目を表示する。本文校正、目次／末尾カード、公開設定、最終公開の承認を区別し、本人が変更したタグを上書きしない。公開済みの観測と全ゲート通過は別の事実として残す。
 
 詳しくは [人間レビュー契約](references/note-workflow-review-contract.md) と [公開後手順](skills/note-postpublish-ledger/SKILL.md) を参照する。
+
+
+## 原稿保全・検索QA・編集検査の統合
+
+検索QA、POSIX pointer、原稿保全・目次・編集session・論点対応・packet検査を既存の入口へ統合しました。明示した検索語だけを検索し、候補の取得を出典確認と区別します。原稿版・公式資料の保存先はworkspaceを明示し、既定のローカル書込みを避けます。editorの途中失敗では後続操作を止め、供給した観測JSONの成功を公開準備完了へ変換しません。詳細と検査の接続範囲は `SKILL.md` を参照してください。最終公開の本人操作境界は維持します。
+
+## 読書プレビューの表示範囲
+
+ローカルの読書プレビューは白背景のlight表示を基本に、本文の読書と構成確認に使います。簡易表示はNote実物のテーマやエディタUIを完全再現するものではありません。メタデータや診断表示を本文と分け、実画面の読戻しを別に行います。

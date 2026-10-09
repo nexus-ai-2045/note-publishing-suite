@@ -76,6 +76,7 @@ def reviewed(plan: dict) -> dict:
 
 def ready_observation() -> dict:
     return {
+        "article_lane": "editor_fixture",
         "title": "AUTOMATA No.5",
         "top_image": {"present": True},
         "toc_count": 1,
@@ -460,3 +461,49 @@ def test_missing_nodes_is_not_optional_empty_observation(tmp_path):
     obs["footer"].pop("nodes")
     code, payload = run_checker(tmp_path, obs)
     assert code == 1 and "footer_nodes_missing" in issue_codes(payload)
+
+
+def test_production_candidate_requires_edit_session_readback(tmp_path):
+    obs = ready_observation()
+    obs["article_lane"] = "production_candidate"
+    obs["save_readback"] = {"observed_at": "2026-09-22T12:00:00Z"}
+    code, payload = run_checker(tmp_path, obs)
+    assert code == 1
+    assert "edit_session_missing" in issue_codes(payload)
+
+
+@pytest.mark.parametrize("lane", [None, "", "PRODUCTION_CANDIDATE", "production_candidate ", "other", [], {}])
+def test_missing_or_invalid_lane_cannot_skip_edit_session(tmp_path, lane):
+    obs = ready_observation()
+    if lane is None:
+        obs.pop("article_lane", None)
+    else:
+        obs["article_lane"] = lane
+    code, payload = run_checker(tmp_path, obs)
+    assert code == 1
+    assert payload["ok"] is False
+    assert "invalid_article_lane" in issue_codes(payload)
+    assert payload["ready_for_publish"] is False
+    assert payload["live_dom_verified"] is False
+
+
+@pytest.mark.parametrize("lane", ["exploratory_draft", "editor_fixture", "continuation_article"])
+def test_explicit_non_production_lane_can_skip_edit_session(tmp_path, lane):
+    obs = ready_observation()
+    obs["article_lane"] = lane
+    code, payload = run_checker(tmp_path, obs)
+    assert code == 0
+    assert payload["ok"] is True
+    assert payload["ready_for_publish"] is False
+    assert payload["live_dom_verified"] is False
+
+
+def test_footer_only_does_not_require_article_lane():
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from note_editor_prepublish_verify import build_result
+    obs = ready_observation()
+    obs.pop("article_lane", None)
+    result = build_result(obs, footer_only=True)
+    assert result["ok"] is True
+    assert result["verification_scope"] == "supplied_snapshot_only"
+    assert result["live_dom_verified"] is False

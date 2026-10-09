@@ -4,11 +4,39 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import importlib.util
 import json
 import re
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
+
+try:
+    from note_authorship_gate import evaluate, frontmatter_fields
+except ModuleNotFoundError:
+    _AUTHORSHIP_SPEC = importlib.util.spec_from_file_location(
+        "note_authorship_gate", Path(__file__).with_name("note_authorship_gate.py")
+    )
+    if _AUTHORSHIP_SPEC is None or _AUTHORSHIP_SPEC.loader is None:
+        raise
+    _AUTHORSHIP_MODULE = importlib.util.module_from_spec(_AUTHORSHIP_SPEC)
+    _AUTHORSHIP_SPEC.loader.exec_module(_AUTHORSHIP_MODULE)
+    evaluate = _AUTHORSHIP_MODULE.evaluate
+    frontmatter_fields = _AUTHORSHIP_MODULE.frontmatter_fields
+
+
+try:
+    from note_workflow_gate import read_workspace_settings
+except ModuleNotFoundError:
+    _WORKFLOW_SPEC = importlib.util.spec_from_file_location(
+        "note_workflow_gate", Path(__file__).with_name("note_workflow_gate.py")
+    )
+    if _WORKFLOW_SPEC is None or _WORKFLOW_SPEC.loader is None:
+        raise
+    _WORKFLOW_MODULE = importlib.util.module_from_spec(_WORKFLOW_SPEC)
+    _WORKFLOW_SPEC.loader.exec_module(_WORKFLOW_MODULE)
+    read_workspace_settings = _WORKFLOW_MODULE.read_workspace_settings
 
 
 SECRET_PATTERNS = [
@@ -45,6 +73,110 @@ RECHECK_REQUIRED_PATTERN = re.compile(
 )
 
 
+EDITORIAL_REVIEW_SCHEMA = "nps-prepublish-review/v1"
+
+
+def _sha256(value: bytes) -> str:
+    return hashlib.sha256(value).hexdigest()
+
+
+def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate receipt key: {key}")
+        result[key] = value
+    return result
+
+
+def _reject_json_constant(value: str) -> Any:
+    raise ValueError(f"invalid JSON constant: {value}")
+
+
+def load_editorial_review_receipt(path: Path) -> dict[str, Any]:
+    """Load a strict receipt; JSON files are data, not authenticity proof."""
+    receipt = json.loads(
+        path.read_text(encoding="utf-8"),
+        object_pairs_hook=_reject_duplicate_pairs,
+        parse_constant=_reject_json_constant,
+    )
+    if not isinstance(receipt, dict):
+        raise ValueError("editorial review receipt must be an object")
+    return receipt
+
+
+def validate_pre_publish_review_receipt(
+    receipt: dict[str, Any],
+    text: str,
+    *,
+    article_id: str | None,
+    conversation_id: str | None,
+) -> list[str]:
+    """Validate binding; trusted runtime remains responsible for authenticity."""
+    errors: list[str] = []
+    if not isinstance(article_id, str) or not article_id.strip():
+        errors.append("article_id is missing")
+    if not isinstance(conversation_id, str) or not conversation_id.strip():
+        errors.append("conversation_id is missing")
+    if receipt.get("schema_version") != EDITORIAL_REVIEW_SCHEMA:
+        errors.append("schema_version is invalid")
+    for key, expected in (
+        ("article_id", article_id),
+        ("conversation_id", conversation_id),
+        ("status", "review_required"),
+        ("actor", "user"),
+        ("draft_sha256", _sha256(text.encode("utf-8"))),
+    ):
+        if receipt.get(key) != expected:
+            errors.append(f"{key} does not match current review target")
+    _, body = split_frontmatter(text)
+    if receipt.get("body_sha256") != _sha256(body.encode("utf-8")):
+        errors.append("body_sha256 does not match current review target")
+    if receipt.get("issue_codes") != ["missing_early_takeaway"]:
+        errors.append("issue_codes must contain only missing_early_takeaway")
+    for key in ("reason", "evidence_ref"):
+        if not isinstance(receipt.get(key), str) or not receipt[key].strip():
+            errors.append(f"{key} is missing")
+    try:
+        observed_at = datetime.fromisoformat(receipt.get("observed_at"))
+        if observed_at.utcoffset() is None:
+            errors.append("observed_at must include timezone")
+    except (TypeError, ValueError):
+        errors.append("observed_at is invalid")
+    return errors
+
+
+def apply_editorial_review(
+    issues: list[dict[str, Any]],
+    receipt_path: Path | None,
+    text: str,
+    *,
+    article_id: str | None,
+    conversation_id: str | None,
+) -> list[dict[str, Any]]:
+    """Classify one explicitly reviewed editorial issue without clearing errors."""
+    if receipt_path is None:
+        return issues
+    try:
+        receipt = load_editorial_review_receipt(receipt_path)
+        errors = validate_pre_publish_review_receipt(
+            receipt, text, article_id=article_id, conversation_id=conversation_id
+        )
+    except (OSError, UnicodeError, ValueError, json.JSONDecodeError) as exc:
+        errors = [str(exc)]
+    if errors:
+        issues.append({
+            "severity": "error",
+            "code": "invalid_editorial_review_receipt",
+            "message": "; ".join(errors),
+        })
+        return issues
+    for issue in issues:
+        if issue.get("code") == "missing_early_takeaway":
+            issue["severity"] = "review_required"
+    return issues
+
+
 def split_frontmatter(text: str) -> tuple[dict[str, str], str]:
     if not text.startswith("---\n"):
         return {}, text
@@ -52,12 +184,8 @@ def split_frontmatter(text: str) -> tuple[dict[str, str], str]:
     if end == -1:
         return {}, text
 
-    metadata: dict[str, str] = {}
-    for line in text[4:end].splitlines():
-        if ":" not in line or line[:1].isspace():
-            continue
-        key, value = line.split(":", 1)
-        metadata[key.strip().lower()] = value.strip().strip("'\"")
+    metadata = frontmatter_fields(text)
+    metadata["__raw_frontmatter"] = text[4:end]
     return metadata, text[end + len("\n---") :]
 
 
@@ -149,13 +277,130 @@ def collect_issues(text: str) -> list[dict[str, Any]]:
     for code, pattern in WARNING_PATTERNS.items():
         if pattern.search(text):
             issues.append({"severity": "warning", "code": code, "message": f"{code} found"})
-    if not re.search(r"^#\s+\S+", text, re.M):
-        issues.append({"severity": "warning", "code": "missing_h1", "message": "draft has no H1 title"})
     if len(text.strip()) < 400:
         issues.append({"severity": "warning", "code": "short_draft", "message": "draft is very short"})
+    title_match = re.search(r"^title:[ \t]*(.*)$", metadata.get("__raw_frontmatter", ""), re.M)
+    frontmatter_title = title_match.group(1).strip() if title_match else metadata.get("title", "")
+    quote = ""
+    for index, char in enumerate(frontmatter_title):
+        if char in "\"'" and (index == 0 or frontmatter_title[index - 1] != "\\"):
+            quote = "" if quote == char else char if not quote else quote
+        elif char == "#" and not quote and (index == 0 or frontmatter_title[index - 1].isspace()):
+            frontmatter_title = frontmatter_title[:index].strip()
+            break
+    title_is_quoted = len(frontmatter_title) >= 2 and frontmatter_title[0] == frontmatter_title[-1] and frontmatter_title[0] in "\"'"
+    if title_is_quoted:
+        frontmatter_title = frontmatter_title[1:-1].strip()
+    non_string_title = not title_is_quoted and (
+        frontmatter_title.lower() in {"true", "false", "yes", "no", "on", "off", ".nan", ".inf", "+.inf", "-.inf"}
+        or frontmatter_title.startswith(("[", "{", "*", "&", "!", ">", "|", "- "))
+        or bool(re.fullmatch(r"[-+]?(?:0[xX][0-9a-fA-F_]+|0[oO][0-7_]+|0[bB][01_]+|(?:\d[\d_]*(?:\.[\d_]*)?|\.[\d_]+)(?:[eE][-+]?\d[\d_]*)?)", frontmatter_title))
+        or bool(re.fullmatch(r"\d{4}-\d{2}-\d{2}(?:[Tt ]\S+)?", frontmatter_title))
+    )
+    if frontmatter_title.lower() in {"null", "~"} or non_string_title:
+        frontmatter_title = ""
+    if not re.search(r"^#\s+\S+", body, re.M) and not frontmatter_title:
+        issues.append({"severity": "warning", "code": "missing_h1", "message": "本文H1またはfrontmatterのtitleがありません"})
+    intro = body[:900]
+    if not re.search(r"(先に結論|結論から|この記事で.{0,80}(分かる|伝える|整理|やる)|要するに|持ち帰)", intro, re.S):
+        issues.append({
+            "severity": "error",
+            "code": "missing_early_takeaway",
+            "message": "冒頭900字以内に、先に伝える結論または読後の持ち帰りがありません",
+        })
+    paragraphs = [part.strip() for part in re.split(r"\n\s*\n", body) if part.strip() and not part.startswith("---")]
+    prose_paragraphs = [part for part in paragraphs if not re.match(r"^(?:[-*+] |\d+\. )", part)]
+    if any(len(re.sub(r"\s+", "", part)) > 500 for part in prose_paragraphs):
+        issues.append({"severity": "warning", "code": "long_paragraph", "message": "500字を超える段落があります"})
+    if len(re.findall(r"^##\s+", body, re.M)) < 2 and len(body) >= 1200:
+        issues.append({"severity": "warning", "code": "few_section_headings", "message": "長文に対して小見出しが少なすぎます"})
     issues.extend(find_future_date_issues(body, publication_date))
     issues.extend(find_recheck_issues(body))
     return issues
+
+
+def collect_production_structure_issues(text: str) -> list[dict[str, str]]:
+    """Fail closed on heading structure needed by the live Note TOC."""
+    body = re.sub(r"\A---\s*.*?\s*---\s*", "", text, count=1, flags=re.S)
+    headings = [
+        (len(match.group(1)), match.group(2).strip())
+        for match in re.finditer(r"^(#{1,6})\s+(\S.*)$", body, re.M)
+    ]
+    issues: list[dict[str, str]] = []
+    h2_count = sum(level == 2 for level, _ in headings)
+    if len(body) >= 1200 and h2_count < 2:
+        issues.append({
+            "severity": "error",
+            "code": "insufficient_section_headings",
+            "message": "production_candidate の長文には、Note目次の親になるH2見出しが2件以上必要です",
+        })
+
+    previous_level: int | None = None
+    seen_h2 = False
+    for level, title in headings:
+        if level == 1:
+            previous_level = 1
+            continue
+        if level == 2:
+            seen_h2 = True
+        invalid = (level >= 3 and not seen_h2) or (
+            previous_level is not None and level > previous_level + 1
+        )
+        if invalid:
+            issues.append({
+                "severity": "error",
+                "code": "invalid_heading_hierarchy",
+                "message": f"見出し階層が不正です: H{level} {title}",
+            })
+            break
+        previous_level = level
+    return issues
+
+
+
+def check_draft(
+    draft: Path, *, authorship_evidence: Path | None = None,
+    prepublish_review_receipt: Path | None = None,
+    article_id: str | None = None, conversation_id: str | None = None,
+    settings_path: Path | None = None,
+) -> dict[str, Any]:
+    """CLIとレビュー入口で同じ原稿・文体・原文保持契約を検査する。"""
+    text = draft.read_text(encoding="utf-8")
+    issues = apply_editorial_review(
+        collect_issues(text), prepublish_review_receipt, text,
+        article_id=article_id, conversation_id=conversation_id,
+    )
+    metadata, _ = split_frontmatter(text)
+    lane = metadata.get("article_lane")
+    if lane not in {"production_candidate", "exploratory_draft", "editor_fixture", "continuation_article"}:
+        issues.append({"severity": "error", "code": "missing_or_invalid_article_lane", "message": "article_lane がないか未定義です"})
+    if lane == "production_candidate":
+        try:
+            if not isinstance(article_id, str) or not article_id.strip():
+                raise ValueError("production_candidate には article_id が必要です")
+            read_workspace_settings(settings_path, article_id)
+        except (OSError, ValueError, TypeError, RuntimeError, RecursionError, ImportError) as exc:
+            issues.append({"severity": "error", "code": "workspace_style_unverified",
+                           "message": f"外部settingsと文体参照の読み戻しが必要です: {exc}"})
+        issues.extend(collect_production_structure_issues(text))
+        evidence = authorship_evidence or draft.with_suffix(".authorship.json")
+        try:
+            detail = evaluate(draft, evidence)
+        except (OSError, ValueError, TypeError, AttributeError, KeyError) as exc:
+            issues.append({"severity": "error", "code": "authorship_gate_execution_failed", "message": str(exc)})
+        else:
+            if detail["unresolved_count"]:
+                issues.append({"severity": "error", "code": "unverified_personal_voice",
+                               "message": f"本人語り {detail['unresolved_count']} 件に根拠確認がありません"})
+            if detail["shortening"]["overall"] == "blocked":
+                issues.append({"severity": "error", "code": "authorship_preservation_blocked",
+                               "message": "比較元の指定と原文保持の検査を通過していません",
+                               "detail": detail["shortening"]})
+    overall = "error" if any(i["severity"] == "error" for i in issues) else (
+        "review_required" if any(i["severity"] == "review_required" for i in issues)
+        else ("warning" if issues else "ok")
+    )
+    return {"draft": str(draft), "overall": overall, "issues": issues}
 
 
 def main() -> int:
@@ -163,26 +408,26 @@ def main() -> int:
     parser.add_argument("draft", type=Path)
     parser.add_argument("--fix", action="store_true", help="Remove HTML comments only; other issues remain manual.")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--authorship-evidence", type=Path)
+    parser.add_argument("--article-id")
+    parser.add_argument("--conversation-id")
+    parser.add_argument("--prepublish-review-receipt", type=Path)
+    parser.add_argument("--settings", type=Path, help="外部workspace設定と文体参照を読み戻す")
     args = parser.parse_args()
-
-    text = args.draft.read_text(encoding="utf-8")
     if args.fix:
-        text = re.sub(r"<!--.*?-->", "", text, flags=re.S)
+        text = re.sub(r"<!--.*?-->", "", args.draft.read_text(encoding="utf-8"), flags=re.S)
         args.draft.write_text(text, encoding="utf-8", newline="\n")
-
-    issues = collect_issues(text)
-    result = {
-        "draft": str(args.draft),
-        "overall": "error" if any(i["severity"] == "error" for i in issues) else ("warning" if issues else "ok"),
-        "issues": issues,
-    }
+    result = check_draft(args.draft, authorship_evidence=args.authorship_evidence,
+                         article_id=args.article_id, conversation_id=args.conversation_id,
+                         prepublish_review_receipt=args.prepublish_review_receipt,
+                         settings_path=args.settings)
     if args.json:
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+        print(json.dumps(result, ensure_ascii=True, indent=2))
     else:
         print(f"overall={result['overall']}")
-        for issue in issues:
+        for issue in result["issues"]:
             print(f"{issue['severity']}:{issue['code']} {issue['message']}")
-    return 1 if result["overall"] == "error" else 0
+    return 1 if result["overall"] in {"error", "review_required"} else 0
 
 
 if __name__ == "__main__":

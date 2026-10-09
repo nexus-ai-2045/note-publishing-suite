@@ -25,7 +25,7 @@ package 内の空雛形ではなく既存正本を使う:
 
 - content/drafts → `{{WORKSPACE_ROOT}}/content/drafts`
 - data 台帳 → `{{WORKSPACE_ROOT}}/data`
-- scripts → `{{WORKSPACE_ROOT}}/scripts`
+- scripts → `{{PACKAGE_ROOT}}/scripts`
 
 ## 公開 gate
 
