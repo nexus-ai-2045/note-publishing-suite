@@ -122,7 +122,10 @@ def validate_footer_selection(data: dict[str, Any], plan: Any) -> list[dict[str,
     if not isinstance(plan, dict) or not plan:
         fail("footer_plan_missing", "記事別の選定計画がありません")
         return errors
-    allowed = {"article_id", "reader", "series", "reader_action", "links", "review"}
+    allowed = {
+        "article_id", "reader", "series", "reader_action", "links", "review",
+        "decision", "reason",
+    }
     if set(plan) - allowed:
         fail("footer_plan_unknown_fields", "選定計画に未知の項目があります")
     for field in ("article_id", "reader", "series", "reader_action"):
@@ -165,10 +168,19 @@ def validate_footer_selection(data: dict[str, Any], plan: Any) -> list[dict[str,
             fail("footer_review_hash_mismatch", "選定計画が承認時の内容と一致しません")
     except (TypeError, ValueError):
         fail("footer_plan_invalid", "選定計画を正規化できません")
+    # 既存計画は採用として扱い、空リンクから省略を推測しない。
+    decision = plan.get("decision", "include")
+    if (
+        decision not in ("include", "omit")
+        or ("decision" in plan and not _nonempty(plan.get("reason")))
+    ):
+        fail("footer_plan_decision_invalid", "フッターの明示的な採否と理由が不正です")
     links = plan.get("links")
-    if not isinstance(links, list) or not links:
+    if not isinstance(links, list) or (not links and decision != "omit"):
         fail("footer_plan_links_missing", "選定リンクは1件以上必要です")
         links = []
+    if decision == "omit" and links:
+        fail("footer_plan_decision_mismatch", "フッター非採用の選定リンクは空配列が必要です")
     expected: dict[str, tuple[int, str, bool]] = {}
     for index, link in enumerate(links):
         if not isinstance(link, dict):
@@ -199,7 +211,8 @@ def validate_footer_selection(data: dict[str, Any], plan: Any) -> list[dict[str,
             continue
         if url in expected:
             fail("footer_plan_duplicate_url", "選定計画でURLが重複しています")
-        expected[url] = (index, link["presentation"], link["required"])
+        if decision != "omit":
+            expected[url] = (index, link["presentation"], link["required"])
     footer = data.get("footer")
     nodes = footer.get("nodes") if isinstance(footer, dict) else None
     if isinstance(footer, dict) and set(footer) - {"nodes"}:

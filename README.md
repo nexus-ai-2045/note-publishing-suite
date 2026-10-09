@@ -16,7 +16,7 @@ publication_gate: human_review_required
 **NPS（Note Publishing Suite）** です。Codex / Claude Code から使えます。
 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。
 
-パッケージ版: `0.2.44`
+パッケージ版: `0.2.45`
 
 読書用プレビューは `note_virtual_preview.py`、編集診断は同コマンドの `--diagnostics`、由来レビューは `note_preview.py --review-provenance` を使います。原稿の本人確認・保留は検査で維持します。
 
@@ -242,6 +242,7 @@ Noteログイン、常時接続、画像アップロードの完全自動化は�
 - `scripts/docs_sync_check.py`: 生成物と関連文書をread-onlyで同期検査。
 - `scripts/note_interview_packet.py`: 低負担な問答packetを生成。
 - `scripts/note_authorship_gate.py`: 本人発言にない作文や無断短縮を検査。
+- `scripts/note_research_quality.py`: 任意の品質ポリシーに従い、調査報告の根拠・鮮度・採否と5段階のPDCA計画を読み取り専用で検査。実行入口は既存の `note_workflow_gate.py` のresearch段階。
 - `scripts/note_linebreak_gate.py` / `scripts/note_figure_structure_gate.py`: 改行、図、captionを検査。改行gateは段落順の期待・観測soft-break配列を照合できる。プレビューは空行で段落を分け、同じ段落内の改行を `<br>` にする。
 - `scripts/note_browser_transport_recovery.py` / `scripts/note_editor_timeout_recovery.py`: Browser切断とtimeoutを分類。前者はread-only復旧計画専用で、process終了や人間承認の真正性確認は行わない。
 - `scripts/note_editor_pdca_failure_check.py`: Note editor 失敗パターン台帳を検査。
@@ -311,6 +312,14 @@ GitHubではこのREADMEをそのまま読めます。ローカル整形版は
 音声書き起こしやnote本文から始める編集、既存素材の記事化、壁打ちを重ねる共同執筆の3経路を扱います。原文を先にローカル保存し、編集稿と区別します。本人発話、AI整理・追加案、外部事実、採否を既存の由来検査に結び付けます。
 
 誤字も修正前後を確認し、公開前調査・公開設定・最終公開も毎回本人に確認します。[版ごとの承認契約](references/note-workflow-review-contract.md)と `scripts/note_workflow_gate.py` で対象の版と承認記録を照合します。古い承認では進めません。checkerだけで人間発言の真正性や任意のBrowser経路を保証せず、runtimeが接続と証拠照合を担います。毎発言のフックは導入せず、最終投稿ボタンは人間が操作します。
+
+## SEO・AIO・Note・PDCAの調査確認
+
+workspace settingsで `research_quality_policy` を有効にした利用者は、既存research段階でSEO、AI検索で読み取れる根拠（AIO）、Noteの表示・設定、タグ、PDCA、関連作者・旬の6分野を確認します。実際に読んだ資料、観測日時、保存物のハッシュ、採否と未確認事項を結び、欠落・改変・鮮度切れは停止します。適用外や既存資料の再利用には理由が必要です。設定しない利用者の既存Markdown報告は継続利用できます。
+
+PDCAは「記事内の改善→公開直後の確認→記事の成果→同テーマの比較→運用戦略」の5段階を既存feedbackへ結びます。将来の測定は計画として扱い、未取得を0や成功に変えません。順位・AI引用・収益・画像品質の実効果は、この構造検査だけで保証しません。画像は保持条件・変更条件を分け、加工前後、実解像度、文字や顔の変化を確認します。
+
+フッターを省略する場合は、制作計画の明示的な `decision: omit` と理由を承認ハッシュへ含め、空のリンク計画と空の観測ノードを照合します。省略を指定しない旧計画では従来の必須リンク検査を維持します。
 
 ## 公開後の読戻しと承認一覧
 

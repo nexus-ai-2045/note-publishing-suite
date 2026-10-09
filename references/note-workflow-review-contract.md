@@ -113,3 +113,55 @@ NPSは保存先の指定と読戻し検査を提供する。個人の口調・�
 採用履歴が過去の会話に由来すること自体は正常。履歴の由来会話を記録しつつ、今回の各stage承認は今回のconversation_idとの一致を必要とする。読戻し検査は保存・版一致の証明であり、適切な著者性の反映は本人レビューで確かめる。
 
 実画面の採否照合は呼出し側runtimeが担当する。この候補の `note_editor_prepublish_verify.py` は供給snapshotの既存検査とタグ事前照合を提供する。汎用Browserの操作経路へ承認照合を強制したとは扱わない。
+
+## 利用者設定で必須化する調査品質
+
+外部workspace settingsの `research_quality_policy` で有効にする。未指定の利用者は従来のMarkdown調査報告を継続できる。指定する場合は次の形を使い、無効にする時も `required: false` を明示する。日数は利用者が採用する1〜365の整数で、下の7日・30日は設定例である。
+
+```json
+{
+  "research_quality_policy": {
+    "schema_version": "nps-research-quality-policy/v1",
+    "required": true,
+    "max_age_days": {"dynamic": 7, "official": 30, "creator": 30}
+  }
+}
+```
+
+設定の読戻し結果にもpolicyが含まれる。`ssot_readback` は `read_workspace_settings` の現在の返却値と一致させる。packetからpolicyを上書きしない。
+
+有効時は、既存 `research_report` を `note-research-quality/v1` のJSONにする。新しい承認段階は増やさない。researchとpublishで毎回保存資料を読み直し、観測日時と現在時刻の差をPython標準のdatetimeで検査する。観測にはtimezoneが必要で、未来・期限超過・欠落・不正なJSON・重複キーは停止する。記事本文、外部設定、調査報告、資料、feedbackの変更は現在版の承認照合に反映される。時間経過による鮮度切れは承認済みでも停止する。
+
+構造の例は `data/note_research_quality.example.json`。これは架空のテスト資料で、現在の調査結果ではない。実運用では記事ID、主題、実際に確認した出典・保存資料・観測日時・採否案を置き換え、本人が確認する。例のfeedback参照先も自動作成されない。
+
+| 項目 | 必須内容 |
+|---|---|
+| report | `schema_version`、`article_id`、`topic`、`sources`、`areas`、`pdca_loops` |
+| source | 一意な `id`、`kind`（`official` / `dynamic` / `creator`）、再訪できる `url`、`observed_at`、`evidence_path`、`evidence_sha256`、本文を照合した `readback` |
+| 再利用 | `reuse` はnull、または今回と同じ `topic`、`unchanged: true`、`reason`。再利用でも鮮度検査を省略しない |
+| 領域 | `seo` / `aio` / `note` / `tags` / `pdca` / `creator_trends` の6件。各 `status` は `pass` または `not_applicable`、`reason`、`decision`、`source_ids`、`unresolved: []` |
+| 適用外 | 理由と採否案を明示し、資料IDは空配列にできる。未取得の必須資料を適用外へ読み替えない |
+| 保存資料 | `evidence_path` はreport所在からの相対パス、または絶対パス。実ファイルの非空とSHA-256を照合する |
+
+領域ごとの読み合わせでは、次を確認する。機械検査は保存資料と構造の整合性だけを検査し、内容の正しさ、実際の閲覧、検索順位、AIによる引用、収益を保証しない。出典の分類と本文の意味は人間レビューの対象である。
+
+- SEO: 主題の分かる題名・要点・見出し、独自の考え、出典、過度な断定。
+- AIO: 用語、主張、事実と意見の区別、根拠。専用ファイルやschemaの追加は必須にしない。
+- Note: 扉絵、目次、読みやすさ、タグ、マガジン、企画条件、下書き保存状態。選択しただけの公開フォームを保存済みと扱わない。期限のある募集は期限・参加条件を毎回確認する。
+- タグ: 候補と選択済み、キーワードとハッシュタグページ、表示記事数と検索需要を区別する。規模の分類は今回のテーマ内の相対比較にする。動的な表示の観測は `dynamic` を使う。
+- PDCA: 変更、測定対象、時期、担当、未取得、制約。未取得を数値0で埋めない。
+- 書き手・トレンド: 利用者側の既存リストから関連する記事の構成・題名・導入・タグ・締め方を読む。書き手の記事は `creator`、動的なトレンドは `dynamic` とし、今回のテーマへの採否案を返す。リストをNPSへ複製しない。
+
+### 5段階の振り返りと既存feedback
+
+`pdca_loops` は次の5件を一度ずつ持つ。各件に `scope`、`owner`、`change`、`measure`、`when`、`status`、`missing_data`（配列）、`constraints`（配列）、`feedback_entry_ref` を記録する。
+
+| scope | 段階と記録先 |
+|---|---|
+| `article_local` | 今回の記事の修正。記事別feedbackで採否を残す |
+| `immediate_publication` | 公開直後の表示・設定・保存状態。実際の公開後に観測する |
+| `article_outcomes` | 記事単位の成果。測定可能な数値と未取得を区別する |
+| `topic_portfolio` | 同テーマの複数記事。既存の利用者側集計へ戻す担当を置く |
+| `strategy` | 運用戦略。利用者側の知見・施策の正本へ採否を戻す担当を置く |
+
+`feedback_entry_ref` は既存 `storage.feedback/<article_id>/feedback.json` の `entries[].evidence_ref` と一致させる。既存の `note_feedback.py` で計画案と採否を記録し、そのreadbackをpacketへ反映する。計画は `status: planned` とし、将来の結果は要求しない。実測を記録する時だけ `status: observed`、`result`、確認済みの `source_id` が必要になる。計画の記録やローカル検査を、人間の採用・Note公開・将来の成果と同一視しない。定期通知や別の完了台帳は作らない。

@@ -1,5 +1,5 @@
 name: note-publishing-suite
-version: 0.2.44
+version: 0.2.45
 scope: repo-local
 repo_root: .
 entrypoint: SKILL.md
@@ -178,6 +178,7 @@ footer_selection_contract:
 existing_scripts:
   - scripts/note_feedback.py
   - scripts/note_workflow_gate.py
+  - scripts/note_research_quality.py
   - scripts/note_footer_selection.py
   - scripts/note_authorship_gate.py
   - scripts/note_interview_packet.py
