@@ -29,6 +29,13 @@ cursor drift は fresh DOM からやり直す。禁止リトライは ledger の
 
 ## 最小サイクル
 
+空段落へのURL1件pasteは `../scripts/note_editor_guarded_input.mjs` と
+`../skills/note-editor-ops/SKILL.md` の「URLの単一入力入口」を使う。
+入力直前に現在版のworkflow承認と対象surfaceを照合し、pendingなら再paste・Enterをせずread-only reconcile、
+blockedなら後続入力・自動Undo・本文再投入を停止する。
+既存PDCA checkerは事後検査であり、入力APIの強制hookではない。
+以下のEnter/Undo例は別の承認済み操作の説明であり、guardのpending/blockedを回避する手順ではない。
+
 ### 1. Goal
 
 - 今回の 1 cycle で何を確認/変更するかを 1 文で決める。

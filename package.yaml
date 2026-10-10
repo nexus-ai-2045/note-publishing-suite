@@ -1,5 +1,5 @@
 name: note-publishing-suite
-version: 0.2.46
+version: 0.2.47
 scope: repo-local
 repo_root: .
 entrypoint: SKILL.md
@@ -176,6 +176,7 @@ footer_selection_contract:
   observation_scope: supplied_snapshot_only
   manual_boundary_is_pass: false
 existing_scripts:
+  - scripts/note_editor_guarded_input.mjs
   - scripts/draft_topic_coverage_check.py
   - scripts/note_work_packet_check.py
   - scripts/fetch_note_official_specs.py

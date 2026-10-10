@@ -34,6 +34,11 @@ jobs:
         with:
           python-version: "3.x"
 
+      - name: Set up Node for guarded URL input tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Install test dependencies
         run: python -m pip install pytest
 

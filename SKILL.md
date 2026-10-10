@@ -218,6 +218,7 @@ python scripts\note_diff_check.py <note_url> <draft.md> <phrase...> --snapshot-o
 
 - 既存 global skill `note-editor-prepublish` を参照して、Note editor 反映、目次、リンク、画像、埋め込み、タグ確認、下書き保存を行う。
 - 低レベルの Browser 操作、埋め込み、DOM確認、Undo復旧、checkerラチェットは `skills/note-editor-ops/SKILL.md` を読む。
+- 空段落へのURL1件pasteは `scripts/note_editor_guarded_input.mjs` と同skillの単一入力入口を使う。現行workflow承認とsurface指定を維持し、pendingは読み取りのみ、blockedは後続変更を停止する。Node.js 22以降と対応Tab APIが必要。Python/Orca CLIへの自動接続や実GUI互換性は保証しない。
 - 実際に回した PDCA cycle は記事ごとの受領JSONへ残し、`scripts/note_editor_pdca_cycle_check.py` で 1 action・前後DOM証跡・非公開・routeあたり最大2回を検査する。ledger の存在だけを実行証拠にしない。
 - note editor、埋め込み、URL単独行、Enter変換、DOM確認、figure/data-src、Undo、固定座標、CUA/Playwright、投稿確定後台帳のいずれかが出たら `note-editor-ops` を自動参照する。
 - in-app Browser を優先する。attach/inspect できない場合は停止し、Chrome や Computer Use へ無断で切り替えない。

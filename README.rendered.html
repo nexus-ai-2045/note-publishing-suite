@@ -117,7 +117,7 @@
 <p><strong>書くところまで自動化。公開は、人が決める。</strong></p>
 <p><img src="assets/note-publishing-workflow.svg" alt="素材からNote下書き保存までは自動化し、公開直前で停止して人が判断するワークフロー" loading="lazy"></p>
 <p>ローカル素材から Note の下書きを作り、検査し、エディタへ反映する <strong>NPS（Note Publishing Suite）</strong> です。Codex / Claude Code から使えます。 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。</p>
-<p>パッケージ版: <code>0.2.46</code></p>
+<p>パッケージ版: <code>0.2.47</code></p>
 <p>読書用プレビューは <code>note_virtual_preview.py</code>、編集診断は同コマンドの <code>--diagnostics</code>、由来レビューは <code>note_preview.py --review-provenance</code> を使います。原稿の本人確認・保留は検査で維持します。</p>
 <div class="table-wrap"><table>
 <thead><tr><th>すぐやる</th><th>あとで読む</th></tr></thead>
@@ -318,6 +318,9 @@ python -m pytest scripts/test_skill_integration.py tests</code></pre>
 <p>検索QA、POSIX pointer、原稿保全・目次・編集session・論点対応・packet検査を既存の入口へ統合しました。明示した検索語だけを検索し、候補の取得を出典確認と区別します。原稿版・公式資料の保存先はworkspaceを明示し、既定のローカル書込みを避けます。editorの途中失敗では後続操作を止め、供給した観測JSONの成功を公開準備完了へ変換しません。詳細と検査の接続範囲は <code>SKILL.md</code> を参照してください。最終公開の本人操作境界は維持します。</p>
 <h2>読書プレビューの表示範囲</h2>
 <p>ローカルの読書プレビューは白背景のlight表示を基本に、本文の読書と構成確認に使います。簡易表示はNote実物のテーマやエディタUIを完全再現するものではありません。メタデータや診断表示を本文と分け、実画面の読戻しを別に行います。</p>
+<h2>URLを1件ずつ入力するガード</h2>
+<p><a href="scripts/note_editor_guarded_input.mjs"><code>scripts/note_editor_guarded_input.mjs</code></a> は、対象記事・タブ・空段落のカーソルを入力直前に確認し、URL1件のpaste後に前後の本文・画像・リンク・目次を照合します。未反映なら入力を繰り返さず読み取りで再確認し、想定外の変更があれば後続入力を停止します。</p>
+<p><a href="skills/note-editor-ops/SKILL.md">操作入口</a>で現行のworkflow承認とBrowser surfaceを照合してから使います。Node.js 22以降と対応Tab APIが必要な任意経路で、Python/Orca CLIは自動置換しません。fixtureテストの成功は実Noteの互換性・保存・公開を証明せず、最終公開の本人操作境界を維持します。</p>
     </article>
   </main>
 </body>
