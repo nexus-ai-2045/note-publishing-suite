@@ -127,3 +127,7 @@ JSONの供給だけをlive DOM証拠に読み替えない。manual_boundaryは�
 `--footer-only` は末尾照合専用で、全体QAを通した扱いにしない。
 `scripts/note_editor_apply.py` のwrite入口にはworkflow検査があるが、直接のブラウザ操作を自動遮断しない。
 必要な検査を実行し、その結果と実画面の読み戻しを本人レビューへ提示する。
+
+## URL単一入力のガード
+
+空段落にURLを1件貼る経路は `../../scripts/note_editor_guarded_input.mjs` を使い、`../note-editor-ops/SKILL.md` の入口手順に従う。対象版のworkflow承認・Browser surface・accountは既存の確認を維持する。pendingは読み取りのみで再照合し、blockedは後続入力・自動Undoを停止する。既存のPython/Orca CLIを自動置換しない。Node.js 22以降と対応Tab APIがない場合は手動境界で停止する。receiptのcompletedは保存・公開・人間承認の真正性を証明しない。

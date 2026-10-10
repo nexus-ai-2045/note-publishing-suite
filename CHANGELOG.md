@@ -8,6 +8,23 @@
 GitHub リリースやタグは別の公開操作として扱い、ここにはパッケージ内の
 変更内容と検証範囲だけを記録する。
 
+## 0.2.47
+
+日付: 2026-10-10
+
+変更:
+- URL単一入力ガードを救済し、fresh DOM・空段落・前後の全block照合とpending/blocked停止を既存の操作説明へ接続する。現在版のworkflow承認とsurface指定を維持する。
+- 任意のNode.js 22経路として宣言し、CIで34ケースの隔離検査を実行する。実ブラウザ互換性、保存、公開はローカル検査から保証しない。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `sh scripts/verify_public_package.sh`
+- `python scripts/docs_sync_check.py --base-ref origin/main`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.2.46
 
 日付: 2026-10-09

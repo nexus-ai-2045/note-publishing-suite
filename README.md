@@ -16,7 +16,7 @@ publication_gate: human_review_required
 **NPS（Note Publishing Suite）** です。Codex / Claude Code から使えます。
 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。
 
-パッケージ版: `0.2.46`
+パッケージ版: `0.2.47`
 
 読書用プレビューは `note_virtual_preview.py`、編集診断は同コマンドの `--diagnostics`、由来レビューは `note_preview.py --review-provenance` を使います。原稿の本人確認・保留は検査で維持します。
 
@@ -337,3 +337,9 @@ PDCAは「記事内の改善→公開直後の確認→記事の成果→同テ�
 ## 読書プレビューの表示範囲
 
 ローカルの読書プレビューは白背景のlight表示を基本に、本文の読書と構成確認に使います。簡易表示はNote実物のテーマやエディタUIを完全再現するものではありません。メタデータや診断表示を本文と分け、実画面の読戻しを別に行います。
+
+## URLを1件ずつ入力するガード
+
+[`scripts/note_editor_guarded_input.mjs`](scripts/note_editor_guarded_input.mjs) は、対象記事・タブ・空段落のカーソルを入力直前に確認し、URL1件のpaste後に前後の本文・画像・リンク・目次を照合します。未反映なら入力を繰り返さず読み取りで再確認し、想定外の変更があれば後続入力を停止します。
+
+[操作入口](skills/note-editor-ops/SKILL.md)で現行のworkflow承認とBrowser surfaceを照合してから使います。Node.js 22以降と対応Tab APIが必要な任意経路で、Python/Orca CLIは自動置換しません。fixtureテストの成功は実Noteの互換性・保存・公開を証明せず、最終公開の本人操作境界を維持します。

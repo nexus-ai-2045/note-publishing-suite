@@ -219,3 +219,9 @@ Note エディタ反映段階を公開なしで通し、下書き保存までの
 ## ローカル統合候補の検証と残務（2026-10-06）
 
 上流0.2.40と既存worktree差分の統合候補を作成。検索・編集session・原稿保全・目次・論点対応・packet・POSIX pointerを照合する。直接ブラウザ操作へのworkflow自動強制、見出しの意味、画像採否、マーケティングと公開前PDCAの強制接続は未保証。Darwin ACL修復は中断状態で独立残務。公開配送は別レビュー対象。
+
+## 課題: URL単一入力ガードの救済
+
+旧枝の `note_editor_guarded_input.mjs` と既存の34ケースを現行mainへ移植し、親suite・editor・ops・PDCAへ入口説明を接続する。workflow承認、surface指定、利用者の同意、既存Python/Orca経路を保持する。pendingでの二重入力とblocked後の変更を停止し、本文・目次・リンクの前後照合を隔離Tabで検査する。
+
+実ブラウザでのTab API互換性とURLカード変換は別の受入確認が必要。実記事への入力・保存・公開はローカル検査に含めない。
