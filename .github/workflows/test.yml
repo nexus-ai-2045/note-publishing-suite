@@ -58,6 +58,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
         with:
+          # Identity checks target the actual candidate, not GitHub's synthetic merge author.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Set up Python
@@ -127,6 +129,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up Python
         uses: actions/setup-python@v6
