@@ -127,6 +127,9 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          # PR では仮のマージコミットの親（PR の先頭コミット）の名義を見るため、親まで取る
+          fetch-depth: 2
 
       - name: Set up Python
         uses: actions/setup-python@v6

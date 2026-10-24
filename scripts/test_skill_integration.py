@@ -1104,6 +1104,110 @@ def test_github_identity_guard_embedded_and_standalone_clone_lanes(tmp_path: Pat
     assert embedded_result["publication_actions_performed"] == []
 
 
+def make_github_pr_merge_fixture(path: Path, pr_author: tuple[str, str]) -> None:
+    """GitHub が PR 用に作る仮のマージコミットの形を、架空の名前で手元に作る。"""
+    copy_public_package_fixture(path)
+    initialize_standalone_public_repo_fixture(path, "base fixture")
+    base = git_output(path, "rev-parse", "HEAD")
+    (path / "pr-fixture.txt").write_text("pr head fixture\n", encoding="utf-8")
+    run_git(path, "add", "pr-fixture.txt")
+    name, email = pr_author
+    run_git(
+        path,
+        "-c",
+        f"user.name={name}",
+        "-c",
+        f"user.email={email}",
+        "commit",
+        "-m",
+        "pr head fixture",
+    )
+    pr_head = git_output(path, "rev-parse", "HEAD")
+    tree = git_output(path, "rev-parse", "HEAD^{tree}")
+    merge_env = {
+        **os.environ,
+        # 仮のマージコミットの作者には表示名が入る。許可名義と違う架空の表示名にする。
+        "GIT_AUTHOR_NAME": "Fictional Display Name",
+        "GIT_AUTHOR_EMAIL": "273569186+nexus-ai-2045@users.noreply.github.com",
+        "GIT_COMMITTER_NAME": "GitHub",
+        "GIT_COMMITTER_EMAIL": "noreply@github.com",
+    }
+    merge = subprocess.run(
+        [
+            "git",
+            "commit-tree",
+            tree,
+            "-p",
+            base,
+            "-p",
+            pr_head,
+            "-m",
+            f"Merge {pr_head} into {base}",
+        ],
+        cwd=path,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=merge_env,
+        check=True,
+    ).stdout.strip()
+    run_git(path, "checkout", "--detach", merge)
+
+
+def git_output(cwd: Path, *args: str) -> str:
+    result = subprocess.run(
+        ["git", *args],
+        cwd=cwd,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=True,
+    )
+    return result.stdout.strip()
+
+
+def run_identity_guard_raw(cwd: Path) -> tuple[int, dict[str, object]]:
+    result = subprocess.run(
+        [sys.executable, "scripts/github_identity_guard.py", "--json"],
+        cwd=cwd,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env={**os.environ, "GITHUB_REPOSITORY": "nexus-ai-2045/note-publishing-suite"},
+        check=False,
+    )
+    return result.returncode, json.loads(result.stdout)
+
+
+def test_github_identity_guard_passes_on_github_pr_merge_commit(tmp_path: Path):
+    repo = tmp_path / "note-publishing-suite-pr-merge"
+    make_github_pr_merge_fixture(
+        repo,
+        ("nexus-ai-2045", "273569186+nexus-ai-2045@users.noreply.github.com"),
+    )
+    returncode, result = run_identity_guard_raw(repo)
+    assert returncode == 0, result
+    assert result["ok"] is True
+    assert result["mode"] == "standalone_repository"
+
+
+def test_github_identity_guard_fails_when_pr_head_identity_not_allowed(tmp_path: Path):
+    repo = tmp_path / "note-publishing-suite-pr-merge-bad-head"
+    make_github_pr_merge_fixture(
+        repo,
+        ("Fictional Contributor", "fictional-contributor@example.invalid"),
+    )
+    returncode, result = run_identity_guard_raw(repo)
+    assert returncode == 1
+    assert result["ok"] is False
+    messages = [
+        error["message"] for error in result["errors"] if error["check"] == "head_commit"
+    ]
+    assert any("author_name must be nexus-ai-2045" in message for message in messages)
+    assert any("author_email must be" in message for message in messages)
+    assert any("committer must be" in message for message in messages)
+
+
 def test_public_package_verifier_runs_from_standalone_clone_fixture(tmp_path: Path):
     standalone = tmp_path / "note-publishing-suite-verifier"
     copy_public_package_fixture(standalone)

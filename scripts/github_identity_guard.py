@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -17,6 +18,9 @@ EXPECTED_REPOSITORY = "nexus-ai-2045/note-publishing-suite"
 EXPECTED_GIT_NAME = "nexus-ai-2045"
 EXPECTED_GIT_EMAIL = "273569186+nexus-ai-2045@users.noreply.github.com"
 ALLOWED_GITHUB_COMMITTER = ("GitHub", "noreply@github.com")
+# PR の検査で actions/checkout が取り出す、GitHub が作る仮のマージコミットの題
+# （「Merge <PR の先頭> into <base>」）。この形のときだけ PR の先頭コミットの名義を見る。
+GITHUB_PR_MERGE_MESSAGE_RE = re.compile(r"\AMerge ([0-9a-f]{40}) into ([0-9a-f]{40})\s*\Z")
 DEFAULT_LOCAL_POLICY = ROOT / "data" / "github_identity_guard_policy.local.json"
 TEXT_EXTENSIONS = {".md", ".txt", ".json", ".yaml", ".yml", ".py", ".ps1", ".html"}
 SKIP_PATHS = {
@@ -95,11 +99,42 @@ def check_remote(errors: list[dict[str, str]], forbidden_terms: set[str]) -> Non
         add_error(errors, "remote", f"remote must point to {EXPECTED_REPOSITORY}")
 
 
+def identity_commit(errors: list[dict[str, str]]) -> str | None:
+    """名義を見るコミットを決める。
+
+    GitHub が PR 用に作る仮のマージコミット（作者に表示名が入る）なら、PR の先頭コミット
+    （2番目の親）を返す。仮のマージコミットと認めるのは、コミッターが GitHub、題が
+    「Merge <2番目の親> into <1番目の親>」で、親が2つあり題の SHA と一致するときだけ。
+    それ以外は HEAD をそのまま見る。先頭コミットを読めないときは止める。
+    """
+    committer = run_git("log", "-1", "--pretty=format:%cn%x00%ce", "HEAD").split("\x00")
+    match = GITHUB_PR_MERGE_MESSAGE_RE.match(run_git("log", "-1", "--pretty=format:%B", "HEAD"))
+    if tuple(committer) != ALLOWED_GITHUB_COMMITTER or match is None:
+        return "HEAD"
+    parents = run_git("rev-list", "--parents", "-n", "1", "HEAD").split()[1:]
+    pr_head, base = match.groups()
+    if parents != [base, pr_head] or not run_git(
+        "rev-parse", "--verify", "--quiet", f"{pr_head}^{{commit}}"
+    ):
+        add_error(
+            errors,
+            "head_commit",
+            "GitHub PR merge commit found but its PR head commit is not available "
+            "(check out with fetch-depth: 2)",
+        )
+        return None
+    return pr_head
+
+
 def check_head_identity(errors: list[dict[str, str]]) -> None:
+    commit = identity_commit(errors)
+    if commit is None:
+        return
     fields = run_git(
         "log",
         "-1",
         "--pretty=format:%an%x00%ae%x00%cn%x00%ce",
+        commit,
     ).split("\x00")
     if len(fields) != 4:
         add_error(errors, "head_commit", "could not read HEAD author and committer")
