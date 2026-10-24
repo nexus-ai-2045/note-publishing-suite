@@ -5,11 +5,12 @@
 日付: 2026-10-24
 
 変更:
-- 名義検査（scripts/github_identity_guard.py）のコミッター判定を、メールの完全一致を主にし、メールごとに通す表示名だけを並べる方式（allowlist）に改めた。GitHub でリベースマージしたときのコミッター（表示名 nexus_ai、メールは nexus-ai-2045 の noreply）を通す。許すメールは nexus-ai-2045 の noreply と noreply@github.com の2つだけで、作者の判定は変えていない。
+- 名義検査（scripts/github_identity_guard.py）のコミッター判定を、メールの完全一致を主にし、メールごとに通す表示名だけを並べる方式（allowlist）に改めた。GitHub でリベースマージしたときのコミッター（表示名 nexus_ai、メールは nexus-ai-2045 の noreply）を通す。許すメールは nexus-ai-2045 の noreply と noreply@github.com の2つだけで、名前だけでは通さない。
+- 作者の判定も同じ方式にした。PR の合成マージ commit は作者が表示名 nexus_ai（メールは nexus-ai-2045 の noreply）になるため。作者として許すメールは nexus-ai-2045 の noreply だけ。
 
 検証:
 - `python -m pytest scripts/test_skill_integration.py tests -q`
-- 新しい試験 tests/test_github_identity_guard_committer.py（通る3形・止まる13形・許可一覧が2メールだけであること・作者判定が変わらないこと）
+- 新しい試験 tests/test_github_identity_guard_committer.py（コミッター：通る3形・止まる13形、作者：通る2形・止まる6形、許可一覧の中身）
 
 公開境界:
 - Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
