@@ -1,5 +1,20 @@
 # 変更履歴
 
+## 0.3.11
+
+日付: 2026-10-24
+
+変更:
+- 公開Git author名を既存identity正本へ整合し、CIの検査対象headと現行repo-preflight参照を固定する
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `identity契約18 tests、文書同期、版検査。全体2197 testsは修正前の同一機能差分で成功し、配送前に再確認する。`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.3.10
 
 日付: 2026-10-24
