@@ -17,6 +17,13 @@ EXPECTED_REPOSITORY = "nexus-ai-2045/note-publishing-suite"
 EXPECTED_GIT_NAME = "nexus-ai-2045"
 EXPECTED_GIT_EMAIL = "273569186+nexus-ai-2045@users.noreply.github.com"
 ALLOWED_GITHUB_COMMITTER = ("GitHub", "noreply@github.com")
+# コミッターはメールの完全一致で判定し、そのメールごとに通す表示名だけを並べる（allowlist）。
+# nexus_ai は nexus-ai-2045 アカウントのプロフィール表示名で、GitHub でリベースマージすると
+# コミッター名になる。メールは同じ noreply なので、名前だけで通すことはない。
+ALLOWED_COMMITTER_NAMES_BY_EMAIL: dict[str, frozenset[str]] = {
+    EXPECTED_GIT_EMAIL: frozenset({EXPECTED_GIT_NAME, "nexus_ai"}),
+    ALLOWED_GITHUB_COMMITTER[1]: frozenset({ALLOWED_GITHUB_COMMITTER[0]}),
+}
 DEFAULT_LOCAL_POLICY = ROOT / "data" / "github_identity_guard_policy.local.json"
 TEXT_EXTENSIONS = {".md", ".txt", ".json", ".yaml", ".yml", ".py", ".ps1", ".html"}
 SKIP_PATHS = {
@@ -95,6 +102,12 @@ def check_remote(errors: list[dict[str, str]], forbidden_terms: set[str]) -> Non
         add_error(errors, "remote", f"remote must point to {EXPECTED_REPOSITORY}")
 
 
+def committer_allowed(name: str, email: str) -> bool:
+    """メールの完全一致を先に見て、そのメールに許した表示名だけを通す。"""
+    allowed_names = ALLOWED_COMMITTER_NAMES_BY_EMAIL.get(email)
+    return allowed_names is not None and name in allowed_names
+
+
 def check_head_identity(errors: list[dict[str, str]]) -> None:
     fields = run_git(
         "log",
@@ -114,12 +127,7 @@ def check_head_identity(errors: list[dict[str, str]]) -> None:
         if actual != wanted:
             add_error(errors, "head_commit", f"{label} must be {wanted}, got {actual}")
 
-    committer_pair = (committer_name, committer_email)
-    allowed_committers = {
-        (EXPECTED_GIT_NAME, EXPECTED_GIT_EMAIL),
-        ALLOWED_GITHUB_COMMITTER,
-    }
-    if committer_pair not in allowed_committers:
+    if not committer_allowed(committer_name, committer_email):
         add_error(
             errors,
             "head_commit",
