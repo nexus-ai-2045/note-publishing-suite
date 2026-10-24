@@ -1,4 +1,4 @@
-"""コミッター名義の判定（メールの完全一致＋メールごとの表示名 allowlist）の試験。"""
+"""作者・コミッター名義の判定（メールの完全一致＋メールごとの表示名 allowlist）の試験。"""
 
 from __future__ import annotations
 
@@ -28,8 +28,14 @@ def load_guard():
     return module
 
 
-def head_errors(guard, committer_name: str, committer_email: str) -> list[dict[str, str]]:
-    fields = ["nexus-ai-2045", CANONICAL_EMAIL, committer_name, committer_email]
+def head_errors(
+    guard,
+    committer_name: str,
+    committer_email: str,
+    author_name: str = "nexus-ai-2045",
+    author_email: str = CANONICAL_EMAIL,
+) -> list[dict[str, str]]:
+    fields = [author_name, author_email, committer_name, committer_email]
     original = guard.run_git
     guard.run_git = lambda *args: "\x00".join(fields)
     try:
@@ -89,15 +95,33 @@ def test_allowlist_contains_only_two_emails():
     assert set(guard.ALLOWED_COMMITTER_NAMES_BY_EMAIL) == {CANONICAL_EMAIL, GITHUB_EMAIL}
     assert guard.ALLOWED_COMMITTER_NAMES_BY_EMAIL[CANONICAL_EMAIL] == {"nexus-ai-2045", "nexus_ai"}
     assert guard.ALLOWED_COMMITTER_NAMES_BY_EMAIL[GITHUB_EMAIL] == {"GitHub"}
+    # 作者は nexus-ai-2045 の noreply だけ（GitHub の noreply は作者として通さない）
+    assert set(guard.ALLOWED_AUTHOR_NAMES_BY_EMAIL) == {CANONICAL_EMAIL}
+    assert guard.ALLOWED_AUTHOR_NAMES_BY_EMAIL[CANONICAL_EMAIL] == {"nexus-ai-2045", "nexus_ai"}
 
 
-def test_author_check_is_unchanged():
+@pytest.mark.parametrize("name", ["nexus-ai-2045", "nexus_ai"])
+def test_pr_synthetic_merge_author_passes(name: str):
+    # PR の合成マージ commit は 作者 nexus_ai＋nexus の noreply、コミッター GitHub になる
     guard = load_guard()
-    original = guard.run_git
-    guard.run_git = lambda *args: "\x00".join(["nexus_ai", CANONICAL_EMAIL, "GitHub", GITHUB_EMAIL])
-    try:
-        errors: list[dict[str, str]] = []
-        guard.check_head_identity(errors)
-    finally:
-        guard.run_git = original
-    assert errors and errors[0]["message"].startswith("author_name must be nexus-ai-2045")
+    assert guard.author_allowed(name, CANONICAL_EMAIL) is True
+    assert head_errors(guard, "GitHub", GITHUB_EMAIL, name, CANONICAL_EMAIL) == []
+
+
+@pytest.mark.parametrize(
+    ("name", "email", "message_start"),
+    [
+        ("nexus_ai", OTHER_ACCOUNT_NOREPLY, "author_email must be"),
+        ("nexus-ai-2045", PERSONAL_MAIL_SHAPE, "author_email must be"),
+        ("GitHub", GITHUB_EMAIL, "author_email must be"),
+        ("GitHub", CANONICAL_EMAIL, "author_name must be one of"),
+        ("fixture-other-name", CANONICAL_EMAIL, "author_name must be one of"),
+        ("NEXUS_AI", CANONICAL_EMAIL, "author_name must be one of"),
+    ],
+)
+def test_other_authors_are_blocked(name: str, email: str, message_start: str):
+    guard = load_guard()
+    assert guard.author_allowed(name, email) is False
+    errors = head_errors(guard, "GitHub", GITHUB_EMAIL, name, email)
+    assert [e["check"] for e in errors] == ["head_commit"]
+    assert errors[0]["message"].startswith(message_start)
