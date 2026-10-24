@@ -86,7 +86,7 @@ contains PUBLIC_RELEASE_CHECKLIST.md "sh scripts/verify_public_package.sh"
 
 run_json_ok "sample ledger report" python3 scripts/engagement_tracker.py report --ledger-dir data --json
 
-run_json_ok "docs sync check" python3 scripts/docs_sync_check.py --base-ref HEAD^
+run_json_ok "docs sync check" python3 scripts/docs_sync_check.py
 
 run_json_ok "provenance leak check" python3 scripts/provenance_leak_check.py --scope all --json
 run_json_ok "provenance label check" python3 scripts/provenance_label_check.py content/drafts/caramel-provenance-label-fixture.md --json
