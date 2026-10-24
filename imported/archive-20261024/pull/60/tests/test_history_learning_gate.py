@@ -1,0 +1,344 @@
+"""履歴の回収と、現在本文への適用を別々に検査する。"""
+import hashlib
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
+
+
+@pytest.fixture
+def learning(tmp_path):
+    from note_authorship_gate import excerpt_id
+    from note_feedback import record_feedback
+    root = tmp_path.resolve()
+    for name in ('sources', 'drafts', 'feedback'):
+        (root / name).mkdir()
+    style = root / 'history.md'
+    style.write_text('本人にない因果を足さない。本人の言葉を保つ。', encoding='utf-8')
+    settings = root / 'settings.json'
+    settings.write_text(json.dumps(dict(schema_version='nps-workspace-settings/v1', workspace_root='.',
+        storage=dict(sources='sources', drafts='drafts', feedback='feedback'),
+        style=dict(default_profile='history.md', article_profiles={},
+                   history_learning_policy=dict(schema='nps-history-learning-policy/v1', required=True)))))
+    draft = root / 'drafts/current.md'
+    draft.write_text('本人の言葉を保つ。公開済み本文。', encoding='utf-8')
+    source = root / 'sources/current.md'; source.write_text('Discord本人原文', encoding='utf-8')
+    prior = root / 'sources/prior.md'; prior.write_text('未発言の説明', encoding='utf-8')
+    evidence = draft.with_suffix('.authorship.json')
+    candidate = dict(id='rule-1', path=str(style), sha256=hashlib.sha256(style.read_bytes()).hexdigest(),
+                     quote='本人にない因果を足さない。', evidence_ref='history.md#author')
+    evidence.write_text(json.dumps(dict(schema_version='note-authorship-evidence/v1',
+        draft_sha256=hashlib.sha256(draft.read_bytes()).hexdigest(), claims=[],
+        history_learning=dict(sources=[candidate]))))
+    entries = [dict(origin='ai', decision='pending', before='未発言の説明', after='本人の言葉を保つ。',
+        reason='本人原文へ戻す', evidence_ref='history.md#author', history_source_id='rule-1',
+        application_status='applied', target_sha256=hashlib.sha256(draft.read_bytes()).hexdigest(),
+        target_excerpt_id=excerpt_id('本人の言葉を保つ。'))]
+    dirs = {key: root / key for key in ('sources', 'drafts', 'feedback')}
+    record_feedback(dirs, 'article', source, draft, prior, entries, conversation_id='current')
+    record = json.loads((root / 'feedback/article/feedback.json').read_text())
+    return dict(root=root, settings=settings, style=style, draft=draft, source=source,
+                evidence=evidence, candidate=candidate, record=record)
+
+
+def test_collection_before_new_draft_does_not_claim_adoption(learning):
+    from note_feedback import history_readback
+    learning['draft'].unlink()
+    result = history_readback(learning['settings'], 'article', learning['evidence'])
+    assert result['status'] == 'candidate_sources_verified'
+    assert result['semantic_understanding_verified'] is False
+    assert result['human_adoption_verified'] is False
+
+
+@pytest.mark.parametrize('status', ['applied', 'preserved', 'not_applicable'])
+def test_research_receives_only_actual_history_application_refs(learning, monkeypatch, status):
+    from note_workflow_gate import check_packet, read_workspace_settings
+    from note_feedback import read_article_feedback
+    import note_research_quality
+    config = json.loads(learning['settings'].read_text())
+    config['research_quality_policy'] = dict(schema_version='nps-research-quality-policy/v1',
+        required=True, max_age_days={'official': 30, 'creator': 30, 'dynamic': 7})
+    learning['settings'].write_text(json.dumps(config))
+    row = learning['record']['entries'][0]
+    row['application_status'] = status
+    if status == 'preserved':
+        row['before'] = row['after']
+    elif status == 'not_applicable':
+        row.update(before='', after='', reason='今回の話題には該当しない')
+        row.pop('target_excerpt_id')
+    (learning['root'] / 'feedback/article/feedback.json').write_text(json.dumps(learning['record']))
+    expected, dirs = read_workspace_settings(learning['settings'], 'article')
+    report = learning['root'] / 'drafts/report.json'
+    report.write_text('{}')
+    captured = []
+    def inspect_refs(*args, **kwargs):
+        captured.append(kwargs['history_application_refs'])
+        return {}
+    monkeypatch.setattr(note_research_quality, 'check_quality_report', inspect_refs)
+    packet = dict(schema_version='note-workflow-review/v1', article_id='article',
+        conversation_id='current', route='direct_draft', receipts=[],
+        source_snapshot=str(learning['source']), draft=str(learning['draft']),
+        proposed_draft=str(learning['draft']), research_report=str(report), edit_plan={},
+        ssot_readback=expected,
+        feedback_readback=read_article_feedback(dirs, 'article', learning['source'], learning['draft']),
+        history_evidence=str(learning['evidence']))
+    result = check_packet(packet, 'research', 'current', settings_path=learning['settings'])
+    assert result['history_learning']['status'] == 'mechanical_ok'
+    assert captured == [set() if status == 'not_applicable' else {row['evidence_ref']}]
+
+
+@pytest.mark.parametrize('problem', ['missing', 'changed', 'outside', 'quote', 'hash', 'ref', 'duplicate'])
+def test_history_sources_fail_closed(learning, problem):
+    from note_feedback import history_readback
+    data = json.loads(learning['evidence'].read_text())
+    row = data['history_learning']['sources'][0]
+    if problem == 'missing': data['history_learning']['sources'] = []
+    elif problem == 'changed': learning['style'].write_text('変更された規則')
+    elif problem == 'outside': row['path'] = str(learning['source'])
+    elif problem == 'quote': row['quote'] = '保存されていない原文'
+    elif problem == 'hash': row['sha256'] = '0' * 64
+    elif problem == 'ref': row['evidence_ref'] = ''
+    elif problem == 'duplicate': data['history_learning']['sources'].append(dict(row))
+    learning['evidence'].write_text(json.dumps(data))
+    with pytest.raises(ValueError):
+        history_readback(learning['settings'], 'article', learning['evidence'])
+
+
+def test_application_checks_after_and_current_version(learning):
+    from note_authorship_gate import evaluate_history_learning
+    refs = {str(learning['style']): hashlib.sha256(learning['style'].read_bytes()).hexdigest()}
+    result = evaluate_history_learning(learning['draft'], learning['evidence'], learning['record'], refs)
+    assert result['status'] == 'mechanical_ok'
+    assert result['human_adoption_verified'] is False
+
+
+def test_source_capture_binds_draft_hash_to_evidence_snapshot(learning):
+    from note_feedback import read_history_sources
+    refs = {str(learning['style']): hashlib.sha256(learning['style'].read_bytes()).hexdigest()}
+    captured = read_history_sources(learning['evidence'], refs)
+    assert captured['draft_sha256'] == hashlib.sha256(learning['draft'].read_bytes()).hexdigest()
+    assert captured['evidence_sha256'] == hashlib.sha256(learning['evidence'].read_bytes()).hexdigest()
+
+
+@pytest.mark.parametrize('binding', [None, '0' * 64])
+def test_application_rejects_missing_or_wrong_evidence_draft_binding(learning, binding):
+    from note_authorship_gate import evaluate_history_learning
+    data = json.loads(learning['evidence'].read_text())
+    if binding is None:
+        data.pop('draft_sha256')
+    else:
+        data['draft_sha256'] = binding
+    learning['evidence'].write_text(json.dumps(data))
+    refs = {str(learning['style']): hashlib.sha256(learning['style'].read_bytes()).hexdigest()}
+    result = evaluate_history_learning(learning['draft'], learning['evidence'], learning['record'], refs)
+    assert result['status'] == 'blocked'
+
+
+def test_collection_without_draft_binding_remains_candidate_only(learning):
+    from note_feedback import history_readback
+    data = json.loads(learning['evidence'].read_text())
+    data.pop('draft_sha256')
+    learning['evidence'].write_text(json.dumps(data))
+    result = history_readback(learning['settings'], 'article', learning['evidence'])
+    assert result['status'] == 'candidate_sources_verified'
+    assert result['human_adoption_verified'] is False
+
+
+def test_application_rejects_evidence_replaced_before_source_capture(learning, monkeypatch):
+    from note_authorship_gate import evaluate_history_learning
+    import note_feedback
+    original = note_feedback.read_history_sources
+
+    def replace_before_capture(evidence, reference_hashes):
+        data = json.loads(evidence.read_text())
+        data['draft_sha256'] = '0' * 64
+        evidence.write_text(json.dumps(data))
+        return original(evidence, reference_hashes)
+
+    monkeypatch.setattr(note_feedback, 'read_history_sources', replace_before_capture)
+    refs = {str(learning['style']): hashlib.sha256(learning['style'].read_bytes()).hexdigest()}
+    result = evaluate_history_learning(learning['draft'], learning['evidence'], learning['record'], refs)
+    assert result['status'] == 'blocked'
+
+
+def test_application_rejects_evidence_mutated_after_source_capture(learning, monkeypatch):
+    from note_authorship_gate import evaluate_history_learning
+    import note_feedback
+    original = note_feedback.read_history_sources
+
+    def replace_after_capture(evidence, reference_hashes):
+        captured = original(evidence, reference_hashes)
+        data = json.loads(evidence.read_text())
+        data['changed_after_capture'] = True
+        evidence.write_text(json.dumps(data))
+        return captured
+
+    monkeypatch.setattr(note_feedback, 'read_history_sources', replace_after_capture)
+    refs = {str(learning['style']): hashlib.sha256(learning['style'].read_bytes()).hexdigest()}
+    result = evaluate_history_learning(learning['draft'], learning['evidence'], learning['record'], refs)
+    assert result['status'] == 'blocked'
+    assert 'history_target_changed_during_read' in result['errors']
+
+
+@pytest.mark.parametrize('problem', ['old_hash', 'after_missing', 'excerpt', 'source_id', 'no_application', 'ref'])
+def test_application_rejects_claim_without_application(learning, problem):
+    from note_authorship_gate import evaluate_history_learning
+    row = learning['record']['entries'][0]
+    if problem == 'old_hash': row['target_sha256'] = '0' * 64
+    elif problem == 'after_missing': row['after'] = '実本文にない文'
+    elif problem == 'excerpt': row['target_excerpt_id'] = 'bad'
+    elif problem == 'source_id': row['history_source_id'] = 'unknown'
+    elif problem == 'no_application': learning['record']['entries'] = []
+    elif problem == 'ref': row['evidence_ref'] = 'other.md'
+    refs = {str(learning['style']): hashlib.sha256(learning['style'].read_bytes()).hexdigest()}
+    assert evaluate_history_learning(learning['draft'], learning['evidence'], learning['record'], refs)['status'] == 'blocked'
+
+
+def test_history_only_cli_is_read_only(learning):
+    before = {p: p.read_bytes() for p in learning['root'].rglob('*') if p.is_file()}
+    result = subprocess.run([sys.executable, 'scripts/note_feedback.py', '--settings', str(learning['settings']),
+        '--article-id', 'article', '--readback', '--history-only', '--history-evidence', str(learning['evidence'])],
+        capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)['status'] == 'candidate_sources_verified'
+    assert before == {p: p.read_bytes() for p in learning['root'].rglob('*') if p.is_file()}
+
+
+def test_preserved_and_not_applicable_are_explicit(learning):
+    from note_authorship_gate import evaluate_history_learning
+    refs = {str(learning['style']): hashlib.sha256(learning['style'].read_bytes()).hexdigest()}
+    row = learning['record']['entries'][0]
+    row.update(application_status='preserved', before=row['after'])
+    assert evaluate_history_learning(learning['draft'], learning['evidence'], learning['record'], refs)['status'] == 'mechanical_ok'
+    row.update(application_status='not_applicable', before='', after='', reason='今回の対象話題には該当しない')
+    row.pop('target_excerpt_id')
+    assert evaluate_history_learning(learning['draft'], learning['evidence'], learning['record'], refs)['status'] == 'mechanical_ok'
+    row['reason'] = ''
+    assert evaluate_history_learning(learning['draft'], learning['evidence'], learning['record'], refs)['status'] == 'blocked'
+
+
+def test_continuation_qa_checks_required_history_and_legacy_optout(learning):
+    from pre_publish_check import check_draft
+    learning['draft'].write_text('---\narticle_lane: continuation_article\n---\n本人の言葉を保つ。')
+    evidence = json.loads(learning['evidence'].read_text())
+    evidence['draft_sha256'] = hashlib.sha256(learning['draft'].read_bytes()).hexdigest()
+    learning['evidence'].write_text(json.dumps(evidence))
+    record_path = learning['root'] / 'feedback/article/feedback.json'
+    record = json.loads(record_path.read_text()); record['entries'][0]['target_sha256'] = '0' * 64
+    record_path.write_text(json.dumps(record))
+    result = check_draft(learning['draft'], settings_path=learning['settings'], article_id='article')
+    assert 'history_application_target_mismatch' in [i['code'] for i in result['issues']]
+    config = json.loads(learning['settings'].read_text())
+    config['style']['history_learning_policy']['required'] = False
+    learning['settings'].write_text(json.dumps(config))
+    assert not any(i['code'].startswith('history_') for i in check_draft(
+        learning['draft'], settings_path=learning['settings'], article_id='article')['issues'])
+
+
+@pytest.mark.parametrize('text', ['---\ntitle: 本人の言葉を保つ。\n---\n別の本文',
+    '---\r\ntitle: 本人の言葉を保つ。\r\n---\r\n別の本文',
+    '\ufeff---\ntitle: 本人の言葉を保つ。\n---\n別の本文'])
+def test_application_in_frontmatter_is_not_body_application(learning, text):
+    from note_authorship_gate import evaluate_history_learning
+    learning['draft'].write_bytes(text.encode('utf-8'))
+    target_hash = hashlib.sha256(learning['draft'].read_bytes()).hexdigest()
+    evidence = json.loads(learning['evidence'].read_text()); evidence['draft_sha256'] = target_hash
+    learning['evidence'].write_text(json.dumps(evidence))
+    learning['record']['entries'][0]['target_sha256'] = target_hash
+    refs = {str(learning['style']): hashlib.sha256(learning['style'].read_bytes()).hexdigest()}
+    result = evaluate_history_learning(learning['draft'], learning['evidence'], learning['record'], refs)
+    assert 'history_application_after_missing' in result['errors']
+
+
+def test_edit_plan_json_requires_reviewed_full_body_and_hash_binding(learning):
+    from note_workflow_gate import check_packet, read_workspace_settings
+    from note_feedback import read_article_feedback
+    config, dirs = read_workspace_settings(learning['settings'], 'article')
+    proposal = learning['root'] / 'drafts/patch.json'
+    proposal.write_text(json.dumps({'text': '局所編集の提案'}))
+    packet = dict(schema_version='note-workflow-review/v1', article_id='article', conversation_id='current',
+        route='direct_draft', receipts=[], source_snapshot=str(learning['source']), draft=str(learning['draft']),
+        proposed_draft=str(proposal), edit_plan={'toc': False}, settings={'account': 'example'},
+        ssot_readback=config, history_evidence=str(learning['evidence']),
+        feedback_readback=read_article_feedback(dirs, 'article', learning['source'], learning['draft']))
+    result = check_packet(packet, 'edit', 'current', settings_path=learning['settings'])
+    assert 'history_application' not in result['content_hashes']
+    packet['edit_plan']['history_application_target'] = str(learning['draft'])
+    result = check_packet(packet, 'edit', 'current', settings_path=learning['settings'])
+    assert result['history_learning']['status'] == 'mechanical_ok'
+    assert result['history_learning']['hashes']['target'] == hashlib.sha256(learning['draft'].read_bytes()).hexdigest()
+    sha = result['subject_hashes']['edit']
+    packet['receipts'].append(dict(stage='edit', article_id='article', conversation_id='current', actor='user',
+        status='approved', subject_sha256=sha, observed_at='2026-10-12T00:00:00+09:00', evidence_ref='fixture://approval'))
+    assert check_packet(packet, 'edit', 'current', settings_path=learning['settings'])['status'] == 'approved'
+    learning['style'].write_text('本人の規則を変更')
+    assert check_packet(packet, 'edit', 'current', settings_path=learning['settings'])['status'] == 'blocked'
+
+
+def test_json_history_quote_uses_explicit_pointer(learning):
+    from note_feedback import read_history_sources
+    source = learning['root'] / 'historical.json'
+    source.write_text(json.dumps({'entries': [{'after': '本人の原文\n改行を保持'}]}, ensure_ascii=False))
+    data = json.loads(learning['evidence'].read_text())
+    row = data['history_learning']['sources'][0]
+    row.update(path=str(source), sha256=hashlib.sha256(source.read_bytes()).hexdigest(),
+               quote='本人の原文\n改行を保持', json_pointer='/entries/0/after')
+    learning['evidence'].write_text(json.dumps(data))
+    assert read_history_sources(learning['evidence'], {str(source): row['sha256']})['status'] == 'candidate_sources_verified'
+
+
+def test_research_article_local_requires_application_while_future_loops_stay_planned(learning):
+    from datetime import datetime, timezone
+    from note_research_quality import AREAS, LOOPS, check_quality_report
+    policy = dict(schema_version='nps-research-quality-policy/v1', required=True,
+                  max_age_days={'official':30, 'creator':30, 'dynamic':7})
+    source_id = 'historical-rule'
+    evidence_ref = learning['record']['entries'][0]['evidence_ref']
+    report = dict(schema_version='note-research-quality/v1', article_id='article', topic='本人語の編集',
+        sources=[dict(id=source_id, kind='creator', url='https://example.com/previous',
+            readback='保存した本人の修正を読む', observed_at=datetime.now(timezone.utc).isoformat(),
+            evidence_path=str(learning['style']), evidence_sha256=hashlib.sha256(learning['style'].read_bytes()).hexdigest())],
+        areas={area: dict(status='pass', reason='実資料と照合', decision='候補として確認',
+                         source_ids=[source_id], unresolved=[]) for area in AREAS},
+        pdca_loops=[dict(scope=scope, owner='主担当', change='本人語の保全', measure='本文の差分',
+            when='適用時に確認', feedback_entry_ref=evidence_ref, status='planned', missing_data=[], constraints=[])
+            for scope in LOOPS])
+    arguments = dict(article_id='article', base_dir=learning['root'], feedback_refs={evidence_ref},
+                     history_application_refs={evidence_ref})
+    with pytest.raises(ValueError, match='article_local'):
+        check_quality_report(json.dumps(report).encode(), policy, **arguments)
+    local = next(row for row in report['pdca_loops'] if row['scope'] == 'article_local')
+    local.update(status='observed', result='現版の本文へ反映を照合', source_id=source_id)
+    assert check_quality_report(json.dumps(report).encode(), policy, **arguments)
+
+
+def test_history_body_accepts_crlf_and_bom_without_rewriting_raw_hash(learning):
+    from note_authorship_gate import evaluate_history_learning, excerpt_id
+    after = '本人の言葉を保つ。\n続きの本文。'
+    raw = ('\ufeff---\r\ntitle: Example\r\n---\r\n' + after.replace('\n', '\r\n')).encode('utf-8')
+    learning['draft'].write_bytes(raw)
+    sha = hashlib.sha256(raw).hexdigest()
+    evidence = json.loads(learning['evidence'].read_text()); evidence['draft_sha256'] = sha
+    learning['evidence'].write_text(json.dumps(evidence))
+    learning['record']['entries'][0].update(after=after, target_sha256=sha, target_excerpt_id=excerpt_id(after))
+    refs = {str(learning['style']): hashlib.sha256(learning['style'].read_bytes()).hexdigest()}
+    result = evaluate_history_learning(learning['draft'], learning['evidence'], learning['record'], refs)
+    assert result['status'] == 'mechanical_ok'
+    assert result['hashes']['target'] == sha
+    assert learning['draft'].read_bytes() == raw
+
+
+def test_history_body_unclosed_frontmatter_is_blocked(learning):
+    from note_authorship_gate import evaluate_history_learning
+    raw = '---\ntitle: 本人の言葉を保つ。\n未閉じ'.encode('utf-8')
+    learning['draft'].write_bytes(raw)
+    sha = hashlib.sha256(raw).hexdigest()
+    evidence = json.loads(learning['evidence'].read_text()); evidence['draft_sha256'] = sha
+    learning['evidence'].write_text(json.dumps(evidence))
+    learning['record']['entries'][0]['target_sha256'] = sha
+    refs = {str(learning['style']): hashlib.sha256(learning['style'].read_bytes()).hexdigest()}
+    assert evaluate_history_learning(learning['draft'], learning['evidence'], learning['record'], refs)['status'] == 'blocked'

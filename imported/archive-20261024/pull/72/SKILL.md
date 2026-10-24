@@ -1,0 +1,377 @@
+---
+name: note-publishing-suite
+description: "Use when the user wants repo-local, end-to-end Note publishing support or asks to write, assemble, or revise an article/draft from conversation or notes. Also use for Japanese requests such as \"記事を書いて\", \"文章にまとめて\", \"会話を記事に\", \"メモを記事に\", \"下書きを直して\", \"note投稿を一気通貫\", \"Note投稿パッケージ\", or \"note公開前チェック\"."
+---
+
+# Note Publishing Suite
+
+## 役割
+
+このスキルは repo root 内で、Note 投稿の「企画 → 素材探索 → 下書き → 公開前検査 → Note editor 反映 → 公開直前停止 → 公開後確認 → ローカル台帳更新」を束ねる親スキル。
+
+実記事の保存先・本人の参照資料・台帳は、利用者が採用したpackage外のworkspaceを使う。package内の `content/` はサンプル検査用、`scripts/` は共通コードの正本とする。新しいhelper名を勝手に作らず、まず既存scriptを使う。
+
+子スキル実体は `skills/` 配下に置く。実行時はこの親スキルで全体 gate を確認してから、該当する子スキルを読む。
+
+## 初回利用・設定が未採用の場合
+
+起稿やエディタ反映の前に、[初回設定の案内](references/note-workflow-review-contract.md#初回設定の案内)を行う。最初は保存先・読んでよい素材・本人の文体参照の3点を案内し、既存の設定があれば再作成せず使う。未設定を他の利用者の設定やpackage内のサンプルで埋めない。
+
+採用settingsと参照実体を既存 `note_feedback.py --readback --history-only` で検査する。履歴policy未採用時の `not_required` は参照本文を返さないため、採用した文体参照は別に実ファイルを読み、本文やhashを取得しただけで意味を使ったことにしない。欠落や不正な参照で失敗したら、不足項目と修正先を案内して制作・保存を止める。任意policyは利用者の採否に従い、一般利用者へ特定著者の履歴・画像・ブランドを必須化しない。読戻しJSONの `storage` を実記事の保存先とし、pointerの場所より採用settingsを優先する。選んだworkspaceを変更した場合は、現在のpointerと比較し、本人の許可を得て同じinstallerへ新しいworkspaceを渡して再登録する。これはスキル経由の対話案内であり、OSの自動ウィザードや全Browser経路の強制を実装したという意味ではない。
+
+## Routing
+
+ユーザーの依頼を次の phase に分ける。複数 phase にまたがる場合も、公開/外部送信 gate は最後まで保持する。
+
+「記事を書いて」「文章にまとめて」「会話を記事に」「メモを記事に」
+「下書きを直して」など、Note を明記しない作文・編集依頼でも、公開候補へ
+つながるローカル記事制作なら本スキルを自動発火する。
+
+| phase | 子スキル | 主な成果物 | 停止条件 |
+|---|---|---|---|
+| idea | `note-idea-intake` | 記事候補、読者、リスク | 読んでよい素材が未指定 |
+| draft | `note-draft-production` | skeleton、本文、画像案、タグ案 | 根拠不足、権利/秘密情報リスク |
+| qa | `note-prepublish-qa` | preview、検査結果、fact check | 警告、未確認、内部メモ残り |
+| editor | `note-editor-prepublish` + `note-editor-ops` | Note editor 下書き保存証跡 | browser/画像 upload 境界 |
+| official-guidance | `note-official-guidance-intake` | note 公式一次情報の取り込み | 一次情報なし、公式未確認 |
+| editor-debug | `note-editor-constraint-debug` | 埋め込み/目次/改行などの実測境界 | attach不可、公開操作が必要 |
+| gate | `note-publication-gate` | 公開直前停止メッセージ | 明示承認なし |
+| ledger | `note-postpublish-ledger` | 公開確認、台帳更新案 | 公開URL/status 未確認 |
+
+## Runtime Guarantee
+
+この package は、Codex だけ、または Claude Code だけで動くことを前提にする。Linear、GitHub Issues、Slack、Drive、別 runtime は必須ではない。
+
+- Spark / Sonnet worker は速度改善の任意手段。無くても workflow は止めない。
+- Codex では Spark くん相当の worker があれば使ってよい。
+- Claude Code では Sonnet 相当の worker があれば使ってよい。
+- worker が使えない場合は、親 runtime が同じ分担粒度で順に処理する。
+- 親 runtime は問い、採否、設計、Type1 境界、公開/外部送信 gate、最終報告に集中する。
+- worker へ渡す範囲は、素材要約、候補抽出、表化、diff/log 圧縮、QA観点洗い出し、単純な実装 slice に限る。
+- worker には credential、Cookie、非公開URL、公開/予約/送信権限、repository visibility 変更権限を渡さない。
+- worker 出力は raw のまま採用せず、親 runtime が source、diff、test、publication gate を確認してから反映する。
+- worker が使えない tool surface では、理由を closeout に残し、親 runtime が同じ分担粒度で順に処理する。
+
+### MPC型フィードバックとFDE分割
+
+複数の問題を一度に総当たりすると、組合せが急増する「次元の呪い」が起きる。
+これを消せるとは主張せず、FDEで同時に探索する軸を分割する。
+
+- 観測: 現在の原稿、検査、Browser、runtime、公開境界を別々に測る。
+- 予測: 各軸の次の一手が改善する範囲と、壊し得る範囲を記録する。
+- 局所最適化: 内容品質、記事構造、UI復旧、runtime配布などを独立担当へ分ける。
+- 一歩実行: 各軸で最小の検証可能な変更だけを反映する。
+- 再観測: focused testと統合testを測り、失敗した軸だけ計画を更新する。
+
+局所担当は他軸の変更を決めず、親runtimeが合流点、Type1境界、公開判断を統合する。
+これはMPC（モデル予測制御）のように、有限範囲を予測して一歩進み、結果から再計画する運用契約である。
+
+## Guarantee Ratchet
+
+Note editor 実測で見つかった失敗、手動境界、復旧手順、成功条件は、その場限りの会話メモで終わらせない。
+
+壁打ち、問答、口調・著者性、短縮防止、改行、図、キャプションの共通契約は
+`references/note-draft-authority-and-layout-contract.md` を正本にする。
+
+- 失敗した操作は、原因、復旧方法、次回の禁止事項を短く記録する。
+- 再発防止できるものは、既存 script の checker、package contract test、または子スキルの境界文言へ落とす。
+- 記事が何を元に作られたかは `references/note-article-provenance-design.md`
+  を正本にし、`article_lane`、`source_mode`、`based_on`、`allowed_use`、
+  `not_allowed`、`editor_test_allowed` を draft frontmatter で固定する。
+- `source_mode: source_pack_locked_with_user_speech_priority` の draft では、
+  `scripts/provenance_label_check.py <draft.md> --json` で `user-said`、
+  `external-fact`、`assistant-organized`、`hold` の境界を検査する。
+- ローカル Markdown の由来情報は公開本文へ見せる注記ではない。
+  `note_preview.py --review-provenance` で人間レビュー用 HTML を作り、
+  修正指示は内部 ID ではなく見出しまたは本文の短い引用で受ける。
+- `hold` がゼロになり検査が通った後だけ、
+  `provenance_label_check.py --public-output` で由来コメントを除いた本文候補を作る。
+- note editor の埋め込み、目次、Shift+Enter の live 実測境界は
+  `references/note-editor-live-constraint-boundaries.md` を正本にし、
+  `figure[data-src]`、`iframe.note-embed`、`.external-article-widget`、`table-of-contents`、`toc`、
+  `H2` / `H3`、`<br>`、Undo 手動境界を contract test で保持する。
+- checker に落とす場合は、実記事 draft への実行結果まで確認する。
+- UI やブラウザ状態に依存して自動保証できないものは、手動境界として明記し、公開 gate の確認項目へ残す。
+- 追加した保証は、closeout で「増やした保証」「実行したテスト」「まだ保証しないもの」に分けて報告する。
+- packageやworkflowを変更するPRでは、`scripts/docs_sync_check.py`で生成物と関連文書を検査する。通常検査はread-onlyとし、修復は明示的な`--fix-generated`だけに限定する。
+- docs-sync CIは`contents: read`を保ち、artifact以外の外部書き込み、commit、push、PR編集を行わない。
+- ユーザーが日本語運用を指定している場合、完了報告や PR 報告の
+  状態語を CLI 表示の英語のまま出さない。これは謝罪文ではなく
+  `output_language_gate` の構造バグとして扱う。
+
+## Hard Gates
+
+- ユーザーが明示的に選んだローカル資料フォルダだけ読む。
+- 公開、予約投稿、投稿、共有、告知、SNS 同時投稿、外部送信、公開範囲変更は、現在の会話で対象記事と操作を特定した明示承認があるまで実行しない。
+- `note_browser_transport_recovery.py` はread-only計画専用とし、process終了や人間承認の真正性確認をこの公開packageだけで行ったとみなさない。
+- Note 画面では、公開ボタン、投稿ボタン、予約確定ボタンを押す手前で停止する。
+- X 投稿、いいね、キャンペーン、自動告知、Discord/Slack 共有はこの汎用 Note パッケージ外。別依頼と別承認で扱う。
+- 内部ブラウザだけで画像アップロードを完全自動化できる前提にしない。失敗時は手動または supervised 操作に分け、未設定ならその状態を報告する。
+- Note editor の write 前に対象ロックを置く。別note、別draft、別tab、別Browser surface、別accountへの切替は、理由と予定操作を示してユーザーの事前確認を得る。同一対象へのwriteが現在の会話で承認済みなら、read-onlyからwriteへ進むためだけの重複確認は不要とする。未承認ならwrite前に確認する。Chrome、Computer Use、manual browserへ自動fallbackしない。
+- 能力非対応は再試行0回、同一対象の接続失敗またはDOM状態ズレは再確認後1回までとする。復旧できなければ、対象pathと未実行操作を返して手動境界または保留へ落とす。
+- 画像 upload 境界は `references/note-image-upload-automation-boundary.md` と `scripts/note_image_upload_boundary_check.py` で確認する。画面に見えている Windows ファイル選択ダイアログだけを扱う場合も、現在会話での明示確認があるまで実行しない。
+- Windows / Mac 環境差は `references/note-image-upload-automation-boundary.md` の matrix に従う。公式推奨環境でも成功保証ではなく、stopline と禁止経路を保証する。
+- ログ、成果物、台帳に Cookie、token、非公開 URL、秘密情報を含めない。
+- `data/note_drafts.json` は Note editor 下書きや stale/superseded 状態の台帳、`data/published_notes.json` は公開済み Note の一次台帳として扱う。
+
+## State Labels
+
+成果物には必要に応じて frontmatter を置く。
+
+- `publication_gate: human_review_required`
+- `external_action: none`
+- `platform: note`
+- `status: draft` / `ready-before-human-review` / `editor-draft-saved` / `published`
+- `scope_route: local_note_prep_only`
+
+## 入力と出力
+
+入力:
+- 対象 draft path。未作成なら保存先候補は `content/drafts/<date>-<slug>.md`。
+- 読んでよい素材フォルダ。
+- Note draft/edit/preview URL。未作成なら Unknown とする。
+- 公開方式。即時公開、予約投稿、下書き保存のみのいずれか。
+- 公開/予約/共有の人間承認状態。
+
+出力:
+- 記事候補リスト、選定理由、リスク確認。
+- skeleton、draft path、top-image 案、タグ案。
+- preview HTML path、投稿前検査結果、fact check 結果、必要な差分確認結果。
+- Note editor 反映結果。タイトル、本文、画像、リンク、目次、タグ、保存通知など。
+- 公開前停止メッセージ。
+- 公開後 URL/status/Note 表示日時の確認結果と ledger 更新案。
+
+## Standard Closeout
+
+各 phase の最後に、次を短く報告する。
+
+- 読んだ主要ファイル。
+- 作成/変更したローカルファイル。
+- 実行したコマンドと結果。
+- 未実行の外部 action。
+- 次の gate または残り確認。
+
+### 日本語完了報告ゲート
+
+ユーザーに見える完了報告、PR 報告、マージ報告、停止理由は日本語で書く。
+コマンド、ファイルパス、URL、SHA、package identifier は原文のまま使ってよい。
+ただし CLI や GitHub の状態語は説明文にそのまま貼らない。
+
+置換する状態語:
+
+- `ready for review`: 下書き解除済み。
+- `open PR`: 未マージPR。
+- `MERGED`: マージ済み。
+- `mergeable`: マージ可能。
+- `success`: 成功。
+- `failed`: 失敗。
+
+違反した場合は「うっかり」や「謝罪」で閉じず、
+`output_language_gate` の欠落として扱い、
+`scripts/japanese_closeout_language_check.py --json` と contract test を通してから閉じる。
+
+## 子スキル
+
+### note-idea-intake
+
+実体: `skills/note-idea-intake/SKILL.md`
+
+- 選択されたローカル資料だけを対象に、記事候補、読者、今出す理由、未確認リスクを出す。
+- 探索方法を短く説明する。例: ファイル名、更新日、見出し、未完成メモ、反応があった公開済み記事を見る。
+- 個人情報、秘密情報、未承認の外部情報を素材化しない。
+
+### note-draft-production
+
+実体: `skills/note-draft-production/SKILL.md`
+
+- skeleton は導入、読者の痛み、主張、根拠、具体例、反論処理、締め、Call To Action（CTA）を含める。
+- 本文は事実、推定、意見が混ざらないように書く。根拠が必要な主張は確認対象として残す。
+- TOP 画像は 7 案を出す。実画像生成ができない場合は prompt、構図、避ける表現、適合理由を出す。
+- タグ案は広い発見タグ、主題タグ、文脈タグ、所有シリーズタグを混ぜる。
+- 本人の発言や素材が不足する場合は問答 intake に戻り、`voice_profile` を根拠に感想や体験を作文しない。`shortening_budget` を置き、省略候補は人間確認なしに削除しない。
+- `production_candidate` は、問答packetまたは編集前正本を一意に示す
+  `shortening_source` と `shortening_budget` をfrontmatterへ記録し、
+  production QA で `note_authorship_gate.py` を実行する。
+  `shortening.checked=true` と `overall=ok` を確認できなければ完了扱いにしない。
+
+### note-prepublish-qa
+
+実体: `skills/note-prepublish-qa/SKILL.md`
+
+既存 script をこの順で使う。
+
+```powershell
+python scripts\note_virtual_preview.py <draft.md> -o <preview.html>
+python scripts\pre_publish_check.py <draft.md>
+python scripts\note_fact_check.py local <draft.md>
+python scripts\note_diff_check.py <note_url> <draft.md> <phrase...> --snapshot-out <local-snapshot.txt> --json
+```
+
+- `note_virtual_preview.py` は note editor 実物の CSS（`assets/note-preview/`）で見た目確認するプレビュー。
+  既定の読書用表示は `frontmatter`・`HTML` コメント・診断フッターを出さない。
+  空行を通常本文の段落境界とし、段落内の原稿改行を `<br>` に変換する。
+  改行gateで期待値・観測値の段落順配列を照合する場合は両方を渡す。配列を渡さない旧入力の成功は構造照合の証拠にならない。
+  編集診断は `--diagnostics`、由来の本人レビューは `note_preview.py --review-provenance` を使う。
+  表示で内部情報を除いても、原稿の本人確認・保留・公開前検査の停止条件は維持する。
+
+- `scripts/pre_publish_check.py --fix` はファイルを書き換えるため、ユーザーが明示した時だけ使う。
+- `note_diff_check.py` は公開済み URL や editor 反映後の確認対象 phrase がある場合だけ使う。
+- 未確認表現、数字、URL、内部メモ、HTML コメント、前回リンク不足が残る場合は公開 gate へ進まない。
+
+### note-editor-prepublish
+
+実体: `skills/note-editor-prepublish/SKILL.md`
+
+- 既存 global skill `note-editor-prepublish` を参照して、Note editor 反映、目次、リンク、画像、埋め込み、タグ確認、下書き保存を行う。
+- 低レベルの Browser 操作、埋め込み、DOM確認、Undo復旧、checkerラチェットは `skills/note-editor-ops/SKILL.md` を読む。
+- 空段落へのURL1件pasteは `scripts/note_editor_guarded_input.mjs` と同skillの単一入力入口を使う。現行workflow承認とsurface指定を維持し、pendingは読み取りのみ、blockedは後続変更を停止する。Node.js 22以降と対応Tab APIが必要。Python/Orca CLIへの自動接続や実GUI互換性は保証しない。
+- 実際に回した PDCA cycle は記事ごとの受領JSONへ残し、`scripts/note_editor_pdca_cycle_check.py` で 1 action・前後DOM証跡・非公開・routeあたり最大2回を検査する。ledger の存在だけを実行証拠にしない。
+- note editor、埋め込み、URL単独行、Enter変換、DOM確認、figure/data-src、Undo、固定座標、CUA/Playwright、投稿確定後台帳のいずれかが出たら `note-editor-ops` を自動参照する。
+- in-app Browser を優先する。attach/inspect できない場合は停止し、Chrome や Computer Use へ無断で切り替えない。
+- 画像アップロード、目次位置、カーソル操作は実測確認し、うまくいかない場合は手動境界として報告する。画像 upload 境界の運用保証は `references/note-image-upload-automation-boundary.md` と `scripts/note_image_upload_boundary_check.py` で確認する。
+
+### note-official-guidance-intake
+
+実体: `skills/note-official-guidance-intake/SKILL.md`
+
+- note 公式ヘルプ、公式マガジン、運営告知など一次情報だけを取り込む。
+- タグ、目次、公開時間、推奨環境、画像、埋め込みなどを公式扱いする前に使う。
+- 未確認や local observation を公式扱いしない。作文禁止。
+- 実用できる情報だけ `references/note-editor-capability-inventory.md` へ反映する。
+
+### note-editor-constraint-debug
+
+実体: `skills/note-editor-constraint-debug/SKILL.md`
+
+- 埋め込み、目次、Shift+Enter、画像 caption/alt、保存表示、toolbar 差分を実測する。
+- `note-editor-ops` と組み合わせ、1 cycle 1 action で再現手順と復旧可否を残す。
+- 自動化できるものは checker / contract test / skill 文言へ落とす。
+- UI 状態に依存して保証できないものは手動境界として公開 gate に残す。
+- 改行、図、キャプションは `references/note-draft-authority-and-layout-contract.md` と照合する。
+
+### note-publication-gate
+
+実体: `skills/note-publication-gate/SKILL.md`
+
+公開または予約の直前に必ず停止し、次を確認する。
+
+- note アカウント、対象記事、タイトル、本文、TOP 画像、画像権利。
+- タグ、マガジン、公開範囲、無料/有料、価格、SNS 共有設定。
+- 下書き保存、preview、事実確認、秘密情報除外、内部メモ除外。
+- 即時公開か予約投稿か。予約なら日時と timezone。
+- 現在の会話で「この対象記事のこの操作を実行してよい」という明示承認があるか。
+
+承認がない場合の停止文:
+
+```text
+ここで停止します。
+- Note 画面: 公開/投稿/予約確定ボタンを押す手前
+- 確認済み: タイトル / 本文 / TOP画像 / タグ / マガジン / 公開範囲 / 無料・有料 / 価格 / SNS共有設定 / 下書き保存 / プレビュー / 事実確認 / 秘密情報除外
+- 未実行: 公開 / 予約投稿 / SNS共有 / 外部告知
+
+対象記事と操作を明示して、最終承認をもらうまで押しません。
+```
+
+### note-postpublish-ledger
+
+実体: `skills/note-postpublish-ledger/SKILL.md`
+
+公開または予約が明示承認済みで完了した後だけ実行する。
+
+- Note 側の完了表示、公開 URL、公開状態、予約日時、下書きに残っていないことを確認する。
+- 公開本文の確認には既存 script を使う。
+
+```powershell
+python scripts\post_publish.py --url <note_url> --draft <draft.md> --dry-run
+python scripts\note_diff_check.py <note_url> <draft.md> <phrase...>
+python scripts\engagement_tracker.py report
+python scripts\verify_published_update.py --url <note_url> --expected-title <title> --expected-eyecatch-url <image_url> --contains <new_phrase>
+```
+
+- `scripts/post_publish.py` は X 投稿や schedule option を持つため、`--x-text`、`--x-schedule` はこの suite から使わない。
+- `data/published_notes.json` には公開済み URL、title、published_at、tags、image_url、local_source、source、plain_status を記録する。
+- `data/note_drafts.json` は draft/stale/superseded/published_from_note_editor_record の状態を保ち、公開済み一次台帳に混ぜない。
+- package 外の workspace 固有台帳を使う場合は `scripts/post_publish.py --ledger-dir <dir>` を使う。script の複製は作らない。
+- editor で公開版が変わった場合は、公開本文 snapshot、SHA-256、`local_draft_differs_from_published` を ledger に残す。
+- 公開済み記事を更新し元draftがない場合は、`references/post-publish-context-proof.md` の更新ルートで公開APIの現在値を照合し、仮draftやdraft台帳遷移を作らない。
+- Note 表示日時はユーザーの手動確認値を優先して記録する。
+
+## Issue Drafts
+
+`issue-drafts.md` を正本にして、外部 tracker 非依存の issue draft を保持する。Linear などの tracker が使える状態でも、現在会話でユーザーが明示依頼するまでは外部登録せず local draft の更新だけで止める。
+
+転記元: `issue-drafts.md`
+
+1. `Validate package contract`
+   - 親 routing、manifest workflow、6子 skill 契約、公開停止 gate、package verification test を確認する。
+2. `Keep tracker-free runtime compatibility`
+   - Linear などの外部 tracker がなくても、Codex または Claude Code 単体で workflow を進められることを保証する。
+3. `Keep Spark/Sonnet worker acceleration optional`
+   - Spark / Sonnet worker は任意の速度改善として残し、無い場合は親 runtime が順に処理する。
+4. `Run one local Note draft through QA lane`
+   - preview、pre-publish、fact check、diff check の実運用接続と、警告時の draft phase 差し戻しを確認する。
+5. `Exercise Note editor handoff without publishing`
+   - Note editor 反映、下書き保存、画像/タグ/マガジン確認、公開/予約確定手前停止を確認する。
+6. `Define post-publish ledger procedure`
+   - 公開後 URL/日時/status/ledger 更新と、SNS 共有 option の分離を確認する。
+7. `Run note official guidance intake`
+   - note 公式ノウハウは `note-official-guidance-intake` で一次情報化してから反映する。
+8. `Debug practical editor constraints`
+   - 埋め込み、目次、段落内改行などは `note-editor-constraint-debug` で実測境界へ落とす。
+## 完了条件
+
+- 親 `SKILL.md` が既存 QA scripts と既存 editor skill を参照している。
+- 公開/予約/共有は明示承認なしに実行不可と明記されている。
+- X 投稿、いいね、外部告知が Note 汎用パッケージ外として分離されている。
+- `data/note_drafts.json` と `data/published_notes.json` の役割が明記されている。
+- `package.yaml`、`README.md`、`issue-drafts.md` と、`package.yaml` の
+  `skills` に列挙された全子スキルが存在する。
+- 子スキルが入力、成果物、停止条件、closeout evidence を持つ。
+- `references/note-image-upload-automation-boundary.md` と `scripts/note_image_upload_boundary_check.py` が存在し、画像 upload 境界の残務ゼロを確認できる。
+- 検証コマンドは `package.yaml` の `verification` を正本とし、そこに列挙された
+  公開package検証と必要な developer check が通る。
+- プロジェクト境界と現在地は `PROJECT_SSOT.md` が単独で保持し、
+  内部設計文書や private workspace の path を公開 package へ含めない。
+
+## 記事ごとの末尾選定
+
+末尾のカード枚数を固定せず、既存制作計画の `footer-selection` を使う。
+契約は `references/note-draft-authority-and-layout-contract.md`、実入口は
+`scripts/note_editor_prepublish_verify.py`。未レビュー・空計画・DOM照合の不一致は停止する。
+観測JSONの一致は供給snapshotの整合性に限り、公開承認や実DOM取得を証明しない。
+
+## 3経路と版ごとの承認
+
+記事制作は `direct_draft`（本人原稿の編集）、`source_article`（素材の記事化）、`collaborative`（共同執筆）を区別する。正本は [記事制作と人間レビューの契約](references/note-workflow-review-contract.md)。変更前原文のローカルsnapshotを必須にし、編集稿と分ける。
+
+誤字を含む修正、公開前調査、公開設定、最終公開は、対象の版ごとに人間確認する。各段階の直前に `scripts/note_workflow_gate.py --settings USER_SETTINGS_PATH --packet <review.json> --stage <edit|research|settings|publish> --conversation-id <current>` を通す。欠落・変更・別記事・別会話は停止する。汎用Browser直操作も例外にしない。checkerは承認を生成せず、真正性の照合はruntimeの責務。最終投稿は人間操作とする。
+
+## 調査品質と段階別PDCA
+
+workspace settingsの任意の `research_quality_policy` を有効にした場合、research段階にJSON品質報告を供給する。SEO・AIO・Note・タグ・PDCA・関連作者と旬の各採否を、読戻した資料と観測日時、保存物ハッシュへ結ぶ。必要資料の欠落、未来時刻、鮮度切れ、未確認を成功に変換しない。再利用と適用外には理由が必要。詳細は既存の人間レビュー契約を参照する。
+
+小さい記事改善、公開直後の照合、記事成果、同テーマの比較、運用戦略の5段階を既存feedbackへ記録する。未到来の成果は計画であり、未取得と0を区別する。画像の調整では保持条件と変更条件、加工前後と実解像度を分けて確認する。新しい公開権限、巡回スキ、定期通知はこの契約から生成しない。
+
+## 公開後の読戻しと承認一覧
+
+内部ブラウザで取得した公開現物JSONを `--local-observation` で供給できる。指定時はネットワーク取得へ戻らない。公開／下書き台帳は `--published-ledger`／`--draft-ledger` でworkspace正本を指定し、既定dry-runの確認後、`--write-ledger` で更新する。原稿・公開snapshot・採否履歴はpackage外に保管する。
+
+承認の確認は `note_workflow_gate.py --list-gates` で現在版・根拠・失効理由・依存する未承認項目を表示する。本文校正、目次／末尾カード、公開設定、最終公開の承認を区別し、本人が変更したタグを上書きしない。公開済みの観測と全ゲート通過は別の事実として残す。
+
+詳しくは [人間レビュー契約](references/note-workflow-review-contract.md) と [公開後手順](skills/note-postpublish-ledger/SKILL.md) を参照する。
+
+
+## 統合したローカル機能の入口
+
+この機能群は既存スクリプトを正本とし、利用者の原稿・資料・台帳をpackage外に置く。利用者側で残したWIPと上流版の差分は配送証跡で区別し、全環境への反映済みと推定しない。
+
+- ローカル原稿の保全・再読は `references/note-draft-durability-contract.md` と `scripts/note_draft_durability.py`。
+- 編集CLIは `scripts/note_editor_apply.py`。write直前のworkflow承認を検査する。ブラウザから直接操作する経路への自動強制接続はない。
+- 目次の構造照合は `scripts/note_toc_gate.py`。見出しの意味や文章の適切さは本人レビューで確認する。
+- production候補は既存の著者性・見出し構造・編集session検査も通す。観測JSONの成功を実画面取得の証明にしない。
+- 検索QAは `skills/note-prepublish-qa/SKILL.md`。検索候補を裏付け済み事実と扱わない。
+- 壁打ち論点の対応は `references/draft-topic-coverage.md`。packet検査は `scripts/note_work_packet_check.py`。独立CLIがあることと公開経路への強制接続を区別する。
+
+公開・設定採用・画像採用・本文採用の人間判断は既存のworkflow契約に従う。
+
+読書プレビューは白背景のlight表示で本文を確認するための表示であり、Noteのthemeやeditor UIの完全な再現ではない。実画面の読戻しと由来の検査を分ける。
