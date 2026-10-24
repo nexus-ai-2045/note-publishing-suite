@@ -1041,7 +1041,7 @@ def run_git(cwd: Path, *args: str) -> None:
 def initialize_standalone_public_repo_fixture(path: Path, message: str) -> None:
     run_git(path, "init")
     run_git(path, "checkout", "-B", "main")
-    run_git(path, "config", "--local", "user.name", "nexus-ai-2045")
+    run_git(path, "config", "--local", "user.name", "nexus_ai")
     run_git(
         path,
         "config",
@@ -1634,7 +1634,7 @@ def test_repository_guarantees_cover_all_caller_events(tmp_path: Path, monkeypat
     root_origin = tmp_path / 'root-origin'
     root_origin.mkdir()
     run_git(root_origin, 'init', '-q', '-b', 'master')
-    run_git(root_origin, 'config', '--local', 'user.name', 'nexus-ai-2045')
+    run_git(root_origin, 'config', '--local', 'user.name', 'nexus_ai')
     run_git(
         root_origin,
         'config',

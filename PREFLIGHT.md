@@ -91,7 +91,7 @@ Actions で同等確認する場合は、feature 枝を選んで `repository-gua
 
 公開対象は今回選定したソースと、新しい履歴だけ。旧commit・branch・tag・PR・退避refを移植しない。
 公開前のrepo-preflightは新しい全履歴を検査し、旧履歴向けの例外や基準値で個人情報を免除しない。
-author・committerは公開用nexus-ai-2045名義、pusher・新規作成のactorはnexus-ai-2045を照合する。共同著者を自動追加しない。今後のmergerも外部操作前に照合し、GitHub生成commitの扱いは既存名義guardの契約に従う。
+author・committerの名前は既存の公開identity正本に従う`nexus_ai`、登録公開emailは維持し、pusher・新規作成のactorは`nexus-ai-2045`を照合する。owner/loginとGit author名を混同しない。共同著者を自動追加しない。今後のmergerも外部操作前に照合し、GitHub生成commitの扱いは既存名義guardの契約に従う。
 個別の設定・検査実行receiptは利用者workspaceで保持し、packageには複製しない。
 
 公開後の継続検査は`.github/workflows/preflight.yml`から上流の共通ゲートを固定SHAで呼ぶ。
