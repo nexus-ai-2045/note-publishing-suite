@@ -1,0 +1,100 @@
+{
+  "package": "note-publishing-suite",
+  "status": "active",
+  "tracker_required": false,
+  "external_connectors_required": false,
+  "external_action": "none",
+  "publication_gate": "human_review_required",
+  "source_of_truth": [
+    "SKILL.md",
+    "package.yaml",
+    "issue-drafts.md",
+    "skills/*/SKILL.md",
+    "scripts/test_skill_integration.py"
+  ],
+  "registration_gate": {
+    "requires_tracker": false,
+    "requires_current_conversation_approval": true,
+    "write_action_until_approved": "none"
+  },
+  "issues": [
+    {
+      "key": "note-suite-contract",
+      "title": "Validate package contract",
+      "summary": "Note 投稿支援 package として、親 skill、manifest、README、6子 skill の契約を満たすことを確認する。",
+      "acceptance_criteria": [
+        "親 SKILL.md に idea、draft、qa、editor、gate、ledger の routing がある。",
+        "package.yaml に Codex / Claude Code 単体運用の前提がある。",
+        "6子 skill が 入力、手順、停止条件、Closeout Evidence を持つ。",
+        "publication_gate: human_review_required と external_action: none が標準状態として明記されている。",
+        "package verification test が通る。"
+      ],
+      "labels": ["note", "skill-package", "verification"]
+    },
+    {
+      "key": "tracker-free-runtime",
+      "title": "Keep tracker-free runtime compatibility",
+      "summary": "Linear などの外部 tracker が無くても、Codex または Claude Code 単体で実行できる契約を保つ。",
+      "acceptance_criteria": [
+        "tracker_required: false が manifest と issue draft にある。",
+        "Linear、GitHub、Slack、Drive などの connector は optional と明記されている。",
+        "外部 tracker が無い場合でも、親 skill と子 skill だけで workflow を進められる。",
+        "tracker 転記は現在会話でユーザーが明示依頼した場合だけ行う。"
+      ],
+      "labels": ["runtime", "portable", "tracker-free"]
+    },
+    {
+      "key": "optional-worker-acceleration",
+      "title": "Keep Spark/Sonnet worker acceleration optional",
+      "summary": "Spark/Sonnet worker は速度改善の任意手段として残し、必須条件にはしない。",
+      "acceptance_criteria": [
+        "親 SKILL.md に Runtime Guarantee がある。",
+        "package.yaml に optional_acceleration: true と required: false がある。",
+        "Codex の optional worker が spark、Claude Code の optional worker が sonnet として記録されている。",
+        "worker が無い場合は parent_runtime_sequential で同じ分担粒度を順に処理する。",
+        "worker には credential、Cookie、非公開URL、公開/予約/送信権限、repository visibility 変更権限を渡さない。",
+        "worker 出力は親 runtime が source、diff、test、publication gate を確認してから採用する。"
+      ],
+      "labels": ["orchestration", "worker", "safety"]
+    },
+    {
+      "key": "qa-lane-smoke",
+      "title": "Run one local Note draft through QA lane",
+      "summary": "任意のローカル下書きを qa phase に通し、Note 投稿前検査の流れが運用可能であることを確認する。",
+      "acceptance_criteria": [
+        "scripts/note_preview.py で preview を生成または生成手順を確認できる。",
+        "scripts/pre_publish_check.py <draft.md> が実行できる。",
+        "scripts/note_fact_check.py local <draft.md> の要確認候補を記録できる。",
+        "scripts/note_diff_check.py は比較対象がない場合、未実行理由を記録する。",
+        "警告が残る場合は note-draft-production へ戻る。"
+      ],
+      "labels": ["note", "qa", "smoke"]
+    },
+    {
+      "key": "editor-handoff-no-publish",
+      "title": "Exercise Note editor handoff without publishing",
+      "summary": "Note editor 反映 phase を公開なしで通し、下書き保存までの境界と停止点を確認する。",
+      "acceptance_criteria": [
+        "反映対象記事、タイトル、本文、タグ、TOP画像状態、マガジン状態を確認する。",
+        "Note editor への反映が可能な場合でも、公開/予約確定ボタンの手前で停止する。",
+        "画像アップロードは完全自動化前提にせず、未確認または手動確認として記録する。",
+        "editor反映後の diff check が可能なら実施し、不可なら理由を記録する。",
+        "外部公開、SNS共有、告知は実行しない。"
+      ],
+      "labels": ["note", "editor", "publication-gate"]
+    },
+    {
+      "key": "postpublish-ledger-procedure",
+      "title": "Define post-publish ledger procedure",
+      "summary": "公開後にだけ使う ledger 更新手順を、SNS共有と分離したまま運用可能にする。",
+      "acceptance_criteria": [
+        "scripts/post_publish.py --dry-run の接続または help/import 確認ができる。",
+        "data/published_notes.json に記録する項目が明記されている。",
+        "data/note_drafts.json からの扱いが明記されている。",
+        "--x-text と --x-schedule は package 内で使用禁止とする。",
+        "公開URL、公開状態、表示日時が未確認なら ledger 更新しない。"
+      ],
+      "labels": ["note", "ledger", "postpublish"]
+    }
+  ]
+}

@@ -1,0 +1,202 @@
+name: test
+
+on:
+  push:
+    branches: ["master", "main"]
+    tags: ["v*"]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: ["master", "main"]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+# Keep PR required check package-smoke from being starved by overlapping runs.
+concurrency:
+  group: test-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  writing-ui:
+    name: 共同執筆画面の検査
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: writing-app
+    steps:
+      - name: ソースを取得
+        uses: actions/checkout@v6
+      - name: Node.jsを準備
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: writing-app/package-lock.json
+      - name: 固定した依存を導入
+        run: npm ci
+      - name: 原文保持とAPI接続の試験
+        run: npm test
+      - name: 型検査と画面build
+        run: npm run build
+
+  repository-guarantees:
+    uses: ./.github/workflows/repository-guarantees.yml
+    with:
+      pipeline_call: true
+    secrets:
+      NPS_PRIVATE_IDENTITY_DENYLIST: ${{ secrets.NPS_PRIVATE_IDENTITY_DENYLIST }}
+      NPS_PRIVATE_IDENTITY_PATTERNS: ${{ secrets.NPS_PRIVATE_IDENTITY_PATTERNS }}
+
+  package-smoke:
+    needs: repository-guarantees
+    name: package-smoke
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+
+      - name: Set up Node for guarded URL input tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install test dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Run Python static lint
+        run: python -m ruff check scripts tests
+
+      - name: Run package contract tests
+        run: python -m pytest scripts/test_skill_integration.py tests -q
+
+      - name: Check package SSOT pointer targets
+        run: python scripts/skill_pointer_check.py --json
+
+      - name: Run package version bump guard
+        env:
+          # PR では base と HEAD の版差を検査する。dispatch/push ではスキップ可。
+          VERSION_BUMP_BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
+        run: python scripts/check_version_bump.py
+
+      - name: Run Note editor prepublish observation checker
+        run: |
+          python scripts/note_editor_prepublish_verify.py data/note_editor_prepublish_observation.fixture.json --json > /tmp/note-editor-result.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          result = json.loads(Path("/tmp/note-editor-result.json").read_text(encoding="utf-8"))
+          assert result["ok"] is True, result
+          assert result["ready_for_publish"] is False
+          assert result["live_dom_verified"] is False, result
+          assert result["external_actions_performed"] == [], result
+          assert result["publication_actions_performed"] == [], result
+          PY
+
+      - name: Run clean-machine public package verifier
+        run: sh scripts/verify_public_package.sh
+
+      - name: Run provenance leak checker
+        run: python scripts/provenance_leak_check.py --scope all --json
+
+      - name: Run provenance label checker
+        run: python scripts/provenance_label_check.py content/drafts/caramel-provenance-label-fixture.md --json
+
+      - name: Run GitHub identity guard
+        run: python scripts/github_identity_guard.py --json
+
+      - name: Run Japanese closeout language gate
+        run: python scripts/japanese_closeout_language_check.py --json
+
+      - name: Run image upload boundary checker
+        run: python scripts/note_image_upload_boundary_check.py --json
+
+  windows-installer-smoke:
+    name: windows-installer-smoke
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+
+      - name: Install test dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Run Windows installer tests
+        run: python -m pytest tests/test_windows_skill_installer.py -q
+
+      - name: Check package SSOT pointer targets
+        run: python scripts/skill_pointer_check.py --json
+
+      - name: Run Windows clean-machine public package verifier
+        shell: pwsh
+        run: .\scripts\verify_public_package.ps1
+
+  docs-sync:
+    name: docs-sync
+    # PR 専用。push/dispatch では不要で、並列キャンセルの誤 fail を避ける。
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+
+      - name: Extract pull request review text
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          event_path = Path(os.environ["GITHUB_EVENT_PATH"])
+          event = json.loads(event_path.read_text(encoding="utf-8"))
+          body = (event.get("pull_request") or {}).get("body") or ""
+          Path("/tmp/docs-sync-review.txt").write_text(body, encoding="utf-8")
+          PY
+
+      - name: Run read-only docs sync checker
+        id: check
+        shell: bash
+        run: |
+          set +e
+          BASE_REF="origin/${GITHUB_BASE_REF:-main}"
+          python scripts/docs_sync_check.py \
+            --base-ref "$BASE_REF" \
+            --review-file /tmp/docs-sync-review.txt \
+            --json-out build/docs-sync/result.json \
+            --patch-out build/docs-sync/generated.patch
+          STATUS=$?
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload docs sync evidence
+        if: steps.check.outputs.status != '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-sync-evidence
+          path: build/docs-sync/
+
+      - name: Enforce docs sync result
+        if: steps.check.outputs.status != '0'
+        run: exit 1

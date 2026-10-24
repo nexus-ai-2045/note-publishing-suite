@@ -1,0 +1,153 @@
+{
+  "pattern_id": "note-editor-pdca-failure-patterns",
+  "status": "active",
+  "scope": "note_editor_live_operation_failures",
+  "public_action_allowed": false,
+  "retry_policy": {
+    "max_same_route_attempts": 2,
+    "fresh_dom_required_before_retry": true,
+    "same_failure_closes_route_for_article": true,
+    "delayed_multi_change_forces_reaudit": true,
+    "memory_only_state_forbidden": true
+  },
+  "required_cycle_evidence": [
+    "goal",
+    "route_id",
+    "browser_surface",
+    "ai_surface",
+    "target_note_url_or_id",
+    "fresh_dom_observed_at",
+    "figure_count_before",
+    "figure_count_after",
+    "target_heading_or_placeholder",
+    "cursor_or_selection",
+    "check_result",
+    "act_next_step",
+    "public_or_schedule_or_share_not_clicked"
+    ,"url_and_title_before"
+    ,"dom_snapshot_before"
+    ,"locator_candidate_count"
+    ,"url_and_title_after"
+    ,"dom_snapshot_after"
+    ,"state_transition_classification"
+  ],
+  "failure_patterns": [
+    {
+      "failure_id": "browser_clipboard_image_paste_no_insert",
+      "route_id": "browser_clipboard_image_paste",
+      "symptom": "Paste command returns without a new figure or image in the Note editor DOM.",
+      "cause": "The browser clipboard route does not deliver image data into the editor reliably.",
+      "stopline": "Do not keep pasting through the same browser clipboard route after two failures.",
+      "next_action": "Return to a fresh DOM audit, then choose supervised OS clipboard, visible file dialog, or manual upload.",
+      "must_record": [
+        "figure_count_before",
+        "figure_count_after",
+        "clipboard_route_used",
+        "fresh_dom_observed_at"
+      ]
+    },
+    {
+      "failure_id": "browser_clipboard_native_pipe_closed",
+      "route_id": "browser_clipboard_image_paste",
+      "symptom": "The native pipe closes or the clipboard bridge errors before the editor receives the image.",
+      "cause": "The automation bridge is unavailable or unstable in the current browser/editor surface.",
+      "stopline": "Treat the route as closed for this article after the repeated native pipe failure.",
+      "next_action": "Do not retry blindly; switch to a visible, supervised route or stop with manual instructions.",
+      "must_record": [
+        "error_text_redacted",
+        "route_id",
+        "browser_surface",
+        "fresh_dom_observed_at"
+      ]
+    },
+    {
+      "failure_id": "visible_file_dialog_delayed_multi_insert",
+      "route_id": "visible_windows_file_dialog",
+      "symptom": "One upload action later produces multiple new figures or delayed figure changes.",
+      "cause": "The Note editor may apply pending upload actions asynchronously, so count-based success can be stale.",
+      "stopline": "Stop additional uploads immediately and re-audit every figure by nearby SS number and dimensions.",
+      "next_action": "Recompute missing, duplicate, and mismatched images before the next single-image cycle.",
+      "must_record": [
+        "figure_count_before",
+        "figure_count_after",
+        "new_figure_dimensions",
+        "nearby_ss_labels"
+      ]
+    },
+    {
+      "failure_id": "direct_input_file_api_unavailable",
+      "route_id": "chrome_extension_visible_editor_upload",
+      "symptom": "The extension or wrapper cannot pass a local file directly to input[type=file].",
+      "cause": "The visible Chrome extension surface does not expose a reliable file-input API for this flow.",
+      "stopline": "Do not mark input discovery as upload success and do not assume a hidden attach worked.",
+      "next_action": "Use a visible file dialog, supervised OS clipboard, or manual upload boundary.",
+      "must_record": [
+        "input_detected",
+        "api_unavailable_message",
+        "route_id",
+        "public_or_schedule_or_share_not_clicked"
+      ]
+    },
+    {
+      "failure_id": "chrome_extension_file_url_access_denied",
+      "route_id": "chrome_extension_filechooser_upload",
+      "symptom": "The Chrome extension opens the Note image file chooser but setFiles fails with Not allowed.",
+      "cause": "The Codex Chrome extension cannot read local files until Chrome extension file URL access is enabled.",
+      "stopline": "Do not retry the same filechooser upload route in the same article cycle until extension file access is enabled or another supervised route is chosen.",
+      "next_action": "Record no-insert verification, keep the draft open at the target heading, then use manual upload, supervised OS clipboard paste, or enable Chrome extension file URL access.",
+      "must_record": [
+        "target_heading_or_placeholder",
+        "local_file_path",
+        "error_text_redacted",
+        "figure_count_before",
+        "figure_count_after",
+        "new_target_image_count",
+        "public_or_schedule_or_share_not_clicked"
+      ]
+    },
+    {
+      "failure_id": "cursor_drift_or_ambiguous_placeholder",
+      "route_id": "editor_cursor_targeting",
+      "symptom": "The cursor, selection, or target placeholder is not uniquely tied to the intended SS location.",
+      "cause": "The editor DOM and visible selection can drift after scrolling, delayed render, or prior manual edits.",
+      "stopline": "Do not paste, delete, drag, or upload while the insertion point is ambiguous.",
+      "next_action": "Re-read the DOM, identify a unique heading or placeholder, and run a cursor-prep-only cycle.",
+      "must_record": [
+        "target_heading_or_placeholder",
+        "cursor_or_selection",
+        "candidate_count",
+        "fresh_dom_observed_at"
+      ]
+    },
+    {
+      "failure_id": "unexpected_navigation_or_already_completed",
+      "route_id": "any_chrome_dom_operation",
+      "symptom": "The current URL, title, or live DOM no longer matches the pre-action snapshot, or the intended result is already complete.",
+      "cause": "Navigation, autosave, delayed rendering, a human action, or an earlier submit changed the page state.",
+      "stopline": "Discard the old locator and do not repeat submit, create, publish, or send while the current state is unresolved.",
+      "next_action": "Re-run tab inventory and read-only attach, capture URL/title/fresh DOM, then classify the state as state-transition-detected or already-completed.",
+      "must_record": [
+        "url_and_title_before",
+        "dom_snapshot_before",
+        "url_and_title_after",
+        "dom_snapshot_after",
+        "state_transition_classification"
+      ]
+    },
+    {
+      "failure_id": "stale_memory_state",
+      "route_id": "any_note_editor_route",
+      "symptom": "A cycle starts from previous memory, old figure counts, or an old cursor position.",
+      "cause": "The Note draft can be changed by the user, autosave, delayed upload, or another browser surface.",
+      "stopline": "Abort the cycle before any write and rebuild the current state from the live DOM.",
+      "next_action": "Run read-only attach/audit first, then create a new one-action work packet.",
+      "must_record": [
+        "previous_state_source",
+        "fresh_dom_observed_at",
+        "figure_count_before",
+        "target_note_url_or_id"
+      ]
+    }
+  ],
+  "guarantee_command": "python scripts/note_editor_pdca_failure_check.py --json"
+}

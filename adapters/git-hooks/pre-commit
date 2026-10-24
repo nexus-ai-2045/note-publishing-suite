@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+
+repo_root=$(git rev-parse --show-toplevel)
+installed_root=${CLAUDE_SKILLS_DIR:-"$HOME/.claude/skills"}
+
+exec python3 "$repo_root/scripts/skill_pointer_check.py" \
+  --installed-root "$installed_root" \
+  --json

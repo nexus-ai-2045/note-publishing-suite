@@ -1,0 +1,3 @@
+# 任意の本人由来レビューHTML機能専用。標準NPSでは必須にしない。
+PyYAML>=6
+markdown-it-py>=3

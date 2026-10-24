@@ -1,0 +1,68 @@
+{
+  "article_lane": "editor_fixture",
+  "title": "Public package fixture",
+  "top_image": {
+    "present": true
+  },
+  "toc_count": 1,
+  "article_id": "fixture-article",
+  "series": "fixture-series",
+  "production_plan": {
+    "article_id": "fixture-article",
+    "reader": "関心を持つ読者",
+    "series": "fixture-series",
+    "reader_action": "関連資料を読む",
+    "links": [
+      {
+        "url": "https://automata-lab.example/",
+        "registry_ref": "fixture://registered-links",
+        "reason": "読者の次の行動に合う",
+        "presentation": "card",
+        "required": true
+      },
+      {
+        "url": "https://example.com/archive",
+        "registry_ref": "fixture://registered-links",
+        "reason": "読者の次の行動に合う",
+        "presentation": "card",
+        "required": true
+      }
+    ],
+    "review": {
+      "status": "approved",
+      "reviewer": "fixture-human",
+      "reviewed_at": "2026-01-01T00:00:00+00:00",
+      "plan_sha256": "0692cf655dec6827a338b9106fdf7055231e626fe63b6442793119786d48ec37"
+    }
+  },
+  "footer": {
+    "nodes": [
+      {
+        "tag": "FIGURE",
+        "data_src": "https://automata-lab.example/"
+      },
+      {
+        "tag": "FIGURE",
+        "hrefs": [
+          "https://example.com/archive"
+        ]
+      }
+    ]
+  },
+  "magazine": {
+    "target": "AUTOMATA",
+    "added": true
+  },
+  "tags": [
+    "AUTOMATA",
+    "人工生命",
+    "観測記録"
+  ],
+  "article_type": "無料",
+  "final_buttons": [
+    {
+      "label": "投稿する",
+      "clicked": false
+    }
+  ]
+}

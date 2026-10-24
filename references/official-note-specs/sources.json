@@ -1,0 +1,85 @@
+{
+  "source_set": "note_official_specs",
+  "owner": "note-publishing-suite",
+  "policy": "公式ヘルプ、公式マガジン、運営告知だけを対象にする。ログイン、Cookie、非公開URL、投稿操作は使わない。",
+  "sources": [
+    {
+      "key": "recommended-environment",
+      "title": "noteの推奨環境",
+      "category": "environment",
+      "url": "https://www.help-note.com/hc/ja/articles/360008947573"
+    },
+    {
+      "key": "editor-feature-overview",
+      "title": "エディタ機能とは",
+      "category": "editor",
+      "url": "https://www.help-note.com/hc/ja/articles/4419349470489-%E3%82%A8%E3%83%87%E3%82%A3%E3%82%BF%E6%A9%9F%E8%83%BD%E3%81%A8%E3%81%AF"
+    },
+    {
+      "key": "editor-article-screen",
+      "title": "エディタ（記事編集画面）でできること",
+      "category": "editor",
+      "url": "https://www.help-note.com/hc/ja/articles/360012426133-%E3%82%A8%E3%83%87%E3%82%A3%E3%82%BF-%E8%A8%98%E4%BA%8B%E7%B7%A8%E9%9B%86%E7%94%BB%E9%9D%A2-%E3%81%A7%E3%81%A7%E3%81%8D%E3%82%8B%E3%81%93%E3%81%A8"
+    },
+    {
+      "key": "image-recommended-size",
+      "title": "登録画像の推奨サイズ一覧",
+      "category": "image",
+      "url": "https://www.help-note.com/hc/ja/articles/360000231642-%E7%99%BB%E9%8C%B2%E7%94%BB%E5%83%8F%E3%81%AE%E6%8E%A8%E5%A5%A8%E3%82%B5%E3%82%A4%E3%82%BA%E4%B8%80%E8%A6%A7"
+    },
+    {
+      "key": "image-about",
+      "title": "画像について",
+      "category": "image",
+      "url": "https://www.help-note.com/hc/ja/articles/900000134923-%E7%94%BB%E5%83%8F%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6"
+    },
+    {
+      "key": "hashtag-troubleshooting",
+      "title": "ハッシュタグをつけられない",
+      "category": "tag",
+      "url": "https://www.help-note.com/hc/ja/articles/360010038294-%E3%83%8F%E3%83%83%E3%82%B7%E3%83%A5%E3%82%BF%E3%82%B0%E3%82%92%E3%81%A4%E3%81%91%E3%82%89%E3%82%8C%E3%81%AA%E3%81%84"
+    },
+    {
+      "key": "price-and-payment",
+      "title": "価格の設定とお支払い方法について",
+      "category": "pricing",
+      "url": "https://www.help-note.com/hc/ja/articles/360011270114-%E4%BE%A1%E6%A0%BC%E3%81%AE%E8%A8%AD%E5%AE%9A%E3%81%A8%E3%81%8A%E6%94%AF%E6%89%95%E3%81%84%E6%96%B9%E6%B3%95%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6"
+    },
+    {
+      "key": "paid-article",
+      "title": "有料記事を書く（有料ラインの設定）",
+      "category": "paid_article",
+      "url": "https://www.help-note.com/hc/ja/articles/360008882894-%E6%9C%89%E6%96%99%E8%A8%98%E4%BA%8B%E3%82%92%E6%9B%B8%E3%81%8F-%E6%9C%89%E6%96%99%E3%83%A9%E3%82%A4%E3%83%B3%E3%81%AE%E8%A8%AD%E5%AE%9A"
+    },
+    {
+      "key": "paid-magazine",
+      "title": "有料マガジンをつくる",
+      "category": "paid_magazine",
+      "url": "https://www.help-note.com/hc/ja/articles/360010038574-%E6%9C%89%E6%96%99%E3%83%9E%E3%82%AC%E3%82%B8%E3%83%B3%E3%82%92%E3%81%A4%E3%81%8F%E3%82%8B"
+    },
+    {
+      "key": "membership-create",
+      "title": "メンバーシップをつくる（オーナー向け）",
+      "category": "membership",
+      "url": "https://www.help-note.com/hc/ja/articles/22752829171225-%E3%83%A1%E3%83%B3%E3%83%90%E3%83%BC%E3%82%B7%E3%83%83%E3%83%97%E3%82%92%E3%81%A4%E3%81%8F%E3%82%8B-%E3%82%AA%E3%83%BC%E3%83%8A%E3%83%BC%E5%90%91%E3%81%91"
+    },
+    {
+      "key": "membership-benefit-article",
+      "title": "メンバーシップにメンバー特典記事を追加する（オーナー向け）",
+      "category": "membership",
+      "url": "https://www.help-note.com/hc/ja/articles/22752958504985-%E3%83%A1%E3%83%B3%E3%83%90%E3%83%BC%E3%82%B7%E3%83%83%E3%83%97%E3%81%AB%E3%83%A1%E3%83%B3%E3%83%90%E3%83%BC%E7%89%B9%E5%85%B8%E8%A8%98%E4%BA%8B%E3%82%92%E8%BF%BD%E5%8A%A0%E3%81%99%E3%82%8B-%E3%82%AA%E3%83%BC%E3%83%8A%E3%83%BC%E5%90%91%E3%81%91"
+    },
+    {
+      "key": "membership-benefit-magazine",
+      "title": "メンバーシップにメンバー特典マガジンを追加する（オーナー向け）",
+      "category": "membership",
+      "url": "https://www.help-note.com/hc/ja/articles/22752969814553-%E3%83%A1%E3%83%B3%E3%83%90%E3%83%BC%E3%82%B7%E3%83%83%E3%83%97%E3%81%AB%E3%83%A1%E3%83%B3%E3%83%90%E3%83%BC%E7%89%B9%E5%85%B8%E3%83%9E%E3%82%AC%E3%82%B8%E3%83%B3%E3%82%92%E8%BF%BD%E5%8A%A0%E3%81%99%E3%82%8B-%E3%82%AA%E3%83%BC%E3%83%8A%E3%83%BC%E5%90%91%E3%81%91"
+    },
+    {
+      "key": "collaborative-magazine-invite",
+      "title": "共同運営マガジンにメンバーを招待する（オーナー向け）",
+      "category": "collaborative_magazine",
+      "url": "https://www.help-note.com/hc/ja/articles/42419893311129-%E5%85%B1%E5%90%8C%E9%81%8B%E5%96%B6%E3%83%9E%E3%82%AC%E3%82%B8%E3%83%B3%E3%81%AB%E3%83%A1%E3%83%B3%E3%83%90%E3%83%BC%E3%82%92%E6%8B%9B%E5%BE%85%E3%81%99%E3%82%8B-%E3%82%AA%E3%83%BC%E3%83%8A%E3%83%BC%E5%90%91%E3%81%91"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+__pycache__/
+.pytest_cache/
+.DS_Store
+/writing-app/node_modules/
+/writing-app/dist/
+content/drafts/*.md
+!content/drafts/.gitkeep
+!content/drafts/caramel-future-date-prepublish-fixture.md
+!content/drafts/caramel-provenance-label-fixture.md
+!content/drafts/sample-note-prepublish-fixture.md
+content/drafts/*.preview.html
+data/provenance_leak_policy.local.json
+data/github_identity_guard_policy.local.json
+# Repository-local managed Git worktrees; article sources stay tracked.
+/.worktrees/

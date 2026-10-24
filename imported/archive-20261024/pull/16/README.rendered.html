@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Note Publishing Suite README</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f7f8fb;
+      --paper: #ffffff;
+      --text: #172033;
+      --muted: #5b667a;
+      --line: #dfe5ee;
+      --accent: #23845f;
+      --code: #eef4f1;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #101418;
+        --paper: #171c22;
+        --text: #eef3f7;
+        --muted: #a6b0bd;
+        --line: #2b333d;
+        --accent: #59d49f;
+        --code: #1f2a26;
+      }
+    }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.75;
+    }
+    main {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 48px 20px 72px;
+    }
+    article {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 36px;
+    }
+    h1 { margin: 0 0 12px; font-size: 2rem; line-height: 1.25; }
+    h2 { margin-top: 34px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 1.35rem; }
+    h3 { margin-top: 24px; font-size: 1.05rem; }
+    p { margin: 12px 0; }
+    ul { padding-left: 1.3rem; }
+    li { margin: 8px 0; }
+    details {
+      margin: 24px 0;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+    }
+    summary {
+      cursor: pointer;
+      color: var(--accent);
+      font-weight: 650;
+    }
+    details[open] summary { margin-bottom: 16px; }
+    details h2:first-of-type { margin-top: 0; }
+    .table-wrap {
+      margin: 18px 0;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 720px;
+    }
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 650;
+    }
+    tr:last-child td { border-bottom: 0; }
+    code {
+      border-radius: 5px;
+      padding: 0.12rem 0.35rem;
+      background: var(--code);
+      color: var(--accent);
+      font-family: "Cascadia Mono", Consolas, monospace;
+      overflow-wrap: anywhere;
+    }
+    pre {
+      overflow-x: auto;
+      border-radius: 8px;
+      padding: 14px 16px;
+      background: var(--code);
+      border: 1px solid var(--line);
+    }
+    pre code { padding: 0; background: transparent; color: var(--text); }
+    img {
+      display: block;
+      width: 100%;
+      height: auto;
+      margin: 20px 0 24px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <article>
+<h1>Note Publishing Suite</h1>
+<p><strong>書くところまで自動化。公開は、人が決める。</strong></p>
+<p><img src="assets/note-publishing-workflow.svg" alt="素材からNote下書き保存までは自動化し、公開直前で停止して人が判断するワークフロー" loading="lazy"></p>
+<p>ローカル素材から Note の下書きを作り、検査し、エディタへ反映する Codex 向けパッケージです。公開・予約投稿・SNS 共有は自動で行わず、 必ず公開直前で止まります。</p>
+<p>パッケージ版: <code>0.2.19</code></p>
+<p><a href="#3分で始める">3分で始める</a> · <a href="#安全設計">安全設計</a> · <a href="#入口と詳しい資料">詳しい資料</a></p>
+<h2>できること</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>できる</th><th>自動では行わない</th></tr></thead>
+<tbody>
+<tr><td>指定素材から記事候補と下書きを作る</td><td>指定外のフォルダや private URL を読む</td></tr>
+<tr><td>プレビュー、投稿前検査、根拠確認を行う</td><td>記事内容が正しいと断定する</td></tr>
+<tr><td>Note エディタへ反映し、下書き保存まで進める</td><td>公開、予約投稿、SNS 共有、外部告知</td></tr>
+<tr><td>公開後の確認内容を台帳更新案にする</td><td>PV、SEO、おすすめ掲載などの成果を保証する</td></tr>
+</tbody></table></div>
+<p>公開操作には、対象と操作を特定した人間レビューと明示承認が必要です。</p>
+<h2>3分で始める</h2>
+<p>必要なものは POSIX sh、Python、git です。</p>
+<pre><code>git clone https://github.com/nexus-ai-2045/note-publishing-suite.git
+cd note-publishing-suite
+sh scripts/verify_public_package.sh</code></pre>
+<p>Windows では PowerShell verifier も使えます。</p>
+<pre><code>pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1</code></pre>
+<p><code>-ExecutionPolicy Bypass</code> はこのプロセスだけに適用されます。 この verifier は Python と git も使って各 checker を実行するため、 先に利用可能か確認してください。 検証は公開操作を行わず、<code>embedded copy</code> と <code>standalone clone</code> の契約を確認します。</p>
+<h2>基本ワークフロー</h2>
+<pre><code>素材を指定 → 記事候補 → 下書き → ローカル検査 → Note 下書き保存 → 公開直前で停止</code></pre>
+<div class="table-wrap"><table>
+<thead><tr><th>段階</th><th>入口</th></tr></thead>
+<tbody>
+<tr><td>記事候補</td><td><a href="skills/note-idea-intake/SKILL.md"><code>note-idea-intake</code></a></td></tr>
+<tr><td>下書き</td><td><a href="skills/note-draft-production/SKILL.md"><code>note-draft-production</code></a></td></tr>
+<tr><td>投稿前QA</td><td><a href="skills/note-prepublish-qa/SKILL.md"><code>note-prepublish-qa</code></a></td></tr>
+<tr><td>エディタ反映</td><td><a href="skills/note-editor-prepublish/SKILL.md"><code>note-editor-prepublish</code></a></td></tr>
+<tr><td>公開停止線</td><td><a href="skills/note-publication-gate/SKILL.md"><code>note-publication-gate</code></a></td></tr>
+<tr><td>公開後台帳</td><td><a href="skills/note-postpublish-ledger/SKILL.md"><code>note-postpublish-ledger</code></a></td></tr>
+</tbody></table></div>
+<p>固定の <code>ネタ帳.md</code> は使いません。入力は、ユーザーが最初に指定した 「読んでよい素材フォルダ」だけです。</p>
+<h2>安全設計</h2>
+<ul>
+<li>根拠は <code>source_database</code> / <code>source_pack</code>、構成案は <code>series_plot</code>、</li>
+<p><code>article_plot</code>、<code>skeleton</code>、<code>wall_bang</code> として分離します。</p>
+<li><code>production_candidate</code> と <code>editor_fixture</code> を混ぜません。詳しくは</li>
+<p><a href="references/note-article-provenance-design.md"><code>note-article-provenance-design.md</code></a>。</p>
+<li><code>source_pack_locked_with_user_speech_priority</code> では <code>user-said</code>、</li>
+<p><code>external-fact</code>、<code>assistant-organized</code>、<code>hold</code> を区別します。</p>
+<li>公開前に <code>scripts/provenance_leak_check.py --scope changed</code> を実行します。</li>
+<p>個別denylistは <code>data/provenance_leak_policy.local.json</code> に置き、 公開パッケージへ直書きしない設計です。</p>
+<li>公開、予約投稿、SNS共有、リポジトリ公開範囲変更は、対象・操作・方式の</li>
+<p>いずれかが不明、または現在の会話で明示承認がない場合は実行しません。</p>
+</ul>
+<p>根拠ラベルの確認:</p>
+<pre><code>python scripts/provenance_label_check.py &lt;draft.md&gt; --json</code></pre>
+<p>AI 作文を含む下書きは、次の順でローカルレビューします。</p>
+<pre><code>python scripts/provenance_label_check.py &lt;draft.md&gt; --json
+python scripts/note_preview.py &lt;draft.md&gt; --review-provenance -o &lt;review.html&gt;
+python scripts/provenance_label_check.py &lt;draft.md&gt; --public-output &lt;public-body.md&gt;</code></pre>
+<ul>
+<li>「記事を書いて」「文章にまとめて」「会話を記事に」「メモを記事に」</li>
+<p>「下書きを直して」も下書き制作の自動発火対象です。</p>
+<li>レビュー HTML では、ユーザー発言、確認済み外部事実、AI による整理・</li>
+<p>言い換え、未確認・人間判断待ちを色分けします。</p>
+<li>修正対象は内部 ID ではなく、見出しまたは本文の短い引用で指定できます。</li>
+<li><code>hold</code> が残る間は公開本文候補を書き出しません。公開本文候補では</li>
+<p>ローカル管理用の由来コメントを除去します。</p>
+</ul>
+<details>
+<summary>Note エディタの詳しい境界</summary>
+<h2>Note エディタの境界</h2>
+<p>接続できる場合に限り、タイトル、本文、リンク、画像、タグなどを反映します。 下書き保存までで止まり、公開・投稿・予約確定ボタンは押しません。</p>
+<ul>
+<li>低レベル操作: <a href="skills/note-editor-ops/SKILL.md"><code>note-editor-ops</code></a></li>
+<li>公式機能の棚卸し: <a href="references/note-editor-capability-inventory.md"><code>note-editor-capability-inventory.md</code></a></li>
+<li>1 cycle / 1 action: <a href="references/note-editor-pdca-orchestration.md"><code>note-editor-pdca-orchestration.md</code></a></li>
+<li>実画面の制約: <a href="references/note-editor-live-constraint-boundaries.md"><code>note-editor-live-constraint-boundaries.md</code></a></li>
+<li>画像アップロード停止線: <a href="references/note-image-upload-automation-boundary.md"><code>note-image-upload-automation-boundary.md</code></a> / <code>scripts/note_image_upload_boundary_check.py</code></li>
+<li>公式情報: <code>note-official-guidance-intake</code>、制約調査: <code>note-editor-constraint-debug</code></li>
+</ul>
+<p>リンクカードはURLを単独行に置いて Enter を押し、<code>figure[data-src]</code> などの DOMで確認します。同期しない場合や固定座標が必要な場合は手動境界へ切り替えます。 Noteログイン、常時接続、画像アップロードの完全自動化は保証しません。</p>
+</details>
+<h2>入口と詳しい資料</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>目的</th><th>参照先</th></tr></thead>
+<tbody>
+<tr><td>プロジェクト境界と現在地</td><td><a href="PROJECT_SSOT.md">PROJECT_SSOT.md</a></td></tr>
+<tr><td>Codex から使う</td><td><a href="SKILL.md">SKILL.md</a></td></tr>
+<tr><td>機械可読の契約</td><td><a href="package.yaml">package.yaml</a></td></tr>
+<tr><td>今後の計画</td><td><a href="ROADMAP.md">ROADMAP.md</a></td></tr>
+<tr><td>公開前の準備</td><td><a href="PUBLIC_READY.md">PUBLIC_READY.md</a> / <a href="PUBLIC_RELEASE_CHECKLIST.md">PUBLIC_RELEASE_CHECKLIST.md</a></td></tr>
+<tr><td>セキュリティ</td><td><a href="SECURITY.md">SECURITY.md</a></td></tr>
+<tr><td>変更履歴</td><td><a href="CHANGELOG.md">CHANGELOG.md</a></td></tr>
+</tbody></table></div>
+<p>主な補助ツール:</p>
+<ul>
+<li><code>scripts/note_preview.py</code>: ローカルプレビュー。</li>
+<li><code>scripts/review_draft.py</code>: <code>build-context-card</code> と <code>review-draft</code>。</li>
+<li><code>scripts/note_diff_check.py</code> / <code>scripts/fetch_note_body.js</code>: 公開本文の取得・差分確認。</li>
+<li><code>scripts/post_publish.py</code>: 既定はドライランの台帳更新。</li>
+<li><code>scripts/bump_package_version.py</code>: patch / minor / major を自動採番。</li>
+<li><code>scripts/docs_sync_check.py</code>: 生成物と関連文書をread-onlyで同期検査。</li>
+</ul>
+<h2>PRごとのドキュメント同期</h2>
+<p><code>package.yaml</code>の<code>docs_sync_contract</code>を正本として、変更pathに対応する文書更新と <code>README.rendered.html</code>の生成差分を検査します。通常検査はrepositoryを変更せず、 不足時は<code>generated_drift</code>、<code>missing_doc_review</code>、<code>missing_required_doc</code>を返します。</p>
+<pre><code>python scripts/docs_sync_check.py --base-ref origin/main</code></pre>
+<p>PRでは<code>.github/workflows/test.yml</code>が<code>contents: read</code>だけで実行します。失敗時は 検査JSONと生成物patchをartifactに残しますが、commit、push、PR編集は行いません。 ローカルで生成物だけ直す場合は、明示的に<code>--fix-generated</code>を付けます。</p>
+<details>
+<summary>開発者向けの検証と保証</summary>
+<h2>開発・検証</h2>
+<pre><code>python scripts/render_readme.py
+python scripts/docs_sync_check.py --base-ref origin/main
+python scripts/review_draft.py build-context-card content/drafts/sample-note-prepublish-fixture.md --json
+python scripts/review_draft.py review-draft content/drafts/sample-note-prepublish-fixture.md --json
+python scripts/note_editor_prepublish_verify.py data/note_editor_prepublish_observation.fixture.json --json
+python scripts/run_local_draft_qa_proof.py --json
+python scripts/japanese_closeout_language_check.py --json
+python scripts/note_image_upload_boundary_check.py --json
+python -m pytest scripts/test_skill_integration.py tests</code></pre>
+<p>包括検証は <code>sh scripts/verify_public_package.sh</code> です。<code>verify:local</code> は、 公開操作なしで構成、安全境界、README表示、公開前停止線を確認します。</p>
+<p>日本語報告の <code>ready for review</code> は下書き解除済み、<code>open PR</code> は未マージPR、 <code>MERGED</code> はマージ済み、<code>mergeable</code> はマージ可能です。これらを英語のまま 報告した場合は文章ミスではなく、構造バグとして出力ゲートを修正します。 コマンド、ファイルパス、URL、SHA、識別子は原文のまま扱います。</p>
+<h2>保証ラチェット</h2>
+<p>失敗や手動境界は、原因・復旧方法・次回の禁止事項を残します。再発防止できる ものは検査器、契約テスト、スキルへ反映し、UI依存は無理に自動化しません。</p>
+<p>GitHubではこのREADMEをそのまま読めます。ローカル整形版は <code>python scripts/render_readme.py</code> で <code>README.rendered.html</code> に生成できます。</p>
+</details>
+    </article>
+  </main>
+</body>
+</html>

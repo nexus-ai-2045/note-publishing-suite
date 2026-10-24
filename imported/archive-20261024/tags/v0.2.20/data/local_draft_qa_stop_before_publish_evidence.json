@@ -1,0 +1,133 @@
+{
+  "generated_at": "2026-06-17T12:35:55.914153+00:00",
+  "proof": "one_local_draft_through_qa_and_stop_before_publish",
+  "draft": "content/drafts/sample-note-prepublish-fixture.md",
+  "preview_html": "content/drafts/sample-note-prepublish-fixture.proof.preview.html",
+  "note_url": "Unknown",
+  "phrases": [],
+  "overall": "stopped_before_publish",
+  "qa_lane": "return_to_draft",
+  "pre_publish_overall": "warning",
+  "pre_publish_issues": [
+    {
+      "severity": "warning",
+      "code": "todo_marker",
+      "message": "todo_marker found"
+    },
+    {
+      "severity": "warning",
+      "code": "uncertain_japanese",
+      "message": "uncertain_japanese found"
+    }
+  ],
+  "fact_check_finding_count": 3,
+  "fact_check_findings": [
+    {
+      "line": 5,
+      "code": "source_provenance_marker",
+      "text": "source_mode: fixture_only"
+    },
+    {
+      "line": 14,
+      "code": "source_provenance_marker",
+      "text": "- 実記事の根拠扱い"
+    },
+    {
+      "line": 31,
+      "code": "internal_note",
+      "text": "Review marker: TODO keep this synthetic marker so pre-publish QA returns a warning."
+    }
+  ],
+  "diff_check": {
+    "overall": "skipped",
+    "reason": "note_url_unknown",
+    "checks": []
+  },
+  "publication_gate": {
+    "state": "stopped_before_publish",
+    "stop_causes": [
+      "pre_publish_not_clean",
+      "fact_check_candidates_remain",
+      "note_url_unknown_diff_not_performed",
+      "human_review_required"
+    ],
+    "human_review_required": true,
+    "explicit_current_conversation_approval": false
+  },
+  "external_actions_performed": [],
+  "publication_actions_performed": [],
+  "commands": [
+    {
+      "label": "note_preview",
+      "command": "python scripts/note_preview.py content/drafts/sample-note-prepublish-fixture.md -o content/drafts/sample-note-prepublish-fixture.proof.preview.html",
+      "exit_code": 0,
+      "stdout": "preview_html=content\\drafts\\sample-note-prepublish-fixture.proof.preview.html",
+      "stderr": "",
+      "parsed_json": null
+    },
+    {
+      "label": "pre_publish_check",
+      "command": "python scripts/pre_publish_check.py content/drafts/sample-note-prepublish-fixture.md --json",
+      "exit_code": 0,
+      "stdout": "{\n  \"draft\": \"content\\\\drafts\\\\sample-note-prepublish-fixture.md\",\n  \"overall\": \"warning\",\n  \"issues\": [\n    {\n      \"severity\": \"warning\",\n      \"code\": \"todo_marker\",\n      \"message\": \"todo_marker found\"\n    },\n    {\n      \"severity\": \"warning\",\n      \"code\": \"uncertain_japanese\",\n      \"message\": \"uncertain_japanese found\"\n    }\n  ]\n}",
+      "stderr": "",
+      "parsed_json": {
+        "draft": "content\\drafts\\sample-note-prepublish-fixture.md",
+        "overall": "warning",
+        "issues": [
+          {
+            "severity": "warning",
+            "code": "todo_marker",
+            "message": "todo_marker found"
+          },
+          {
+            "severity": "warning",
+            "code": "uncertain_japanese",
+            "message": "uncertain_japanese found"
+          }
+        ]
+      }
+    },
+    {
+      "label": "note_fact_check",
+      "command": "python scripts/note_fact_check.py local content/drafts/sample-note-prepublish-fixture.md --json",
+      "exit_code": 0,
+      "stdout": "{\n  \"draft\": \"content\\\\drafts\\\\sample-note-prepublish-fixture.md\",\n  \"mode\": \"local\",\n  \"finding_count\": 3,\n  \"findings\": [\n    {\n      \"line\": 5,\n      \"code\": \"source_provenance_marker\",\n      \"text\": \"source_mode: fixture_only\"\n    },\n    {\n      \"line\": 14,\n      \"code\": \"source_provenance_marker\",\n      \"text\": \"- 実記事の根拠扱い\"\n    },\n    {\n      \"line\": 31,\n      \"code\": \"internal_note\",\n      \"text\": \"Review marker: TODO keep this synthetic marker so pre-publish QA returns a warning.\"\n    }\n  ]\n}",
+      "stderr": "",
+      "parsed_json": {
+        "draft": "content\\drafts\\sample-note-prepublish-fixture.md",
+        "mode": "local",
+        "finding_count": 3,
+        "findings": [
+          {
+            "line": 5,
+            "code": "source_provenance_marker",
+            "text": "source_mode: fixture_only"
+          },
+          {
+            "line": 14,
+            "code": "source_provenance_marker",
+            "text": "- 実記事の根拠扱い"
+          },
+          {
+            "line": 31,
+            "code": "internal_note",
+            "text": "Review marker: TODO keep this synthetic marker so pre-publish QA returns a warning."
+          }
+        ]
+      }
+    },
+    {
+      "label": "note_diff_check",
+      "command": "python scripts/note_diff_check.py Unknown content/drafts/sample-note-prepublish-fixture.md --json",
+      "exit_code": 0,
+      "stdout": "{\n  \"overall\": \"skipped\",\n  \"reason\": \"note_url_unknown\",\n  \"checks\": []\n}",
+      "stderr": "",
+      "parsed_json": {
+        "overall": "skipped",
+        "reason": "note_url_unknown",
+        "checks": []
+      }
+    }
+  ]
+}

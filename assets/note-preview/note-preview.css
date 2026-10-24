@@ -1,0 +1,32 @@
+/* NPS independently authored local reading styles. MIT; see LICENSE.
+ * No third-party Note stylesheet is included. This is an approximate preview.
+ */
+.note-common-styles__textnote-body {
+  font-family: system-ui, sans-serif;
+  font-size: 1.1rem;
+  line-height: 1.9;
+  overflow-wrap: anywhere;
+}
+.note-common-styles__textnote-body :is(p, ul, ol, blockquote, figure) {
+  margin-block: 1.7em;
+}
+.note-common-styles__textnote-body :is(h2, h3) {
+  line-height: 1.5;
+  margin-block: 2em 1em;
+}
+.note-common-styles__textnote-body h2 { font-size: 1.55em; }
+.note-common-styles__textnote-body h3 { font-size: 1.2em; }
+.note-common-styles__textnote-body a { color: inherit; text-underline-offset: .2em; }
+.note-common-styles__textnote-body :is(ul, ol) { padding-inline-start: 1.6em; }
+.note-common-styles__textnote-body blockquote {
+  background: #f3f4f6;
+  border-inline-start: .2em solid #b8bdc5;
+  padding: .5em 1.2em;
+}
+.note-common-styles__textnote-body blockquote p { margin-block: .5em; }
+.note-common-styles__textnote-body img { display: block; max-width: 100%; height: auto; margin-inline: auto; }
+.note-common-styles__textnote-body pre { overflow-x: auto; padding: 1em; background: #f3f4f6; }
+.note-common-styles__textnote-body hr { border: 0; border-top: 1px solid #d1d5db; margin-block: 2em; }
+@media (max-width: 40rem) {
+  .note-common-styles__textnote-body { font-size: 1rem; }
+}

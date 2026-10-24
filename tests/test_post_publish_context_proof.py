@@ -1,0 +1,393 @@
+from __future__ import annotations
+
+import importlib.util
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def load_module(name: str, path: Path):
+    sys.path.insert(0, str(path.parent))
+    spec = importlib.util.spec_from_file_location(name, path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_post_publish_writes_external_ledgers_idempotently(tmp_path: Path) -> None:
+    draft = tmp_path / "article.md"
+    draft.write_text("# article\n", encoding="utf-8")
+    ledger_dir = tmp_path / "private-ledgers-日本語"
+    ledger_dir.mkdir()
+    (ledger_dir / "note_drafts.json").write_text(
+        json.dumps(
+            [
+                {
+                    "draft": "content/drafts/article.md",
+                    "note_id": "n123",
+                    "status": "editor-draft-saved",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    command = [
+        sys.executable,
+        str(ROOT / "scripts" / "post_publish.py"),
+        "--url",
+        "https://note.com/example/n/n123",
+        "--draft",
+        str(draft),
+        "--title",
+        "Published title",
+        "--published-at",
+        "2026-07-15T22:21:00+09:00",
+        "--verified-at",
+        "2026-07-16T06:35:03+09:00",
+        "--note-id",
+        "n123",
+        "--verification-status",
+        "published_verified",
+        "--published-snapshot",
+        "research/snapshots/n123.txt",
+        "--published-body-sha256",
+        "a" * 64,
+        "--local-draft-differs-from-published",
+        "--cover-image-verified",
+        "--ledger-dir",
+        str(ledger_dir),
+        "--write-ledger",
+    ]
+    for _ in range(2):
+        result = subprocess.run(command, text=True, capture_output=True, check=False, env={**os.environ, "PYTHONIOENCODING": "ascii"})
+        assert result.returncode == 0, result.stdout + result.stderr
+
+    published = json.loads((ledger_dir / "published_notes.json").read_text(encoding="utf-8"))
+    drafts = json.loads((ledger_dir / "note_drafts.json").read_text(encoding="utf-8"))
+    assert len(published) == 1
+    assert published[0]["plain_status"] == "published_verified"
+    assert published[0]["published_body_sha256"] == "a" * 64
+    assert published[0]["cover_image_verified"] is True
+    assert len(drafts) == 1
+    assert drafts[0]["status"] == "published_from_note_editor_record"
+    report = subprocess.run([sys.executable, str(ROOT / "scripts/engagement_tracker.py"), "report",
+                             "--ledger-dir", str(ledger_dir), "--json"], text=True, capture_output=True,
+                            env={**os.environ, "PYTHONIOENCODING": "ascii"})
+    assert report.returncode == 0, report.stdout + report.stderr
+    totals = json.loads(report.stdout)
+    assert totals["draft_count"] == totals["published_count"] == 1
+    assert Path(totals["ledger_dir"]) == ledger_dir.resolve()
+    assert drafts[0]["published_title"] == "Published title"
+
+
+def test_verified_publication_requires_verification_time(tmp_path: Path) -> None:
+    draft = tmp_path / "article.md"
+    draft.write_text("# article\n", encoding="utf-8")
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "post_publish.py"),
+            "--url",
+            "https://note.com/example/n/n123",
+            "--draft",
+            str(draft),
+            "--verification-status",
+            "published_verified",
+            "--dry-run",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 2
+    assert "--verified-at is required" in result.stderr
+
+
+def run_ledger_cli(tmp_path: Path, *options: str):
+    (tmp_path / "article.md").write_text("# article\n", encoding="utf-8")
+    return subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "post_publish.py"),
+         "--url", "https://note.com/example/n/n123?app_launch=false",
+         "--draft", str(tmp_path / "article.md"),
+         "--ledger-dir", str(tmp_path), *options],
+        text=True, capture_output=True, check=False,
+    )
+
+
+def test_unknown_publication_time_and_default_dry_run(tmp_path: Path) -> None:
+    result = run_ledger_cli(tmp_path)
+    assert result.returncode == 0, result.stderr
+    output = json.loads(result.stdout)
+    assert output["mode"] == "dry-run"
+    assert output["published_entry"]["published_at"] is None
+    assert output["published_entry"]["note_id"] == "n123"
+    assert output["published_entry"]["url"] == "https://note.com/example/n/n123"
+    assert output["published_entry"]["plain_status"] == "published_or_scheduled_unverified"
+    assert not (tmp_path / "published_notes.json").exists()
+
+
+def test_rejects_invalid_url_and_mismatched_id(tmp_path: Path) -> None:
+    for options in [
+        ("--url", "https://note.com.attacker.test/example/n/n123"),
+        ("--url", "https://user" "@note.com/example/n/n123"),
+        ("--url", "https://note.com/example/n/n123/extra"),
+        ("--url", "http://note.com/example/n/n123"),
+        ("--note-id", "n456"),
+    ]:
+        result = run_ledger_cli(tmp_path, *options, "--write-ledger")
+        assert result.returncode == 2
+        assert not (tmp_path / "published_notes.json").exists()
+
+
+def test_distinct_article_same_basename_is_preserved(tmp_path: Path) -> None:
+    rows = [
+        {"draft": str(tmp_path / "article.md"), "note_id": "n456", "status": "draft"},
+        {"draft": str(tmp_path / "elsewhere" / "article.md"), "status": "draft"},
+    ]
+    target = tmp_path / "note_drafts.json"
+    target.write_text(json.dumps(rows), encoding="utf-8")
+    for _ in range(2):
+        result = run_ledger_cli(tmp_path, "--write-ledger")
+        assert result.returncode == 0, result.stderr
+    written = json.loads(target.read_text())
+    assert written[:2] == rows
+    assert len(written) == 3
+    assert written[2]["note_id"] == "n123"
+    assert len(json.loads((tmp_path / "published_notes.json").read_text())) == 1
+
+
+def test_invalid_either_ledger_preserves_both_files(tmp_path: Path) -> None:
+    for broken_name in ["published_notes.json", "note_drafts.json"]:
+        for broken_content in ["{}", "[null]", "not-json"]:
+            published = tmp_path / "published_notes.json"
+            drafts = tmp_path / "note_drafts.json"
+            published.write_text("[]")
+            drafts.write_text("[]")
+            (tmp_path / broken_name).write_text(broken_content)
+            before = {p: p.read_bytes() for p in [published, drafts]}
+            result = run_ledger_cli(tmp_path, "--write-ledger")
+            assert result.returncode != 0
+            assert {p: p.read_bytes() for p in before} == before
+
+
+def test_reregister_preserves_archive_link(tmp_path):
+    (tmp_path / "article.md").write_text("# article\n", encoding="utf-8")
+    ledger = tmp_path / "data"
+    ledger.mkdir()
+    (ledger / "published_notes.json").write_text(json.dumps([{"note_id": "n123", "url": "https://note.com/example/n/n123", "archive_path": "content/published/article.md"}]))
+    command = [sys.executable, str(ROOT / "scripts/post_publish.py"), "--url", "https://note.com/example/n/n123", "--draft", str(tmp_path / "article.md"), "--ledger-dir", str(ledger), "--write-ledger"]
+    result = subprocess.run(command, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    rows = json.loads((ledger / "published_notes.json").read_text())
+    assert len(rows) == 1
+    assert rows[0]["archive_path"] == "content/published/article.md"
+
+
+def test_published_update_verifies_live_api_fields_without_draft() -> None:
+    module = load_module("verify_published_update", ROOT / "scripts" / "verify_published_update.py")
+    data = {
+        "status": "published", "key": "nabc123", "user": {"urlname": "example"},
+        "name": "Example title", "eyecatch": "https://assets.example/cover.png",
+        "publish_at": "2026-01-02T03:04:05+09:00",
+        "body": "<p>Updated sentence</p><p>Other text</p>",
+    }
+    result = module.verify(
+        data, url="https://note.com/example/n/nabc123", expected_title="Example title",
+        expected_eyecatch_url="https://assets.example/cover.png",
+        contains=["Updated sentence"], absent=["Old sentence"],
+    )
+    assert result["overall"] == "ok"
+    assert result["checks"]["owner_matches"] is True
+    assert result["checks"]["eyecatch_matches"] is True
+    assert result["body_sha256"]
+
+
+def test_published_update_blocks_wrong_asset_or_owner() -> None:
+    module = load_module("verify_published_update_failed", ROOT / "scripts" / "verify_published_update.py")
+    data = {
+        "status": "published", "key": "nabc123", "user": {"urlname": "other"},
+        "name": "Example title", "eyecatch": "https://assets.example/old.png",
+        "body": "<p>Old sentence</p>",
+    }
+    result = module.verify(
+        data, url="https://note.com/example/n/nabc123", expected_title="Example title",
+        expected_eyecatch_url="https://assets.example/new.png",
+        contains=["Updated sentence"], absent=["Old sentence"],
+    )
+    assert result["overall"] == "blocked"
+    assert result["checks"]["owner_matches"] is False
+    assert result["checks"]["eyecatch_matches"] is False
+    assert result["checks"]["contains_phrases"]["Updated sentence"] is False
+    assert result["checks"]["absent_phrases"]["Old sentence"] is False
+
+
+def test_published_update_accepts_transform_query_for_same_asset() -> None:
+    module = load_module("verify_published_update_transform", ROOT / "scripts" / "verify_published_update.py")
+    data = {
+        "status": "published", "key": "nabc123", "user": {"urlname": "example"},
+        "name": "Example title",
+        "eyecatch": "https://assets.example/cover-id.png?fit=bounds&quality=85&width=1280",
+        "body": "<p>Updated sentence</p>",
+    }
+    result = module.verify(
+        data, url="https://note.com/example/n/nabc123", expected_title="Example title",
+        expected_eyecatch_url="https://assets.example/cover-id.png",
+        contains=["Updated sentence"], absent=[],
+    )
+    assert result["overall"] == "ok"
+    assert result["checks"]["eyecatch_matches"] is True
+    assert result["eyecatch_url"] == data["eyecatch"]
+
+
+def test_published_update_rejects_different_asset_and_userinfo() -> None:
+    module = load_module("verify_published_update_asset", ROOT / "scripts" / "verify_published_update.py")
+    expected = "https://assets.example/cover-id.png"
+    assert module.image_asset_identity("https://attacker@assets.example/cover-id.png") is None
+    data = {
+        "status": "published", "key": "nabc123", "user": {"urlname": "example"},
+        "name": "Example title", "eyecatch": "https://assets.example/other-id.png?width=1280",
+        "body": "<p>Updated sentence</p>",
+    }
+    result = module.verify(
+        data, url="https://note.com/example/n/nabc123", expected_title="Example title",
+        expected_eyecatch_url=expected, contains=[], absent=[],
+    )
+    assert result["overall"] == "blocked"
+    assert result["checks"]["eyecatch_matches"] is False
+    assert module.image_asset_identity("https://other.example/cover-id.png") != module.image_asset_identity(expected)
+
+
+def test_published_update_ledger_requires_one_current_row() -> None:
+    module = load_module("verify_published_update_ledger", ROOT / "scripts" / "verify_published_update.py")
+    live = {
+        "url": "https://note.com/example/n/nabc123", "note_id": "nabc123",
+        "title": "Example title", "eyecatch_url": "https://assets.example/cover-id.png?width=1280",
+        "body_sha256": "a" * 64,
+    }
+    row = {
+        "url": live["url"], "note_id": live["note_id"], "title": live["title"],
+        "image_url": "https://assets.example/cover-id.png", "plain_status": "published_verified",
+        "published_body_sha256": live["body_sha256"],
+    }
+    assert module.verify_ledger([row], live=live)["overall"] == "ok"
+    private_row = row | {"plain_status": "公開ページと照合済み", "status": "published",
+                         "verification_status": "published_verified"}
+    assert module.verify_ledger([private_row], live=live)["overall"] == "ok"
+    private_alias = {key: value for key, value in private_row.items() if key != "published_body_sha256"}
+    private_alias["public_body_sha256"] = live["body_sha256"]
+    assert module.verify_ledger([private_alias], live=live)["overall"] == "ok"
+    assert module.verify_ledger([private_alias | {"published_body_sha256": "b" * 64}], live=live)["overall"] == "blocked"
+    assert module.verify_ledger([row | {"verification_status": "unverified"}], live=live)["overall"] == "blocked"
+    assert module.verify_ledger([row | {"status": "draft"}], live=live)["overall"] == "blocked"
+    assert module.verify_ledger([], live=live)["overall"] == "blocked"
+    assert module.verify_ledger([row, row], live=live)["overall"] == "blocked"
+    assert module.verify_ledger([row | {"image_url": "https://assets.example/other-id.png"}], live=live)["overall"] == "blocked"
+    assert module.verify_ledger([row | {"published_body_sha256": "b" * 64}], live=live)["overall"] == "blocked"
+    assert module.verify_ledger([{key: value for key, value in row.items() if key != "published_body_sha256"}], live=live)["overall"] == "blocked"
+    assert module.verify_ledger([private_row | {"verification_status": "unverified"}], live=live)["overall"] == "blocked"
+
+
+def test_published_update_rejects_nonpublic_url() -> None:
+    module = load_module("verify_published_update_url", ROOT / "scripts" / "verify_published_update.py")
+
+    with pytest.raises(ValueError):
+        module.parse_note_url("http://localhost/example/n/nabc123")
+
+
+@pytest.mark.parametrize('target', ['default', 'package-dir', 'mixed'])
+def test_package_ledgers_rejected_before_any_write(tmp_path: Path, monkeypatch, target: str) -> None:
+    module = load_module('post_publish_storage_guard', ROOT / 'scripts/post_publish.py')
+    package = tmp_path / 'package'
+    data = package / 'data'
+    data.mkdir(parents=True)
+    published, drafts = data / 'published_notes.json', data / 'note_drafts.json'
+    published.write_text('[]\n', encoding='utf-8')
+    drafts.write_text('[]\n', encoding='utf-8')
+    monkeypatch.setattr(module, 'ROOT', package)
+    monkeypatch.setattr(module, 'PUBLISHED_LEDGER', published)
+    monkeypatch.setattr(module, 'DRAFT_LEDGER', drafts)
+    source = tmp_path / 'article.md'
+    source.write_text('# article\n', encoding='utf-8')
+    external = tmp_path / 'external'
+    options = [] if target == 'default' else (['--ledger-dir', str(data)] if target == 'package-dir'
+                                              else ['--published-ledger', str(external / 'published.json')])
+    with pytest.raises(SystemExit) as exc:
+        module.main(['--url', 'https://note.com/example/n/n123', '--draft', str(source),
+                     '--write-ledger', *options])
+    assert exc.value.code == 2
+    assert published.read_text(encoding='utf-8') == drafts.read_text(encoding='utf-8') == '[]\n'
+    assert not external.exists()
+    assert sorted(p.name for p in data.iterdir()) == ['note_drafts.json', 'published_notes.json']
+
+
+
+def test_snapshot_writer_rejects_package_output_before_fetch(tmp_path: Path, monkeypatch) -> None:
+    module = load_module('sync_snapshot_storage_guard', ROOT / 'scripts/sync_note_public_snapshot.py')
+    package = tmp_path / 'package'
+    package.mkdir()
+    monkeypatch.setattr(module, 'PACKAGE_ROOT', package)
+    data = tmp_path / 'data'
+    data.mkdir()
+    ledger = data / 'published_notes.json'
+    ledger.write_text(json.dumps([{'note_id': 'n123'}]), encoding='utf-8')
+    source = tmp_path / 'source.md'
+    source.write_text('# article\n', encoding='utf-8')
+
+    def no_fetch(*args, **kwargs):
+        raise AssertionError('must reject before network access')
+
+    monkeypatch.setattr(module, 'fetch_published_note', no_fetch)
+    with pytest.raises(ValueError, match='package外'):
+        module.main(['--url', 'https://note.com/example/n/n123', '--source-draft', str(source),
+                     '--output', str(package / 'public.md'), '--ledger', str(ledger), '--write-ledger'])
+    assert list(package.iterdir()) == []
+    assert json.loads(ledger.read_text(encoding='utf-8')) == [{'note_id': 'n123'}]
+
+
+
+def test_engagement_report_requires_selected_ledger_directory(tmp_path: Path) -> None:
+    command = [sys.executable, str(ROOT / 'scripts/engagement_tracker.py'), 'report', '--json']
+    missing = subprocess.run(command, capture_output=True, text=True)
+    assert missing.returncode == 2
+    bad_path = tmp_path / 'missing-ledgers'
+    absent = subprocess.run([*command, '--ledger-dir', str(bad_path)], capture_output=True, text=True)
+    assert absent.returncode == 2
+    assert not bad_path.exists()
+    bad_path.mkdir()
+    ledger = bad_path / 'published_notes.json'
+    ledger.write_text('{"unexpected": true}', encoding='utf-8')
+    malformed = subprocess.run([*command, '--ledger-dir', str(bad_path)], capture_output=True, text=True)
+    assert malformed.returncode != 0
+    assert ledger.read_text(encoding='utf-8') == '{"unexpected": true}'
+
+
+@pytest.mark.parametrize("explicit_workspace", [True, False])
+def test_archive_link_uses_selected_workspace_with_nested_ledgers(tmp_path, explicit_workspace):
+    module = load_module("post_publish_nested_workspace", ROOT / "scripts" / "post_publish.py")
+    source = tmp_path / "article.md"
+    source.write_text("# 原稿\n", encoding="utf-8")
+    archive = tmp_path / "published" / "article.md"
+    archive.parent.mkdir()
+    archive.write_text("# 公開版\n", encoding="utf-8")
+    ledger_dir = tmp_path / "private" / "ledgers"
+    args = ["--url", "https://note.com/example/n/n123", "--draft", str(source),
+            "--ledger-dir", str(ledger_dir), "--archive-path", "published/article.md", "--write-ledger"]
+    if explicit_workspace:
+        assert module.main(args + ["--workspace-root", str(tmp_path)]) == 0
+        for name in ("published_notes.json", "note_drafts.json"):
+            assert json.loads((ledger_dir / name).read_text(encoding="utf-8"))[0]["archive_path"] == "published/article.md"
+    else:
+        with pytest.raises(ValueError, match="workspace-root"):
+            module.main(args)
+        assert not ledger_dir.exists()
+    assert source.read_text(encoding="utf-8") == "# 原稿\n"
+    assert archive.read_text(encoding="utf-8") == "# 公開版\n"

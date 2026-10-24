@@ -1,0 +1,2 @@
+# 保証ゲートは vendor/ai_ratchet_gate の保全済みテキストを使用する。
+# ハッシュ一覧: vendor/ratchet-source-hashes.json。外部パッケージの取得は不要。

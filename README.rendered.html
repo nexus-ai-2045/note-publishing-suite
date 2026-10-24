@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Note Publishing Suite README</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f7f8fb;
+      --paper: #ffffff;
+      --text: #172033;
+      --muted: #5b667a;
+      --line: #dfe5ee;
+      --accent: #23845f;
+      --code: #eef4f1;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #101418;
+        --paper: #171c22;
+        --text: #eef3f7;
+        --muted: #a6b0bd;
+        --line: #2b333d;
+        --accent: #59d49f;
+        --code: #1f2a26;
+      }
+    }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.75;
+    }
+    main {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 48px 20px 72px;
+    }
+    article {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 36px;
+    }
+    h1 { margin: 0 0 12px; font-size: 2rem; line-height: 1.25; }
+    h2 { margin-top: 34px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 1.35rem; }
+    h3 { margin-top: 24px; font-size: 1.05rem; }
+    p { margin: 12px 0; }
+    ul { padding-left: 1.3rem; }
+    li { margin: 8px 0; }
+    details {
+      margin: 24px 0;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+    }
+    summary {
+      cursor: pointer;
+      color: var(--accent);
+      font-weight: 650;
+    }
+    details[open] summary { margin-bottom: 16px; }
+    details h2:first-of-type { margin-top: 0; }
+    .table-wrap {
+      margin: 18px 0;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 720px;
+    }
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 650;
+    }
+    tr:last-child td { border-bottom: 0; }
+    code {
+      border-radius: 5px;
+      padding: 0.12rem 0.35rem;
+      background: var(--code);
+      color: var(--accent);
+      font-family: "Cascadia Mono", Consolas, monospace;
+      overflow-wrap: anywhere;
+    }
+    pre {
+      overflow-x: auto;
+      border-radius: 8px;
+      padding: 14px 16px;
+      background: var(--code);
+      border: 1px solid var(--line);
+    }
+    pre code { padding: 0; background: transparent; color: var(--text); }
+    img {
+      display: block;
+      width: 100%;
+      height: auto;
+      margin: 20px 0 24px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <article>
+<h1>Note Publishing Suite（NPS）</h1>
+<p><strong>書くところまで自動化。公開は、人が決める。</strong></p>
+<p><img src="PUBLIC_READY.md" alt="素材からNote下書き保存までは自動化し、公開直前で停止して人が判断するワークフロー（参照資料: <code>assets/note-publishing-workflow.svg</code>）" loading="lazy"></p>
+<h2>概要</h2>
+<p>ローカル素材から Note の下書きを作り、検査し、エディタへ反映する <strong>NPS（Note Publishing Suite）</strong> です。Codex / Claude Code から使えます。 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。</p>
+<p>パッケージ版: <code>0.3.9</code></p>
+<p>キャラクター画像の参照・生成添付・出力・目視観察を同じ版へ束縛する検査は <code>scripts/image_reference_gate.py</code> を使います。画像設定は利用者側の既存記事profileへ置き、packageに個人の画像や名前を保存しません。</p>
+<p>読書用プレビューは <code>note_virtual_preview.py</code>、編集診断は同コマンドの <code>--diagnostics</code>、由来レビューは <code>note_preview.py --review-provenance</code> を使います。原稿の本人確認・保留は検査で維持します。</p>
+<div class="table-wrap"><table>
+<thead><tr><th>すぐやる</th><th>あとで読む</th></tr></thead>
+<tbody>
+<tr><td><a href="#使い方-nps-として使う3分">NPS として使う</a></td><td><a href="#できること">できること</a></td></tr>
+<tr><td><a href="#基本ワークフロー">基本ワークフロー</a></td><td><a href="#制約と安全設計">安全設計</a></td></tr>
+<tr><td></td><td><a href="#入口と詳しい資料">入口と詳しい資料</a></td></tr>
+</tbody></table></div>
+<p><strong>動画は不要です。</strong> 下の 3 手順だけで NPS として使えます。</p>
+<h2>使い方: NPS として使う（3分）</h2>
+<p>必要なものは POSIX sh、Python、git です。</p>
+<h3>1. 取る・確かめる</h3>
+<pre><code>git clone https://github.com/nexus-ai-2045/note-publishing-suite.git
+cd note-publishing-suite
+sh scripts/verify_public_package.sh</code></pre>
+<p>Windows では PowerShell verifier も使えます。</p>
+<pre><code>pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_public_package.ps1</code></pre>
+<p><code>-ExecutionPolicy Bypass</code> はこのプロセスだけに適用されます。 この verifier は Python と git も使って各 checker を実行するため、 先に利用可能か確認してください。 検証は公開操作を行わず、<code>embedded copy</code> と <code>standalone clone</code> の契約を確認します。 ローカル検証（<code>verify:local</code>）は上記の verifier で実行します。公開前の停止確認は <code>python scripts/review_draft.py review-draft &lt;draft&gt; --json</code> と <code>python scripts/run_local_draft_qa_proof.py &lt;draft&gt; --output &lt;workspace-output.json&gt; --json</code> で、対象原稿とpackage外の出力先を指定します。構成・安全境界・README表示・公開前停止線の確認範囲は<a href="docs/advanced-usage.md#開発検証">開発・検証</a>を参照してください。 自動テストのあとに行うユーザー受け入れ確認は <code>USER_TEST.md</code> の4ケースを使います。 受け入れテストの合格は Note 公開の承認ではなく、公開操作は別の人間承認で扱います。</p>
+<h3>2. 保存先を選び、Codex に登録する</h3>
+<p>初回はAIが、保存先・読んでよい素材・本人の文体参照を案内します。 既存の個別設定は使い直し、なければ<a href="references/note-workflow-review-contract.md#初回設定の案内">初回設定の案内</a>に沿ってpackage外のworkspaceへ保存します。画像・履歴・調査policyは用途に応じて選びます。</p>
+<p>installerが行うのはpointer登録です。設定作成、Noteログイン、画像アップロードの対応確認まで完了するわけではありません。 例の <code>../my-note-workspace</code> は先に作成し、自分の保存先へ置き換えてください。</p>
+<p>installer は実体を複製せず、package を指す pointer だけを置きます。</p>
+<pre><code>pwsh -NoProfile -File adapters/codex/install.ps1 `
+  -PackageRoot (Resolve-Path .) `
+  -WorkspaceRoot (Resolve-Path ../my-note-workspace)</code></pre>
+<p>既定の配置先は <code>$env:CODEX_HOME\skills</code>、未設定なら <code>$HOME\.codex\skills</code> です。</p>
+<p>macOS / LinuxのCodexは <code>NOTE_SKILL_RUNTIME=codex bash adapters/claude-code/install.sh ../my-note-workspace</code>、Claude Codeは <code>bash adapters/claude-code/install.sh ../my-note-workspace</code> を使います。</p>
+<p>installerの終了時にも初回設定の案内先を表示します。Windowsの日本語案内はUTF-8で出力します。登録後の最初の依頼では「初回設定から案内して」と伝えてください。設定読戻しが失敗した場合は制作前に修正します。対話による案内であり、GUIの設定ウィザードはありません。</p>
+<h3>3. 最初の依頼例</h3>
+<p>Codex / Claude に、だいたい次のように頼むと NPS が起動しやすいです。</p>
+<pre><code>note-publishing-suite で進めて。
+読んでよい素材フォルダは &lt;ここだけ&gt;。
+公開・予約・SNSはしない。下書き保存の手前まで。</code></pre>
+<div class="table-wrap"><table>
+<thead><tr><th>やりたいこと</th><th>言うこと（例）</th></tr></thead>
+<tbody>
+<tr><td>記事のネタ出し</td><td>「このフォルダから note 記事候補を3つ」</td></tr>
+<tr><td>下書き</td><td>「候補1で note 下書きを作って」</td></tr>
+<tr><td>検査</td><td>「prepublish QA して」</td></tr>
+<tr><td>エディタ反映</td><td>「Note editor に反映。公開はしない」</td></tr>
+<tr><td>公開判断</td><td>「publication gate で止まって」</td></tr>
+</tbody></table></div>
+<p>固定の <code>ネタ帳.md</code> は使いません。入力は、ユーザーが最初に指定した 「読んでよい素材フォルダ」だけです。</p>
+<p>全体像は上のワークフロー図だけで足ります。動画撮影は必須ではありません。</p>
+<details>
+<summary>任意: 使い方動画を後から載せる場合</summary>
+<p>動画は <strong>なくても運用できます</strong>。人に見せたいときだけ足してください。</p>
+<p>1. 1〜3 分の画面録画を <code>assets/demo/usage-walkthrough.mp4</code> に置く 2. README に次を足す</p>
+<pre><code>[![NPS 使い方動画を再生](assets/demo/usage-walkthrough-thumb.svg)](assets/demo/usage-walkthrough.mp4)</code></pre>
+<p>置き場・台本・禁止事項: <a href="assets/demo/README.md"><code>assets/demo/README.md</code></a> / <a href="assets/demo/storyboard.md"><code>assets/demo/storyboard.md</code></a></p>
+</details>
+<h2>できること</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>できる</th><th>自動では行わない</th></tr></thead>
+<tbody>
+<tr><td>指定素材から記事候補と下書きを作る</td><td>指定外のフォルダや private URL を読む</td></tr>
+<tr><td>プレビュー、投稿前検査、根拠確認を行う</td><td>記事内容が正しいと断定する</td></tr>
+<tr><td>Note エディタへ反映し、下書き保存まで進める</td><td>公開、予約投稿、SNS 共有、外部告知</td></tr>
+<tr><td>公開後の確認内容を台帳更新案にする</td><td>PV、SEO、おすすめ掲載などの成果を保証する</td></tr>
+<tr><td>問答packetと過去文体から、本人の口調・判断を残した下書きを作る</td><td>本人が言っていない感想や結論を作文する</td></tr>
+<tr><td>無断短縮、改行、図・キャプション、目次、埋め込みを構造検査する</td><td>UI依存操作が常に成功すると断定する</td></tr>
+<tr><td>Browser切断やtimeoutを分類し、安全な復旧経路へ戻す</td><td>processの一括終了や無制限retry</td></tr>
+</tbody></table></div>
+<p>公開操作には、対象と操作を特定した人間レビューと明示承認が必要です。 <code>publication_gate: human_review_required</code></p>
+<h2>基本ワークフロー</h2>
+<pre><code>素材を指定 → 記事候補 → 下書き → ローカル検査 → Note 下書き保存 → 公開直前で停止</code></pre>
+<div class="table-wrap"><table>
+<thead><tr><th>段階</th><th>入口</th><th>典型コマンド / skill</th></tr></thead>
+<tbody>
+<tr><td>記事候補</td><td><a href="skills/note-idea-intake/SKILL.md"><code>note-idea-intake</code></a></td><td>素材フォルダを指定して候補出し</td></tr>
+<tr><td>下書き</td><td><a href="skills/note-draft-production/SKILL.md"><code>note-draft-production</code></a></td><td>問答packet → 本文</td></tr>
+<tr><td>投稿前QA</td><td><a href="skills/note-prepublish-qa/SKILL.md"><code>note-prepublish-qa</code></a></td><td>preview / pre_publish / fact</td></tr>
+<tr><td>エディタ反映</td><td><a href="skills/note-editor-prepublish/SKILL.md"><code>note-editor-prepublish</code></a></td><td>下書き保存まで</td></tr>
+<tr><td>公開停止線</td><td><a href="skills/note-publication-gate/SKILL.md"><code>note-publication-gate</code></a></td><td>公開ボタン手前で停止</td></tr>
+<tr><td>公開後台帳</td><td><a href="skills/note-postpublish-ledger/SKILL.md"><code>note-postpublish-ledger</code></a></td><td>URL 確認後のみ</td></tr>
+</tbody></table></div>
+<p>公開済み記事を扉絵・本文だけ更新した場合は、元下書きを仮作成せず、<a href="scripts/verify_published_update.py"><code>verify_published_update.py</code></a>で公開APIの現在値を照合します。手順は<a href="references/post-publish-context-proof.md"><code>post-publish-context-proof.md</code></a>を参照してください。</p>
+<p>下書き前には問答packetで本人の言葉、判断、避けたい断言、残したい脱線を確認し、 <code>voice_profile</code>と<code>shortening_budget</code>を固定します。詳しくは <a href="references/note-draft-authority-and-layout-contract.md"><code>note-draft-authority-and-layout-contract.md</code></a>。</p>
+<p>既存記事の起稿・修正前は、外部settingsから現在の文体参照本文と記事別の採否履歴を読みます。</p>
+<pre><code>python scripts/note_feedback.py --readback --settings USER_SETTINGS_PATH --article-id ARTICLE_ID --source SOURCE_SNAPSHOT --draft CURRENT_DRAFT</code></pre>
+<p>この入口は既存履歴と現稿の一致を検査して内容を返す読取り専用処理です。標準出力JSONをjson.loadsやConvertFrom-Jsonで復号してから、元の参照本文を読みます。書く担当は、受け取った内容を先に読み、適用・保全・保留した具体的な直しを返します。hash一致だけで意味の適切な反映を証明しません。本人が話していない体験・感情・判断で空きを埋めるテンプレートは使いません。詳しくは<a href="references/note-workflow-review-contract.md#利用者が選ぶ設定正本と毎回の読戻し">設定・読戻し契約</a>を参照してください。</p>
+<h2>制約と安全設計</h2>
+<p>要点だけ先に:</p>
+<p>1. 読んでよい素材は、ユーザーが指定したフォルダだけ 2. 公開・予約・SNS は明示承認なしに押さない 3. 根拠ラベル（本人の言葉 / 外部事実 / AI整理）を混ぜない</p>
+<p>保証ラチェットでは、失敗の原因・復旧方法・次回の禁止事項を残し、再発防止できるものを既存の検査器・契約テストへ反映します。UI依存の手動境界と自動検査の限界は<a href="docs/advanced-usage.md#保証ラチェット">保証ラチェットの詳細</a>にまとめています。</p>
+<details>
+<summary>根拠ラベル・provenance（詳細）</summary>
+<ul>
+<li>根拠は <code>source_database</code> / <code>source_pack</code>、構成案は <code>series_plot</code>、</li>
+<p><code>article_plot</code>、<code>skeleton</code>、<code>wall_bang</code> として分離します。</p>
+<li><code>production_candidate</code> と <code>editor_fixture</code> を混ぜません。詳しくは</li>
+<p><a href="references/note-article-provenance-design.md"><code>note-article-provenance-design.md</code></a>。</p>
+<li><code>source_pack_locked_with_user_speech_priority</code> では <code>user-said</code>、</li>
+<p><code>external-fact</code>、<code>assistant-organized</code>、<code>hold</code> を区別します。</p>
+<li>公開前に <code>scripts/provenance_leak_check.py --scope changed</code> を実行します。</li>
+<p>個別denylistは <code>data/provenance_leak_policy.local.json</code> に置き、 公開パッケージへ直書きしない設計です。</p>
+<li>公開、予約投稿、SNS共有、リポジトリ公開範囲変更は、対象・操作・方式の</li>
+<p>いずれかが不明、または現在の会話で明示承認がない場合は実行しません。</p>
+</ul>
+<p>根拠ラベルの確認:</p>
+<pre><code>python scripts/provenance_label_check.py &lt;draft.md&gt; --json</code></pre>
+<p>AI 作文を含む下書きは、次の順でローカルレビューします。</p>
+<pre><code>python scripts/provenance_label_check.py &lt;draft.md&gt; --json
+python scripts/note_preview.py &lt;draft.md&gt; --review-provenance -o &lt;review.html&gt;
+python scripts/provenance_label_check.py &lt;draft.md&gt; --public-output &lt;public-body.md&gt;</code></pre>
+<ul>
+<li>「記事を書いて」「文章にまとめて」「会話を記事に」「メモを記事に」</li>
+<p>「下書きを直して」も下書き制作の自動発火対象です。</p>
+<li>レビュー HTML は本人=緑、AIのつなぎ=黄、資料の事実=青、保留=赤で塊を色分けし、</li>
+<p>上に種類ごとの件数と本文の字数を出します。下書きの frontmatter は表示しません。</p>
+<li>修正対象は内部 ID ではなく、見出しまたは本文の短い引用で指定できます。</li>
+<li><code>hold</code> が残る間は公開本文候補を書き出しません。公開本文候補では</li>
+<p>ローカル管理用の由来コメントを除去します。</p>
+</ul>
+</details>
+<details>
+<summary>Note エディタの詳しい境界</summary>
+<h2>Note エディタの境界</h2>
+<p>接続できる場合に限り、タイトル、本文、リンク、画像、タグなどを反映します。 下書き保存までで止まり、公開・投稿・予約確定ボタンは押しません。</p>
+<ul>
+<li>低レベル操作: <a href="skills/note-editor-ops/SKILL.md"><code>note-editor-ops</code></a></li>
+<li>公式機能の棚卸し: <a href="references/note-editor-capability-inventory.md"><code>note-editor-capability-inventory.md</code></a></li>
+<li>1 cycle / 1 action: <a href="references/note-editor-pdca-orchestration.md"><code>note-editor-pdca-orchestration.md</code></a></li>
+<li>実画面の制約: <a href="references/note-editor-live-constraint-boundaries.md"><code>note-editor-live-constraint-boundaries.md</code></a></li>
+<li>画像アップロード停止線: <a href="references/note-image-upload-automation-boundary.md"><code>note-image-upload-automation-boundary.md</code></a> / <code>scripts/note_image_upload_boundary_check.py</code></li>
+<li>公式情報: <code>note-official-guidance-intake</code>、制約調査: <code>note-editor-constraint-debug</code></li>
+</ul>
+<p>リンクカードはURLを単独行に置いて Enter を押し、<code>figure[data-src]</code> などの DOMで確認します。同期しない場合や固定座標が必要な場合は手動境界へ切り替えます。 Noteログイン、常時接続、画像アップロードの完全自動化は保証しません。</p>
+</details>
+<h2>入口と詳しい資料</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>目的</th><th>参照先</th></tr></thead>
+<tbody>
+<tr><td>プロジェクト境界と現在地</td><td><a href="PROJECT_SSOT.md">PROJECT_SSOT.md</a></td></tr>
+<tr><td>Codex から使う</td><td><a href="SKILL.md">SKILL.md</a></td></tr>
+<tr><td>機械可読の契約</td><td><a href="package.yaml">package.yaml</a></td></tr>
+<tr><td>今後の計画</td><td><a href="ROADMAP.md">ROADMAP.md</a></td></tr>
+<tr><td>公開前の準備</td><td><a href="PUBLIC_READY.md">PUBLIC_READY.md</a> / <a href="PUBLIC_RELEASE_CHECKLIST.md">PUBLIC_RELEASE_CHECKLIST.md</a></td></tr>
+<tr><td>初見ユーザーの受け入れテスト</td><td><a href="USER_TEST.md">USER_TEST.md</a></td></tr>
+<tr><td>セキュリティ</td><td><a href="SECURITY.md">SECURITY.md</a></td></tr>
+<tr><td>変更履歴</td><td><a href="CHANGELOG.md">CHANGELOG.md</a></td></tr>
+<tr><td>（任意）デモ動画の置き場</td><td><a href="assets/demo/README.md">assets/demo/README.md</a></td></tr>
+</tbody></table></div>
+<details>
+<summary>主な補助ツール一覧</summary>
+<ul>
+<li><code>scripts/note_preview.py</code>: ローカルプレビュー（旧・標準ライブラリのみの簡易版。廃止候補）。</li>
+<li><code>scripts/note_virtual_preview.py</code>: ローカルの読書用プレビュー。</li>
+<p>NPS独自の近似スタイル（<code>assets/note-preview/note-preview.css</code>）を読み込み、 目次・アウトライン・（図: …）枠・H1→H2の警告などを表示する。 Noteから取得したCSSは同梱せず、実サイトと同じ描画は保証しない。 <code>--css</code>で利用者が権利を確認したスタイルを指定できる。 由来と合成DOM例は<code>docs/note-preview/</code>を参照。</p>
+<li><code>scripts/review_draft.py</code>: <code>build-context-card</code> と <code>review-draft</code>。</li>
+<li><code>scripts/note_diff_check.py</code> / <code>scripts/fetch_note_body.js</code>: 公開本文の取得・差分確認。</li>
+<li><code>scripts/post_publish.py</code>: 既定はドライランの台帳更新。</li>
+<li><code>scripts/bump_package_version.py</code>: patch / minor / major を自動採番。</li>
+<li><code>scripts/docs_sync_check.py</code>: 生成物と関連文書をread-onlyで同期検査。</li>
+<li><code>scripts/note_interview_packet.py</code>: 低負担な問答packetを生成。</li>
+<li><code>scripts/note_authorship_gate.py</code>: 本人発言にない作文や無断短縮を検査。</li>
+<li><code>scripts/note_research_quality.py</code>: 任意の品質ポリシーに従い、調査報告の根拠・鮮度・採否と5段階のPDCA計画を読み取り専用で検査。実行入口は既存の <code>note_workflow_gate.py</code> のresearch段階。</li>
+<li><code>scripts/note_linebreak_gate.py</code> / <code>scripts/note_figure_structure_gate.py</code>: 改行、図、captionを検査。改行gateは段落順の期待・観測soft-break配列を照合できる。プレビューは空行で段落を分け、同じ段落内の改行を <code>&lt;br&gt;</code> にする。</li>
+<li><code>scripts/note_browser_transport_recovery.py</code> / <code>scripts/note_editor_timeout_recovery.py</code>: Browser切断とtimeoutを分類。前者はread-only復旧計画専用で、process終了や人間承認の真正性確認は行わない。</li>
+<li><code>scripts/note_editor_pdca_failure_check.py</code>: Note editor 失敗パターン台帳を検査。</li>
+<li><code>scripts/note_editor_pdca_cycle_check.py</code>: 記事ごとの PDCA cycle 受領JSONを検査（1 action・前後DOM証跡・非公開・routeあたり最大2回）。</li>
+<li><code>scripts/topic_status_check.py</code>: 話題統合台帳の配線を検査。</li>
+<li><code>scripts/package_consistency_check.py</code>: 宣言したスクリプトの実在を検査。</li>
+<li><code>adapters/codex/install.ps1</code>: WindowsのCodex skill pointerを配置し、参照切れを検査。</li>
+</ul>
+</details>
+<h2>詳しい制作・開発手順</h2>
+<p>CIの <code>repo-preflight</code> は <code>11506e5eff12651f701752de2720fec769acd323</code> を固定参照します。引用符を含む入力で名義検査の走査を繰り返す問題に対応した版で、検知語彙・検査方針・権限は維持します。</p>
+<p><a href="docs/collaborative-writing.md">対話を続けながら骨組みと全文を育てる</a>では、テーマごとの対話、複数記事、ローカルの全文編集画面、AI候補の選択反映、保存・取消し・再開を扱います。既存の外部workspaceと採否履歴を使い、公開操作は行いません。</p>
+<p><a href="docs/advanced-usage.md">ドキュメント同期・開発検証・制作と公開後の詳細</a>を参照してください。毎回の開発検査は<a href="docs/advanced-usage.md#毎回の開発検査">同じ文書</a>に分けています。 基本の開発検証は <code>python -m pytest scripts/test_skill_integration.py tests</code>、文書確認は <code>python scripts/docs_sync_check.py --base-ref origin/main</code> です。</p>
+<p>公開前観測は <code>python scripts/note_editor_prepublish_verify.py data/note_editor_prepublish_observation.fixture.json --json</code>、報告文は <code>python scripts/japanese_closeout_language_check.py --json</code> で検査します。 日本語報告の <code>ready for review</code> は下書き解除済み、<code>open PR</code> は未マージPR、<code>MERGED</code> はマージ済み、<code>mergeable</code> はマージ可能です。 これらを英語のまま報告した場合は構造バグとして出力ゲートを修正します。コマンド、ファイルパス、URL、SHA、識別子は原文のまま扱います。</p>
+<h2>ライセンス</h2>
+<p><a href="LICENSE">MIT License</a>です。商用利用・改変・再配布を許可し、著作権表示と許諾表示を残します。利用者のworkspaceに保存する原稿・画像・採否履歴の権利を変更するものではありません。</p>
+    </article>
+  </main>
+</body>
+</html>

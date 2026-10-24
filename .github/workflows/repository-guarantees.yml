@@ -1,0 +1,378 @@
+name: repository-guarantees
+
+# 本流と同じ開発保証。検査ロジックは上流のまま。engineering-brain は埋め込まない。
+# test.ymlから毎回呼ぶ。上流の検査を再利用し、package-smokeの前提とする。
+# 課金で未実行の場合は手元同等の実行結果を別に保持し、成功へ読み替えない。
+
+on:
+  workflow_call:
+    secrets:
+      NPS_PRIVATE_IDENTITY_DENYLIST:
+        required: true
+      NPS_PRIVATE_IDENTITY_PATTERNS:
+        required: true
+    inputs:
+      pipeline_call:
+        type: boolean
+        default: false
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # repo-preflight 上流の検査ロジック正本（コピーしない）。SHA 固定 + checkout 後に照合。
+  REPO_PREFLIGHT_SHA: 11506e5eff12651f701752de2720fec769acd323
+
+jobs:
+  private-readiness:
+    # このjobでは候補内script/pip/packageを実行しない。
+    # 設定を受け取るstepは固定SHAの上流scannerだけを起動する。
+    outputs:
+      scan_base: ${{ steps.consistency.outputs.scan_base }}
+      event_base: ${{ steps.consistency.outputs.event_base }}
+      remote_ref: ${{ steps.consistency.outputs.remote_ref }}
+      initial_root: ${{ steps.consistency.outputs.initial_root }}
+      head_sha: ${{ steps.consistency.outputs.head_sha }}
+    runs-on: ubuntu-latest
+    env:
+      PIPELINE_CALL: ${{ inputs.pipeline_call || false }}
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          # 名義検査はGitHub合成mergeの名義を混ぜず、投稿者の実HEADを検査する。
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Resolve consistency base-ref (empty-diff fail-closed on dispatch)
+        id: consistency
+        shell: bash
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          HEAD="$(git rev-parse HEAD)"
+          REMOTE_REF="origin/${DEFAULT_BRANCH}"
+          INITIAL_ROOT=false
+          EVENT_BASE=""
+          echo "head_sha=$HEAD" >> "$GITHUB_OUTPUT"
+          git fetch --no-tags origin "$DEFAULT_BRANCH"
+          case "$GITHUB_EVENT_NAME" in
+            pull_request)
+              # 著者HEADはevent baseから分岐し得る。名義範囲はforkpointから、
+              # 合成mergeの統合確認にはimmutable event baseそのものを使う。
+              git fetch --no-tags origin "$PR_BASE_SHA"
+              EVENT_BASE="$(git rev-parse --verify "${PR_BASE_SHA}^{commit}")"
+              SELECTED_BASE="$(git merge-base "$EVENT_BASE" "$HEAD")"
+              ;;
+            push)
+              case "$GITHUB_REF" in
+                refs/tags/*) SELECTED_BASE="$(git rev-parse --verify "${HEAD}^")" ;;
+                *)
+                  if [ "$PUSH_BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
+                    if git rev-parse --verify --quiet "${HEAD}^" >/dev/null; then
+                      SELECTED_BASE="$(git rev-parse --verify "${HEAD}^")"
+                    else
+                      INITIAL_ROOT=true
+                    fi
+                  else
+                    SELECTED_BASE="$PUSH_BEFORE_SHA"
+                  fi ;;
+              esac ;;
+            release) SELECTED_BASE="$(git rev-parse --verify "${HEAD}^")" ;;
+            workflow_dispatch)
+              if [ "${PIPELINE_CALL:-false}" = true ]; then
+                SELECTED_BASE="$(git rev-parse --verify "${HEAD}^")"
+              else
+                SELECTED_BASE="$REMOTE_REF"
+              fi ;;
+            *) echo "unsupported guarantee event: $GITHUB_EVENT_NAME" >&2; exit 1 ;;
+          esac
+          if [ "$INITIAL_ROOT" = true ]; then
+            # 親のない初回コミットに比較元を作らない。正本は consistency gate の initial_tree。
+            {
+              echo "scan_base="
+              echo "event_base="
+              echo "remote_ref="
+              echo "initial_root=true"
+            } >> "$GITHUB_OUTPUT"
+            echo "Resolved initial root without fabricated base head=$HEAD event=$GITHUB_EVENT_NAME"
+            exit 0
+          fi
+          BASE="$(git rev-parse --verify "${SELECTED_BASE}^{commit}")"
+          if [ -z "$EVENT_BASE" ]; then EVENT_BASE="$BASE"; fi
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] && [ "${PIPELINE_CALL:-false}" != true ]; then
+            # 全体手動検査は分岐したfeature/過去tagも比較する。共通履歴を要求する。
+            git merge-base "$BASE" "$HEAD" >/dev/null
+          else
+            git merge-base --is-ancestor "$BASE" "$HEAD"
+          fi
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            echo "consistency base-ref を解決できない → fail-closed" >&2
+            exit 1
+          fi
+          # dispatch で実 diff / tree が空なら落とす。
+          # squash 後や空コミットでは BASE!=HEAD でも tree が同じになり得る。
+          BASE_TREE="$(git rev-parse "${BASE}^{tree}")"
+          HEAD_TREE="$(git rev-parse "${HEAD}^{tree}")"
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] && [ "${PIPELINE_CALL:-false}" != true ] && [ "$BASE_TREE" = "$HEAD_TREE" ]; then
+            echo "空diff fail-closed: workflow_dispatch で BASE と HEAD の tree が同一" >&2
+            echo "BASE=$BASE tree=$BASE_TREE HEAD=$HEAD tree=$HEAD_TREE" >&2
+            echo "feature 枝を選んで再実行するか、手元で BASE=origin/${DEFAULT_BRANCH} を指定して同等確認してください。" >&2
+            exit 1
+          fi
+          # Fetch the immutable scan base from origin (PR: verified forkpoint).
+          # Keep event_base separate for the integration job; never substitute this alias.
+          CI_BASE_REF="refs/remotes/origin/nps-ci-scan-base"
+          git fetch --no-tags origin "${BASE}:${CI_BASE_REF}"
+          test "$(git rev-parse "$CI_BASE_REF")" = "$BASE"
+          REMOTE_REF="$CI_BASE_REF"
+          REMOTE_RESOLVED="$(git rev-parse --symbolic-full-name "$REMOTE_REF")"
+          case "$REMOTE_RESOLVED" in
+            refs/remotes/origin/*) ;;
+            *)
+              echo "remote symbolic ref が不正: $REMOTE_RESOLVED" >&2
+              exit 1
+              ;;
+          esac
+          {
+            echo "scan_base=$BASE"
+            echo "event_base=$EVENT_BASE"
+            echo "remote_ref=$REMOTE_REF"
+          } >> "$GITHUB_OUTPUT"
+          echo "Resolved scan_base=$BASE event_base=$EVENT_BASE remote_ref=$REMOTE_REF head=$HEAD event=$GITHUB_EVENT_NAME"
+
+      - name: Fetch pinned repo-preflight (no logic copy)
+        run: |
+          set -euo pipefail
+          git clone --no-checkout https://github.com/nexus-ai-2045/repo-preflight.git "$RUNNER_TEMP/repo-preflight"
+          git -C "$RUNNER_TEMP/repo-preflight" checkout --detach "$REPO_PREFLIGHT_SHA"
+          test "$(git -C "$RUNNER_TEMP/repo-preflight" rev-parse HEAD)" = "$REPO_PREFLIGHT_SHA"
+
+      - name: repo-preflight readiness_scan (evidence)
+        env:
+          CONSISTENCY_REMOTE_REF: ${{ steps.consistency.outputs.remote_ref }}
+          INITIAL_ROOT: ${{ steps.consistency.outputs.initial_root }}
+          TARGET_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PRIVATE_DENYLIST_INPUT: ${{ secrets.NPS_PRIVATE_IDENTITY_DENYLIST }}
+          PRIVATE_PATTERNS_INPUT: ${{ secrets.NPS_PRIVATE_IDENTITY_PATTERNS }}
+        working-directory: ${{ runner.temp }}
+        run: |
+          python -I - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          import sys
+          import tempfile
+
+          # 失敗内容やscannerの全文JSONはprivate値を含み得るのでログへ出さない。
+          def check():
+              target = Path(os.environ["GITHUB_WORKSPACE"]).resolve(strict=True)
+              trusted = Path(os.environ["RUNNER_TEMP"]) / "repo-preflight"
+              scripts = trusted / "scripts"
+              def git(*args, cwd=target):
+                  result = subprocess.run(
+                      ["git", "-c", "core.hooksPath=/dev/null", *args], cwd=cwd,
+                      capture_output=True, text=True, check=True,
+                  )
+                  return result.stdout.strip()
+              if git("rev-parse", "HEAD") != os.environ["TARGET_HEAD_SHA"]:
+                  return False
+              if git("rev-parse", "HEAD", cwd=trusted) != os.environ["REPO_PREFLIGHT_SHA"]:
+                  return False
+              denylist = os.environ.get("PRIVATE_DENYLIST_INPUT", "")
+              patterns = os.environ.get("PRIVATE_PATTERNS_INPUT", "")
+              if not denylist.strip() or not patterns.strip():
+                  return False
+              # 型や内容の有効性は既存の厳格な上流validatorが判定する。
+              # 空辞書、fixture、緩和policyへ代替しない。
+              child_env = os.environ.copy()
+              for key in ("PRIVATE_DENYLIST_INPUT", "PRIVATE_PATTERNS_INPUT",
+                          "PYTHONPATH", "PYTHONHOME", "PUBLIC_IDENTITY_GUARD_SCRIPT",
+                          "PUBLIC_IDENTITY_DENYLIST", "PREFLIGHT_PRIVATE_PATTERNS",
+                          "PREFLIGHT_PRIVATE_PATTERNS_FILE"):
+                  child_env.pop(key, None)
+              with tempfile.TemporaryDirectory(prefix="nps-private-", dir=os.environ["RUNNER_TEMP"]) as folder:
+                  private = Path(folder)
+                  denyfile = private / "denylist.txt"
+                  patternfile = private / "patterns.json"
+                  for file, value in ((denyfile, denylist), (patternfile, patterns)):
+                      file.touch(mode=0o600)
+                      file.write_text(value, encoding="utf-8")
+                  child_env["PUBLIC_IDENTITY_GUARD_SCRIPT"] = str(scripts / "identity_normalization.py")
+                  child_env["PUBLIC_IDENTITY_DENYLIST"] = str(denyfile)
+                  child_env["PREFLIGHT_PRIVATE_PATTERNS_FILE"] = str(patternfile)
+                  args = ["--repo", str(target)]
+                  base = os.environ.get("CONSISTENCY_REMOTE_REF", "")
+                  if os.environ["GITHUB_EVENT_NAME"] == "workflow_dispatch" and os.environ.get("PIPELINE_CALL") != "true":
+                      args += ["--release", "--consistency-base-ref", base]
+                  elif os.environ.get("INITIAL_ROOT") == "true":
+                      args += ["--intent", "push"]
+                  else:
+                      args += ["--intent", "push", "--base-ref", base]
+                  # -Iと固定scriptsだけの探索path。候補のsitecustomize/importは実行しない。
+                  bootstrap = "import runpy,sys; p=sys.argv.pop(1); s=sys.argv.pop(1); sys.path.insert(0,p); sys.argv[0]=s; runpy.run_path(s,run_name='__main__')"
+                  result = subprocess.run(
+                      [sys.executable, "-I", "-c", bootstrap, str(scripts),
+                       str(scripts / "readiness_scan.py"), *args],
+                      cwd=os.environ["RUNNER_TEMP"], env=child_env,
+                      capture_output=True, text=True, timeout=600,
+                  )
+                  envelope = json.loads(result.stdout)
+                  payload = envelope.get("scan", envelope)
+                  checks = payload.get("checks", {})
+                  ok = (
+                      result.returncode == 0 and payload.get("status") == "pass"
+                      and payload.get("head") == os.environ["TARGET_HEAD_SHA"]
+                      and checks.get("private_identity_scan", {}).get("status") == "pass"
+                      and checks.get("identity_gate", {}).get("status") == "pass"
+                  )
+                  if not ok:
+                      # 固定keyとstatus列挙だけ。path、reason、名義、stdout全文は出さない。
+                      statuses = {"pass", "fail", "blocked", "tool_error", "unknown", "not_configured"}
+                      for key in ("clean_worktree", "secret_scan", "personal_path_scan",
+                                  "private_identity_scan", "identity_gate", "commit_identity",
+                                  "repository_consistency"):
+                          status = checks.get(key, {}).get("status")
+                          print(key + "=" + (status if status in statuses else "unknown"))
+                  return ok
+          try:
+              ok = check()
+          except Exception:
+              ok = False
+          print("private readiness: pass" if ok else "private readiness: failed")
+          sys.exit(0 if ok else 1)
+          PY
+
+  repository-guarantees:
+    needs: private-readiness
+    runs-on: ubuntu-latest
+    env:
+      PIPELINE_CALL: ${{ inputs.pipeline_call || false }}
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Bind authored head and immutable integration commit
+        env:
+          CHECKED_HEAD: ${{ needs.private-readiness.outputs.head_sha }}
+          CHECKED_BASE: ${{ needs.private-readiness.outputs.event_base }}
+          INTEGRATION_HEAD: ${{ github.sha }}
+          EVENT_PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EVENT_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          INITIAL_ROOT: ${{ needs.private-readiness.outputs.initial_root }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$INTEGRATION_HEAD"
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            test "$CHECKED_BASE" = "$EVENT_PR_BASE_SHA"
+            test "$CHECKED_HEAD" = "$EVENT_PR_HEAD_SHA"
+          fi
+          git merge-base --is-ancestor "$CHECKED_HEAD" HEAD
+          if [ "$INITIAL_ROOT" != true ]; then
+            git fetch --no-tags origin "${CHECKED_BASE}:refs/remotes/origin/nps-ci-base"
+            test "$(git rev-parse refs/remotes/origin/nps-ci-base)" = "$CHECKED_BASE"
+            if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] && [ "${PIPELINE_CALL:-false}" != true ]; then
+              # 直接の全体検査は分岐feature/過去tagと既定branchの比較を維持する。
+              git merge-base "$CHECKED_BASE" HEAD >/dev/null
+            else
+              git merge-base --is-ancestor "$CHECKED_BASE" HEAD
+            fi
+          fi
+
+      - name: Fetch pinned repo-preflight (no logic copy)
+        run: |
+          set -euo pipefail
+          git clone --no-checkout https://github.com/nexus-ai-2045/repo-preflight.git "$RUNNER_TEMP/repo-preflight"
+          git -C "$RUNNER_TEMP/repo-preflight" checkout --detach "$REPO_PREFLIGHT_SHA"
+          test "$(git -C "$RUNNER_TEMP/repo-preflight" rev-parse HEAD)" = "$REPO_PREFLIGHT_SHA"
+
+      - name: 保全済み検査ソースのハッシュを照合
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root = Path("vendor")
+          for name, expected in json.loads((root / "ratchet-source-hashes.json").read_text()).items():
+              if hashlib.sha256((root / name).read_bytes()).hexdigest() != expected:
+                  raise SystemExit("保全ソースのハッシュ不一致")
+          PY
+
+      - name: Smoke-check ai-ratchet-gate CLI
+        run: |
+          set -euo pipefail
+          PYTHONPATH=vendor python -m ai_ratchet_gate --help | grep -F "tracked∧ignored"
+
+      - name: ai-ratchet-gate (tracked∧ignored, fail-closed on new debt)
+        run: PYTHONPATH=vendor python -m ai_ratchet_gate --repo .
+
+      - name: repo-preflight consistency_gate
+        env:
+          CONSISTENCY_BASE: ${{ needs.private-readiness.outputs.event_base }}
+          INITIAL_ROOT: ${{ needs.private-readiness.outputs.initial_root }}
+        run: |
+          set -euo pipefail
+          set +e
+          if [ "$INITIAL_ROOT" = true ]; then
+            python "$RUNNER_TEMP/repo-preflight/scripts/consistency_gate.py" \
+              --repo . \
+              --require-config \
+              --require-mode shadow \
+              --json > "$RUNNER_TEMP/consistency.json"
+          else
+            python "$RUNNER_TEMP/repo-preflight/scripts/consistency_gate.py" \
+              --repo . \
+              --base-ref "$CONSISTENCY_BASE" \
+              --require-config \
+              --require-mode shadow \
+              --json > "$RUNNER_TEMP/consistency.json"
+          fi
+          gate_rc=$?
+          set -e
+          GATE_RC="$gate_rc" python - <<'PY'
+          import json
+          import os
+          import pathlib
+          import sys
+
+          payload = json.loads(
+              (pathlib.Path(os.environ["RUNNER_TEMP"]) / "consistency.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          status = payload.get("status")
+          mode = payload.get("mode")
+          print(
+              f"consistency_gate status={status!r} mode={mode!r} "
+              f"cli_rc={os.environ.get('GATE_RC')!r}"
+          )
+          print(json.dumps(payload, ensure_ascii=False, indent=2))
+          # shadow: 所見は止めない。設定欠落・mode 弱体化・tool_error・enforce 相当 fail は止める。
+          if status in {"pass", "shadow_findings"}:
+              sys.exit(0)
+          sys.exit(1)
+          PY

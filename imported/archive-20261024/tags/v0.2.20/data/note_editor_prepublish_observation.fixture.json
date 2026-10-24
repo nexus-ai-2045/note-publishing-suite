@@ -1,0 +1,33 @@
+{
+  "title": "Public package fixture",
+  "top_image": {
+    "present": true
+  },
+  "toc_count": 1,
+  "footer": {
+    "required_urls": [
+      "https://example.com/archive"
+    ],
+    "figures": [
+      "https://example.com/archive"
+    ],
+    "raw_counts": {
+      "https://example.com/archive": 0
+    }
+  },
+  "magazine": {
+    "target": "Example",
+    "added": true
+  },
+  "tags": [
+    "note",
+    "公開前QA"
+  ],
+  "article_type": "無料",
+  "final_buttons": [
+    {
+      "label": "投稿する",
+      "clicked": false
+    }
+  ]
+}

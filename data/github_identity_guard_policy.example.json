@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "description": "Copy this file to data/github_identity_guard_policy.local.json and add user-specific GitHub accounts, emails, or identity fragments. Keep the local file out of git.",
+  "forbidden_accounts": [
+    "example-private-account"
+  ],
+  "forbidden_emails": [
+    "private@example.invalid"
+  ],
+  "forbidden_terms": [
+    "example-private-identity-fragment"
+  ],
+  "allowed_paths": [
+    "data/github_identity_guard_policy.example.json"
+  ]
+}

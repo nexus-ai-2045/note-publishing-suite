@@ -1,0 +1,108 @@
+{
+  "policy_id": "note-image-upload-automation-boundary",
+  "status": "active",
+  "scope": "note_editor_image_upload_boundary",
+  "public_action_allowed": false,
+  "internal_browser_image_upload_fully_automated": false,
+  "residual_work_definition": "残務ゼロは、現行境界で許可されない自動化経路が残っていないことを指す。ユーザー確認待ちの別境界は未実装残務ではなく、拡張前の停止条件として扱う。",
+  "environment_matrix": [
+    {
+      "os_family": "windows",
+      "minimum_os": "Windows 10",
+      "recommended_browsers": [
+        "Google Chrome",
+        "Microsoft Edge",
+        "Mozilla Firefox"
+      ],
+      "guarantee": "stopline_and_boundary",
+      "actual_upload_success_guaranteed": false,
+      "stoplines": [
+        "attach_or_visible_dialog_unavailable",
+        "not_official_recommended_environment",
+        "browser_or_os_feature_unavailable",
+        "publish_or_schedule_required"
+      ],
+      "sources": [
+        "note_official_recommended_environment",
+        "https://www.help-note.com/hc/ja/articles/360008947573"
+      ]
+    },
+    {
+      "os_family": "mac",
+      "minimum_os": "macOS 14",
+      "recommended_browsers": [
+        "Safari",
+        "Google Chrome"
+      ],
+      "guarantee": "stopline_and_boundary",
+      "actual_upload_success_guaranteed": false,
+      "stoplines": [
+        "attach_or_visible_dialog_unavailable",
+        "not_official_recommended_environment",
+        "browser_or_os_feature_unavailable",
+        "publish_or_schedule_required"
+      ],
+      "sources": [
+        "note_official_recommended_environment",
+        "https://www.help-note.com/hc/ja/articles/360008947573"
+      ]
+    }
+  ],
+  "automation_routes": [
+    {
+      "route_id": "manual_user_upload",
+      "boundary": "manual_visible_note_editor",
+      "status": "allowed_now",
+      "requires_current_conversation_approval": true,
+      "summary": "ユーザーが見えている note editor で画像を手動アップロードする。Codex は公開、予約投稿、外部共有をしない。",
+      "smoke_checks": [
+        "target_note_or_editor_matches",
+        "image_target_visible",
+        "publish_or_schedule_not_clicked"
+      ],
+      "rollback": "stop_with_image_unset_or_restore_previous_visible_state"
+    },
+    {
+      "route_id": "visible_windows_file_dialog",
+      "boundary": "supervised_visible_windows_file_dialog",
+      "status": "requires_user_confirmation",
+      "requires_current_conversation_approval": true,
+      "summary": "画面に見えている Windows ファイル選択ダイアログだけを、ユーザー監督下で操作する別境界。明示確認があるまで実行しない。",
+      "smoke_checks": [
+        "dialog_visible_to_user",
+        "user_confirms_target_file",
+        "publish_or_schedule_not_clicked"
+      ],
+      "rollback": "cancel_visible_dialog_or_stop_without_publish"
+    },
+    {
+      "route_id": "chrome_api_cookie_hidden_os",
+      "boundary": "forbidden_external_session_or_hidden_surface",
+      "status": "blocked",
+      "requires_current_conversation_approval": false,
+      "summary": "Chrome、note API、Cookie、セッション読み取り、隠れた画面操作、OSフォーカス奪取は使わない。",
+      "smoke_checks": [],
+      "rollback": "not_applicable"
+    }
+  ],
+  "prohibited_actions": [
+    "chrome_real_browser",
+    "chrome_devtools_protocol",
+    "note_api",
+    "cookie_read",
+    "session_read",
+    "token_read",
+    "hidden_window_operation",
+    "offscreen_monitor_operation",
+    "os_focus_steal",
+    "keystroke_injection",
+    "clipboard_injection",
+    "publish",
+    "schedule_publish",
+    "external_share"
+  ],
+  "guarantee_command": "python scripts/note_image_upload_boundary_check.py --json",
+  "human_confirmation_before_expansion": [
+    "visible_windows_file_dialog"
+  ]
+}
