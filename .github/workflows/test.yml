@@ -11,10 +11,10 @@ on:
     types: [published]
   workflow_dispatch:
 
-# Keep PR required check package-smoke from being starved by overlapping runs.
+# workflow/eventを分け、同じPR・branchの古い検証だけを止める。tag/release/手動は保持する。
 concurrency:
-  group: test-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}-${{ (github.event_name == 'pull_request' || github.event_name == 'pull_request_target' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/'))) && 'latest' || format('{0}-{1}', github.run_id, github.run_attempt) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')) }}
 
 permissions:
   contents: read
@@ -29,17 +29,56 @@ jobs:
     steps:
       - name: ソースを取得
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: 共同執筆画面への変更を確認
+        id: writing-impact
+        working-directory: ${{ github.workspace }}
+        env:
+          CHANGE_EVENT: ${{ github.event_name }}
+          CHANGE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          CHANGE_REF: ${{ github.ref }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          import re
+          import subprocess
+
+          base = os.environ.get("CHANGE_BASE", "")
+          relevant = True
+          if (os.environ["CHANGE_EVENT"] in {"pull_request", "push"}
+                  and not os.environ.get("CHANGE_REF", "").startswith("refs/tags/")
+                  and re.fullmatch(r"[0-9a-f]{40}", base)
+                  and subprocess.run(["git", "cat-file", "-e", base + "^{commit}"],
+                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0):
+              # rename元の削除も含める。比較不能・初回push・手動・releaseは省略しない。
+              changed = subprocess.check_output([
+                  "git", "diff", "--no-ext-diff", "--no-textconv", "--no-renames",
+                  "--name-only", "-z", base, "HEAD", "--",
+              ]).split(b"\0")
+              shared = {b".github/workflows/test.yml", b".npmrc", b".nvmrc",
+                        b"package.json", b"package-lock.json", b"pnpm-lock.yaml"}
+              relevant = any(path.startswith(b"writing-app/") or path in shared for path in changed if path)
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
+              output.write("relevant=" + str(relevant).lower() + "\n")
+          print("共同執筆画面: " + ("検査を実行" if relevant else "対象変更なし（必須jobは完了）"))
+          PY
       - name: Node.jsを準備
+        if: steps.writing-impact.outputs.relevant == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: writing-app/package-lock.json
       - name: 固定した依存を導入
+        if: steps.writing-impact.outputs.relevant == 'true'
         run: npm ci
       - name: 原文保持とAPI接続の試験
+        if: steps.writing-impact.outputs.relevant == 'true'
         run: npm test
       - name: 型検査と画面build
+        if: steps.writing-impact.outputs.relevant == 'true'
         run: npm run build
 
   repository-guarantees:
@@ -108,20 +147,7 @@ jobs:
       - name: Run clean-machine public package verifier
         run: sh scripts/verify_public_package.sh
 
-      - name: Run provenance leak checker
-        run: python scripts/provenance_leak_check.py --scope all --json
-
-      - name: Run provenance label checker
-        run: python scripts/provenance_label_check.py content/drafts/caramel-provenance-label-fixture.md --json
-
-      - name: Run GitHub identity guard
-        run: python scripts/github_identity_guard.py --json
-
-      - name: Run Japanese closeout language gate
-        run: python scripts/japanese_closeout_language_check.py --json
-
-      - name: Run image upload boundary checker
-        run: python scripts/note_image_upload_boundary_check.py --json
+      # 上記verifierがprovenance・名義・日本語・画像境界を実行する。同じCLIを再実行しない。
 
   windows-installer-smoke:
     name: windows-installer-smoke

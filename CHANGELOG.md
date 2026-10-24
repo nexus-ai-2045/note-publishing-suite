@@ -5,6 +5,7 @@
 日付: 2026-10-24
 
 変更:
+- 必要なGitHub CIを維持し、workflow・イベント別に古い検証のキャンセルを分離。共同執筆UIを関連差分で実行し、verifierと後続stepの同一CLI再実行を解消。
 - Windowsのstandalone検証fixtureも公開identity正本の名義を使う。package検証の文書差分は既存resolverでPR全体を確認し、HEAD^へ固定しない。
 - 公開Git author名を既存identity正本へ整合し、CIの検査対象headと現行repo-preflight参照を固定する
 
