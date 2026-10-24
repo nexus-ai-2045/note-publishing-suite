@@ -127,4 +127,23 @@ def test_stale_run_groups_cannot_cancel_another_workflow_or_event(workflow, even
     assert "&& 'latest' || format('{0}-{1}', github.run_id, github.run_attempt) }}" in text
     assert f"github.event_name == '{event}'" in text
     if workflow != "base-guard.yml":
-        assert "github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')" in text
+        assert "  cancel-in-progress: ${{ github.event_name == 'pull_request' }}\n" in text
+        assert "github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')" not in text
+
+
+def test_later_docs_push_does_not_cover_an_earlier_ui_push(candidate):
+    root, first_base = candidate
+    (root / "writing-app/source.txt").write_bytes(b"new ui\n")
+    _git(root, "add", ".")
+    _git(root, "commit", "-qm", "ui change")
+    ui_push = _git(root, "rev-parse", "HEAD")
+    assert first_base != ui_push
+    (root / "README.md").write_bytes(b"docs only\n")
+    _git(root, "add", ".")
+    _git(root, "commit", "-qm", "later docs change")
+    # 後続のmain検証はUIを省くため、先のmain検証を取消可能にしてはならない。
+    assert _run(root, ui_push, "push", "refs/heads/main") == "relevant=false"
+    text = WORKFLOW.read_text(encoding="utf-8")
+    group_line = next(line for line in text.splitlines() if line.startswith("  group:"))
+    assert "github.event_name == 'push'" not in group_line
+    assert "github.run_id, github.run_attempt" in group_line

@@ -11,10 +11,10 @@ on:
     types: [published]
   workflow_dispatch:
 
-# workflow/eventを分け、同じPR・branchの古い検証だけを止める。tag/release/手動は保持する。
+# workflow/eventを分け、古いPR検証だけを止める。差分単位のmain/tag/release/手動は保持する。
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}-${{ (github.event_name == 'pull_request' || github.event_name == 'pull_request_target' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/'))) && 'latest' || format('{0}-{1}', github.run_id, github.run_attempt) }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')) }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}-${{ (github.event_name == 'pull_request' || github.event_name == 'pull_request_target') && 'latest' || format('{0}-{1}', github.run_id, github.run_attempt) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read

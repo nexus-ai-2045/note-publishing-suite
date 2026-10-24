@@ -51,7 +51,7 @@ GitHubでPRをマージする運用では、採用済みの公開名義一覧に
 
 ### CIの実行範囲と競合回避
 
-GitHub上のPR検査とマージ後のmain検査を維持し、ローカル成功を理由に省略しない。`test`・`preflight`・`base-guard`はworkflow名・起動イベント・PR番号またはrefで実行グループを分ける。同じPRまたはbranchの新しい検証が始まった場合だけ古い実行をキャンセルし、別workflow・別イベントを巻き込まない。タグ・Release・明示的な手動検査は自動キャンセル対象へ含めない。
+GitHub上のPR検査とマージ後のmain検査を維持し、ローカル成功を理由に省略しない。`test`・`preflight`・`base-guard`はworkflow名・起動イベント・PR番号またはrefで実行グループを分ける。同じPRの新しい検証が始まった場合だけ古い実行をキャンセルし、別workflow・別イベントを巻き込まない。mainは各更新の差分を検査し、後続の文書変更が先行するUI変更を検査するとは限らないため、実行IDとattemptで分けて各回を保持する。タグ・Release・明示的な手動検査も自動キャンセル対象へ含めない。
 
 共同執筆UIは`writing-app/`、共有npm設定、test workflow自身の変更で検査する。PRとbranch pushのGit差分を使い、移動元の削除も対象に含める。比較できない入力、初回push、タグ・Release・手動実行では検査を省かない。対象外の変更でも名前付きのUI jobは完了させ、必須チェックがpendingのままになる構成にはしない。
 
