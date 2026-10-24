@@ -1,5 +1,20 @@
 # 変更履歴
 
+## 0.3.10
+
+日付: 2026-10-24
+
+変更:
+- CIのrepo-preflightの固定先を v0.10.0（5b7c774）へ揃える（REPO_PREFLIGHT_SHA・preflight-gate の uses と preflight-ref・base-guard の PREFLIGHT_REF・整合設定の $schema）
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `文書同期検査成功。GitHub ActionsはPRで確認する。`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.3.9
 
 日付: 2026-10-24
