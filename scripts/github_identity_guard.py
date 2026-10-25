@@ -17,6 +17,18 @@ EXPECTED_REPOSITORY = "nexus-ai-2045/note-publishing-suite"
 EXPECTED_GIT_NAME = "nexus-ai-2045"
 EXPECTED_GIT_EMAIL = "273569186+nexus-ai-2045@users.noreply.github.com"
 ALLOWED_GITHUB_COMMITTER = ("GitHub", "noreply@github.com")
+# 作者とコミッターはメールの完全一致で判定し、そのメールごとに通す表示名だけを並べる（allowlist）。
+# nexus_ai は nexus-ai-2045 アカウントのプロフィール表示名で、GitHub でリベースマージすると
+# コミッター名に、PR の合成マージ commit では作者名になる。メールは同じ noreply なので、
+# 名前だけで通すことはない。
+CANONICAL_NAMES = frozenset({EXPECTED_GIT_NAME, "nexus_ai"})
+ALLOWED_AUTHOR_NAMES_BY_EMAIL: dict[str, frozenset[str]] = {
+    EXPECTED_GIT_EMAIL: CANONICAL_NAMES,
+}
+ALLOWED_COMMITTER_NAMES_BY_EMAIL: dict[str, frozenset[str]] = {
+    EXPECTED_GIT_EMAIL: CANONICAL_NAMES,
+    ALLOWED_GITHUB_COMMITTER[1]: frozenset({ALLOWED_GITHUB_COMMITTER[0]}),
+}
 DEFAULT_LOCAL_POLICY = ROOT / "data" / "github_identity_guard_policy.local.json"
 TEXT_EXTENSIONS = {".md", ".txt", ".json", ".yaml", ".yml", ".py", ".ps1", ".html"}
 SKIP_PATHS = {
@@ -95,6 +107,22 @@ def check_remote(errors: list[dict[str, str]], forbidden_terms: set[str]) -> Non
         add_error(errors, "remote", f"remote must point to {EXPECTED_REPOSITORY}")
 
 
+def identity_allowed(
+    name: str, email: str, allowed: dict[str, frozenset[str]]
+) -> bool:
+    """メールの完全一致を先に見て、そのメールに許した表示名だけを通す。"""
+    allowed_names = allowed.get(email)
+    return allowed_names is not None and name in allowed_names
+
+
+def author_allowed(name: str, email: str) -> bool:
+    return identity_allowed(name, email, ALLOWED_AUTHOR_NAMES_BY_EMAIL)
+
+
+def committer_allowed(name: str, email: str) -> bool:
+    return identity_allowed(name, email, ALLOWED_COMMITTER_NAMES_BY_EMAIL)
+
+
 def check_head_identity(errors: list[dict[str, str]]) -> None:
     fields = run_git(
         "log",
@@ -106,20 +134,20 @@ def check_head_identity(errors: list[dict[str, str]]) -> None:
         return
 
     author_name, author_email, committer_name, committer_email = fields
-    expected_author = {
-        "author_name": (author_name, EXPECTED_GIT_NAME),
-        "author_email": (author_email, EXPECTED_GIT_EMAIL),
-    }
-    for label, (actual, wanted) in expected_author.items():
-        if actual != wanted:
-            add_error(errors, "head_commit", f"{label} must be {wanted}, got {actual}")
+    if author_email != EXPECTED_GIT_EMAIL:
+        add_error(
+            errors,
+            "head_commit",
+            f"author_email must be {EXPECTED_GIT_EMAIL}, got {author_email}",
+        )
+    elif not author_allowed(author_name, author_email):
+        add_error(
+            errors,
+            "head_commit",
+            f"author_name must be one of {sorted(CANONICAL_NAMES)}, got {author_name}",
+        )
 
-    committer_pair = (committer_name, committer_email)
-    allowed_committers = {
-        (EXPECTED_GIT_NAME, EXPECTED_GIT_EMAIL),
-        ALLOWED_GITHUB_COMMITTER,
-    }
-    if committer_pair not in allowed_committers:
+    if not committer_allowed(committer_name, committer_email):
         add_error(
             errors,
             "head_commit",
