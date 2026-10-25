@@ -138,7 +138,7 @@ def test_unknown_publication_time_and_default_dry_run(tmp_path: Path) -> None:
 def test_rejects_invalid_url_and_mismatched_id(tmp_path: Path) -> None:
     for options in [
         ("--url", "https://note.com.attacker.test/example/n/n123"),
-        ("--url", "https://user" "@note.com/example/n/n123"),
+        ("--url", "https://user@note.example/example/n/n123"),
         ("--url", "https://note.com/example/n/n123/extra"),
         ("--url", "http://note.com/example/n/n123"),
         ("--note-id", "n456"),
