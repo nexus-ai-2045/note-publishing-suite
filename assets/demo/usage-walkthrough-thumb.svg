@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-label="NPS 使い方動画プレースホルダ">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f1720"/>
+      <stop offset="100%" stop-color="#1a2f28"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <rect x="80" y="80" width="1120" height="560" rx="28" fill="#172033" stroke="#59d49f" stroke-width="3"/>
+  <circle cx="640" cy="340" r="78" fill="#23845f"/>
+  <polygon points="620,300 620,380 690,340" fill="#eef3f7"/>
+  <text x="640" y="470" fill="#eef3f7" font-family="Segoe UI, sans-serif" font-size="42" text-anchor="middle" font-weight="700">NPS 使い方動画</text>
+  <text x="640" y="525" fill="#a6b0bd" font-family="Segoe UI, sans-serif" font-size="24" text-anchor="middle">usage-walkthrough.mp4 をここに置くと再生できます</text>
+  <text x="640" y="580" fill="#59d49f" font-family="Segoe UI, sans-serif" font-size="20" text-anchor="middle">clone → verify → install → 最初の依頼</text>
+</svg>
