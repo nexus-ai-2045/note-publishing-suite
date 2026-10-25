@@ -49,6 +49,7 @@ workflowとイベントを分け、同じPRの古い実行だけを取り消す�
 {
   "wait_timer": 0,
   "prevent_self_review": false,
+  "can_admins_bypass": false,
   "reviewers": [{"type": "User", "id": "OWNER_USER_ID (integer)"}],
   "deployment_branch_policy": {
     "protected_branches": true,
@@ -57,7 +58,7 @@ workflowとイベントを分け、同じPRの古い実行だけを取り消す�
 }
 ```
 
-GitHubの[required reviewers](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments)による確認後だけ `owner-review` jobを実行する。job名とEnvironmentリンクはPR番号と実headを表示し、`pull_request_target` のbase側 `GITHUB_SHA` と区別する。このjobはcheckout、secret参照、書込み権限、公開・リリース処理を持たない。GitHubが提供する管理者の手動bypassは管理権限の境界として残り、workflowによる自動承認は行わない。ローカルfixtureやコメントを本人確認の証拠にしない。
+GitHubの[required reviewers](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments)による確認後だけ `owner-review` jobを実行する。job名とEnvironmentリンクはPR番号と実headを表示し、`pull_request_target` のbase側 `GITHUB_SHA` と区別する。このjobはcheckout、secret参照、書込み権限、公開・リリース処理を持たない。Environmentの管理者による確認省略は`can_admins_bypass=false`で禁止し、欠損・true・型不正は停止する。workflowによる自動承認は行わない。ローカルfixtureやコメントを本人確認の証拠にしない。
 
 集約jobはinspect成功・明示されたboolean出力を要求する。確認不要ならreviewのskip、確認必要ならreviewのsuccessのみ通す。拒否、取消、timeout、失敗、必要なreviewのskip、未知状態は通さない。補助コード `.github/scripts/base_guard_review.py` 自体も上流の既存 `.github/` 保護範囲に含める。
 

@@ -28,7 +28,7 @@ def report(protected=False):
 
 
 def policy():
-    return {"name": review.ENVIRONMENT,
+    return {"name": review.ENVIRONMENT, "can_admins_bypass": False,
             "deployment_branch_policy": {"protected_branches": True, "custom_branch_policies": False},
             "protection_rules": [{"type": "required_reviewers", "prevent_self_review": False,
              "reviewers": [{"type": "User", "reviewer": {"id": 123, "type": "User"}}]}]}
@@ -78,6 +78,21 @@ def test_malformed_json_cannot_pass(raw):
 
 def test_exact_native_owner_policy():
     review.validate_environment(policy(), 123)
+
+
+@pytest.mark.parametrize("value", [True, None, "false", 0, {}])
+def test_environment_admin_bypass_must_be_explicitly_disabled(value):
+    data = policy()
+    data["can_admins_bypass"] = value
+    with pytest.raises(review.ReviewError):
+        review.validate_environment(data, 123)
+
+
+def test_environment_without_admin_bypass_policy_is_rejected():
+    data = policy()
+    data.pop("can_admins_bypass")
+    with pytest.raises(review.ReviewError):
+        review.validate_environment(data, 123)
 
 
 @pytest.mark.parametrize("mutation", [

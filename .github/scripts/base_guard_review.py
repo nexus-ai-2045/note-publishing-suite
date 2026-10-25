@@ -68,6 +68,8 @@ def validate_environment(policy, owner_id):
     if (not isinstance(policy, dict) or policy.get("name") != ENVIRONMENT
             or type(owner_id) is not int or owner_id <= 0):
         raise ReviewError("invalid_environment")
+    if policy.get("can_admins_bypass") is not False:
+        raise ReviewError("environment_admin_bypass_not_disabled")
     branch = policy.get("deployment_branch_policy")
     if (not isinstance(branch, dict) or branch.get("protected_branches") is not True
             or branch.get("custom_branch_policies") is not False):
