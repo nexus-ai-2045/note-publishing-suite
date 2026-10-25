@@ -15,6 +15,7 @@ _LOADER_MODULE = importlib.util.module_from_spec(_LOADER_SPEC)
 _LOADER_SPEC.loader.exec_module(_LOADER_MODULE)
 _load_sibling_module = _LOADER_MODULE.load_script
 atomic_write_bytes = _load_sibling_module("sync_note_public_snapshot").atomic_write_bytes
+canonical_destination = _load_sibling_module("sync_note_public_snapshot").canonical_destination
 durable_unlink = _load_sibling_module("sync_note_public_snapshot").durable_unlink
 extract_note_id = _load_sibling_module("sync_note_public_snapshot").extract_note_id
 ledger_file_lock = _load_sibling_module("sync_note_public_snapshot").ledger_file_lock
@@ -59,12 +60,15 @@ def upsert(rows: list[dict], note_id: str, url: str, changes: dict) -> dict:
 
 
 def transaction_path(published: Path) -> Path:
+    published = canonical_destination(published)
     return published.with_name(f".{published.name}.publication-transaction.json")
 
 
 
 def recover_transaction(published: Path, draft: Path) -> None:
     """両台帳lock保持中、既存journalをforward-completeする。"""
+    published = canonical_destination(published)
+    draft = canonical_destination(draft)
     journal = transaction_path(published)
     if not journal.exists():
         return
@@ -83,6 +87,8 @@ def recover_transaction(published: Path, draft: Path) -> None:
 
 
 def commit_ledgers(published: Path, draft: Path, published_rows: list[dict], draft_rows: list[dict]) -> None:
+    published = canonical_destination(published)
+    draft = canonical_destination(draft)
     journal = transaction_path(published)
     payload = {"schema": "note-ledger-transaction/v1", "published_path": str(published.resolve()),
                "draft_path": str(draft.resolve()), "published": published_rows, "drafts": draft_rows}
@@ -135,7 +141,7 @@ def main(argv: list[str] | None = None, *, runtime_verifier: RuntimeVerifier | N
         args.published_ledger = args.ledger_dir / "published_notes.json"
         args.draft_ledger = args.ledger_dir / "note_drafts.json"
     if args.write_ledger:
-        targets = (args.published_ledger.resolve(), args.draft_ledger.resolve())
+        targets = (canonical_destination(args.published_ledger), canonical_destination(args.draft_ledger))
         try:
             reject_package_outputs(list(targets), ROOT)
         except ValueError as exc:
