@@ -570,7 +570,7 @@ def check_packet(packet: Any, stage: str, conversation_id: str, base_dir: Path =
                 hashes["tag_design"] = canonical_sha256(design)
             if stage == "publish" or "tag_preflight" in packet:
                 selected = tag_operation_preflight(packet.get("tag_preflight"), packet.get("article_id"),
-                                                   settings_value.get("account"))
+                                                   settings_value.get("account"), expected_tags=settings_value.get("tags"))
                 reasons.extend("tag_selection: " + error for error in selected["reasons"])
                 if stage == "publish" and not selected["reasons"]:
                     current_tags = packet["tag_preflight"]["current"]["selected_tags"]

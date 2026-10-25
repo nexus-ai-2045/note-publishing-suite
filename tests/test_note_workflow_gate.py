@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import copy
 import json
 import hashlib
 import subprocess
@@ -801,6 +802,22 @@ def test_publish_requires_actual_selected_region_and_invalidates_changed_design(
     assert approve(packet, "publish")["status"] == "approved"
     packet["tag_preflight"]["current"]["selection_scope_verified"] = False
     assert approve(packet, "publish")["status"] == "blocked"
+
+
+def test_publish_post_edit_keeps_baseline_and_binds_authorized_transition(packet):
+    tags = list(packet['settings']['tags'])
+    before = packet['tag_preflight']['baseline']
+    before['selected_tags'] = ['OldTag'] + tags[1:]
+    packet['tag_preflight'].update(phase='post_edit', planned_additions=tags[:1],
+                                   planned_removals=['OldTag'])
+    packet['tag_preflight']['current']['selected_tags'] = tags
+    original = copy.deepcopy(before)
+    assert approve(packet, 'publish')['status'] == 'approved'
+    assert packet['tag_preflight']['baseline'] == original
+    packet['tag_preflight']['planned_removals'] = []
+    result = approve(packet, 'publish')
+    assert result['status'] == 'blocked'
+    assert 'tag_selection: tag_transition_design_mismatch' in result['reasons']
 
 
 @pytest.mark.parametrize("stage", ["layout", "settings", "publish"])

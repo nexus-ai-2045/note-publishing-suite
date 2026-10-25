@@ -140,6 +140,12 @@ python scripts/note_editor_prepublish_verify.py <observation.json> --production-
 文字リンクは `tag: A`、`href`、表示文 `text`。URLそのものの表示は未カード化の生URLとして落とす。
 未知のノード、欠落、余分、順序違い、重複、カードと文字リンクの取り違えは停止する。
 
+読込みまで必須にするカードは、選定計画の該当linkへ`require_rendered: true`を追加する。
+その場合、実DOMから取得した観測nodeの`rendered: true`、非空の`title`、採用URLと一致する
+`rendered_href`が必要。空widgetやURLだけのfigureは合格しない。外部記事widgetでは実タイトルと
+anchorを読み、iframe型では表示内容を読めなければ未確認にする。この指定を省いた旧計画の
+URL・形式照合は互換として保持する。画像の実表示はスクリーンショットで別途確認する。
+
 `ok` は供給された観測記録と計画の整合性だけを示す。
 `verification_scope: supplied_snapshot_only`、`live_dom_verified: false`、
 `ready_for_publish: false` を常に保持する。`manual_boundary` は合格にしない。

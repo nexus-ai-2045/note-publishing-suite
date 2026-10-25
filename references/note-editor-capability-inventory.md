@@ -120,7 +120,7 @@ skill 本文へ「公式がそう言っている」と書く前に、この file
 
 | surface | 読み取り/DOM確認 | 本文・タイトル入力 | local file upload | 使う条件と境界 |
 |---|---|---|---|---|
-| in-app Browser | attach / inspect できる場合は可能 | 対象 editor と入力位置を再確認できる範囲で可能 | `File uploads are not supported` の場合は不可。再試行しない | Codex の第一候補。Playwright DOM と CUA 実操作面が同期しない場合は固定座標を使わない。 |
+| in-app Browser | attach / inspect できる場合は可能 | 対象 editor と入力位置を再確認できる範囲で可能 | 現行文書に正式filechooser/setFilesがあれば候補。実エラー `File uploads are not supported` の場合は不可・再試行しない | Codex の第一候補。Playwright DOM と CUA 実操作面が同期しない場合は固定座標を使わない。 |
 | Chrome extension | 接続済みの対象tabを確認できる場合は可能 | ユーザーがこの surface を明示選択した場合だけ候補 | profile と可視UIの能力に依存し、自動成功を保証しない | ログイン状態、拡張機能、普段の profile が必要な場合。in-app Browser から無断で切り替えない。Cookie/profile を worker に渡さない。 |
 | manual browser / human supervised | ユーザーが見えている画面を確認 | 人間操作として可能 | 可視ファイル選択または手動 upload | 画像 upload、カーソル位置が不安定な操作、profile依存操作の既定 fallback。Codex は対象pathと確認項目を渡す。 |
 | note official recommended browsers | note側の対応環境 | 人間操作としての候補 | 人間操作としての候補 | Mac は Safari / Chrome、Windows は Chrome / Edge / Firefox。推奨環境でも機能成功を保証しない。 |
@@ -198,3 +198,9 @@ fallback順は `same target re-inspect -> manual/human supervised -> user-approv
 - cursor / selection の状態。空段落、本文中、選択あり、URL行上など。
 - 実行した note 操作と、明示承認がないため未実行にした操作。
 - target lock、対象切替の有無、ユーザー確認状態、失敗分類、再試行回数、採用したfallback。
+
+### 2026-10-24: 正式chooserとメニュー埋め込みの実測
+
+- Browserの現行 `file-uploads` 文書で `waitForEvent("filechooser")` →可視対象click→ `setFiles` を確認。Noteの扉・本文画像各1枚がCDN画像として描画され、保存後確認した。OS clipboardは使わない。経路と限界は画像upload境界を参照する。
+- Noteの本文メニュー「埋め込み」→URL→「適用」で、紹介文と生URL段落の間に `figure[data-src]` が新規作成された。冒頭の同じURLへのinline linkは維持できる。既存inline linkと既存cardの重複を区別する。
+- 適用後に変換されない投稿も1件あった。Apply成功をcard成功とせず、再入力は止め、生URLと周辺本文を保持する。この実測は公式サービス全体の仕様保証ではない。

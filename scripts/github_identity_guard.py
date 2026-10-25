@@ -162,7 +162,7 @@ def check_local_git_config(errors: list[dict[str, str]]) -> None:
     name = run_git("config", "--local", "--get", "user.name")
     email = run_git("config", "--local", "--get", "user.email")
     if name and name not in CANONICAL_NAMES:
-        add_error(errors, "git_config", f"user.name must be one of {sorted(CANONICAL_NAMES)}, got {name}")
+        add_error(errors, "git_config", "user.name must be a registered canonical display name")
     if email and email != EXPECTED_GIT_EMAIL:
         add_error(
             errors,

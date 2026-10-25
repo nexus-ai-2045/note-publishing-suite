@@ -203,11 +203,15 @@ def validate_tag_design(design: Any, article_id: str, tags: Any, draft_text: Any
     errors.extend(validate_previous_tag_comparison(design.get("previous_article"), article_id, article_lane))
     return errors
 
-def tag_operation_preflight(readback: Any, article_id: str, account: str) -> dict[str, Any]:
-    """trusted runtimeの操作直前DOM読戻しを照合する。候補を採用扱いせず、操作は行わない。"""
+def tag_operation_preflight(readback: Any, article_id: str, account: str, *,
+                            expected_tags: Any = None) -> dict[str, Any]:
+    """操作前の不変性、または選定済み変更後の完全一致を照合する。権限は発行しない。"""
     reasons = []
     value = as_dict(readback)
     baseline, current = as_dict(value.get("baseline")), as_dict(value.get("current"))
+    phase = value.get("phase", "pre_edit")
+    if phase not in ("pre_edit", "post_edit"):
+        reasons.append("tag_phase_invalid")
     if not article_id or not account:
         reasons.append("tag_identity_missing")
     for label, observed in (("baseline", baseline), ("current", current)):
@@ -227,21 +231,42 @@ def tag_operation_preflight(readback: Any, article_id: str, account: str) -> dic
         planned = []
     elif len(set(map(normalize_tag, planned))) != len(planned):
         reasons.append("tag_plan_duplicate")
-    if not reasons:
+    if phase == "post_edit":
+        removals = value.get("planned_removals")
+        for label, tags in (("expected", expected_tags), ("removals", removals)):
+            if (not isinstance(tags, list)
+                    or (label == "expected" and not tags)
+                    or any(not isinstance(t, str) or not normalize_tag(t) for t in tags)
+                    or len(set(map(normalize_tag, tags))) != len(tags)):
+                reasons.append(f"tag_{label}_invalid")
+        if not reasons:
+            original = set(map(normalize_tag, baseline["selected_tags"]))
+            added = set(map(normalize_tag, planned))
+            removed = set(map(normalize_tag, removals))
+            expected = set(map(normalize_tag, expected_tags))
+            selected = set(map(normalize_tag, current["selected_tags"]))
+            if added & removed or not removed.issubset(original):
+                reasons.append("tag_transition_plan_invalid")
+            elif (original - removed) | added != expected:
+                reasons.append("tag_transition_design_mismatch")
+            if selected != expected:
+                reasons.append("tag_selected_design_mismatch")
+    elif not reasons:
         baseline_tags = set(map(normalize_tag, baseline["selected_tags"]))
         selected = set(map(normalize_tag, current["selected_tags"]))
         if baseline_tags != selected:
             reasons.append("tag_selected_changed_since_baseline")
     selected = set(map(normalize_tag, current.get("selected_tags", []))) if not reasons else set()
     return dict(status="blocked" if reasons else "approved", reasons=reasons,
-                additions=[] if reasons else [t for t in planned if normalize_tag(t) not in selected],
+                additions=[] if reasons or phase == "post_edit" else [t for t in planned if normalize_tag(t) not in selected],
                 skipped=[] if reasons else [t for t in planned if normalize_tag(t) in selected],
                 automation_allowed=False)
 
 def validate_tag_preflight(data: dict[str, Any]) -> list[dict[str, str]]:
     if "tag_preflight" not in data:
         return []
-    result = tag_operation_preflight(data["tag_preflight"], text_value(data.get("note_id")), text_value(data.get("account")))
+    result = tag_operation_preflight(data["tag_preflight"], text_value(data.get("note_id")),
+                                     text_value(data.get("account")), expected_tags=data.get("tags"))
     return [issue("error", reason, "タグ操作直前の読戻し不一致。現在値と提案の差を提示し、変更を上書きしない") for reason in result["reasons"]]
 
 def manual_boundary_for(data: dict[str, Any], keys: tuple[str, ...]) -> str | None:
@@ -352,7 +377,7 @@ def validate_tags(data: dict[str, Any], *, reference_policy: Any = None,
                                       reference_policy=reference_policy, reference_hashes=reference_hashes)
         if data.get("stage") == "publish":
             preflight = tag_operation_preflight(data.get("tag_preflight"), text_value(data.get("note_id")),
-                                                text_value(data.get("account")))
+                                                text_value(data.get("account")), expected_tags=data.get("tags"))
             reasons.extend(preflight["reasons"])
             current = as_dict(as_dict(data.get("tag_preflight")).get("current"))
             if (not preflight["reasons"] and set(map(normalize_tag, current["selected_tags"]))

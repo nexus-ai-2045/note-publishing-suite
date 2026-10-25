@@ -68,6 +68,7 @@ Note editor で実際に必要になる低レベル操作を、機能ごとに�
 const { createNoteInputGuard } = await import(packageModuleUrl);
 const input = createNoteInputGuard(tab, { tabId: tab.id, noteUrl: approvedEditorUrl });
 const checkpoint = await input.observe();
+// observeの返り値そのものがcheckpoint。checkpoint.checkpointではない。
 // checkpoint_onlyは入力許可ではない。pasteUrl自身が毎回fresh DOMを再取得する。
 const result = checkpoint.state === 'observed'
   ? await input.pasteUrl({ checkpoint, payload: approvedSingleUrl }) : checkpoint;
@@ -271,7 +272,8 @@ Browser / CDP / DOM の timeout、切断、対象タブ消失は `../../scripts/
 - 内部ブラウザ単体の画像アップロード完全自動化は保証しない。
 - 実行前に `../../references/note-image-upload-automation-boundary.md` と
   `../../scripts/note_image_upload_boundary_check.py` を確認する。
-- Codex in-app Browser が `File uploads are not supported` を返した場合、そこで停止する。画像候補のパスと推奨手動手順だけを返す。
+- まず現在接続中のBrowserの `file-uploads` 文書と正式なfilechooser/setFiles能力を確認する。過去の非対応記録やOS clipboard同意の有無だけで非対応と断定しない。対応時は画像upload境界の「Codex in-app Browser の正式な画像選択」を使う。
+- 実際に `File uploads are not supported` を返した場合、そこで停止する。画像候補のパスと推奨手動手順だけを返す。
 - Chrome、note API、Cookie、セッション読み取り、隠れた画面操作、
   OSフォーカス奪取は使わない。
 - 画面に見えている Windows ファイル選択ダイアログだけを扱う場合も、
@@ -305,4 +307,37 @@ Browser / CDP / DOM の timeout、切断、対象タブ消失は `../../scripts/
 
 設定・公開のworkflow gateは既存packetの `tag_design`（本文hash、主題/文脈/連載または固有タグの役割・理由・根拠、前話比較）を検査する。構造とhash規則は `../../references/note-workflow-review-contract.md` の「タグ設計と実選択」を使う。5〜10はlocal policyで、プラットフォーム上限ではない。設定段階は提案可能、公開段階はbaseline/currentの確認とcurrent.selected_tagsの設計一致が必須。候補ボタンや提案配列を選択済みとして数えない。
 
-候補欄と選択済み欄を別々に取得し、対象記事・名義・選択領域の確認を保持する。操作直前の読戻しを計画時と比較し、人間の同時変更があれば上書きせず現在値と提案の差を提示する。`note_editor_prepublish_verify.tag_operation_preflight` は追加対象と既存タグskipを返す純粋関数で、書込み権限を発行しない。現在版の承認は再質問せず、変更した対象だけを確認カードへ提示する。
+候補欄と選択済み欄を別々に取得し、対象記事・名義・選択領域の確認を保持する。操作直前の読戻しを計画時と比較し、人間の同時変更があれば上書きせず現在値と提案の差を提示する。`note_editor_prepublish_verify.tag_operation_preflight` は追加対象と既存タグskipを返す純粋関数で、書込み権限を発行しない。承認済み変更後は同契約の`phase: "post_edit"`と追加・削除計画を使い、元のbaselineをcurrentで上書きして通さない。現在版の承認は再質問せず、変更した対象だけを確認カードへ提示する。
+
+## 同じURLの初出リンクと後段の埋め込み
+
+初出のinline hyperlinkと作品紹介のcardは役割が異なる。同一URLのinline linkがあるだけでcardを重複扱いしない。一方で既存cardがあるURLは再挿入しない。
+
+既存 `scripts/note_editor_guarded_input.mjs` のメニュー経路を使う。 APIは `await input.embedViaNativeDialog({ payload: approvedSingleUrl, caption: exactUniqueCaption })`。返却がpendingなら `await input.reconcile()` は読取りだけを行い、別factoryで再入力しない。正しいcard＋raw URL配置を同じguardで確認でき、cleanup未着手の場合だけ `await input.completeNativeEmbed()` を明示呼出しして生URLだけを一度削除する。card未生成・誤配置・保護本文変更・cleanup実行済みまたは結果不明なら無操作で停止し、Applyを再送しない。対象タブとURLを固定し、一意な紹介P・直後の生URL P・選択範囲を検証する。メニュー「埋め込み」で新規挿入し、cardのURL・件数・前後位置・他の本文、画像、目次、既存card、リンクを確認した後、**正確に生URLだけ**を選択して除去する。初出リンクを消さない。P全体のfillや本文の再貼付けでcard化しない。
+
+Apply後にcardが出ない、誤位置、重複、本文差分、読み戻し不能なら入力を停止する。未完了の同じ操作を再発行せず読取りだけで判定し、生URLを保持する。別のguardを作り直して停止状態を迂回しない。再読込みは前後本文の保全と下書き保存を確認してから行う。未変換は成功件数に含めず、残るリンクとして報告する。
+
+成功手順・ユーザー訂正は `task-mechanize` に従い、この既存スキル・共通処理・近接する拒否テストへ戻す。記事別skillや操作メモだけで共通化完了としない。
+
+Native埋め込みの実測：メニューの「埋め込み」はApply前に挿入用空Pを1件作る。URLtextareaの可視化を待ち、一意・active・入力値を確認する。Applyはfresh AXの一意な「適用」IDでclickし、クリック受領だけでは成功としない。readonly Twitter previewは同一投稿ID・許可rendererが証明できる場合だけ描画identityへ投影し、外側figure・著者本文・画像・目次・リンクを保護する。TOCは検証済みJSONの派生posだけを比較から除外する。選択後のAX反映待ちは最大3回の読取りだけで、選択や入力を再送しない。
+
+カードの生成IDが未設定または文字列nullなら、再Applyせず同じguardのpendingで待つ。最初に確認できたIDを固定してからcompleteNativeEmbedで残存URLだけを一度処理する。新しく挿入した対象card自身のprovider描画・metadata変化は、元のbeforeのprefix／suffixと同じcard ID・URL・位置が保護される条件で許可する。既存cardや著者本文の比較は緩めない。raw URLはfresh AXの完全一致するstatic text leafが一意ならそこへ選択を限定し、Range両端と保護widget交差を必ず照合する。
+
+表示確認は要素があるだけで済ませず、Xは投稿iframeの描画領域、Noteや外部記事は見出し・リンク先、動画はplayer、画像はcompleteとnatural dimensionsを確認する。プロフィールpreviewが空白の場合は同じものを再挿入せず、公開一次案内から実際の参加先を確認して採用済みの紹介目的を満たす。cardを削除するとNoteが元URLへ戻す場合があるため、削除後も本文・リンク・card件数を必ず読戻す。
+
+### 探索と再開の往復を減らす
+
+一意なcaption P＋直後のURL Pが既にあるなら、先に長距離scrollや全文AXの探索を繰り返さず、既存`embedViaNativeDialog({ payload, caption })`へ渡す。guard自身のfresh対象・選択Range・保護本文の検証は省かない。読取りだけの末尾カード確認では、編集カーソルを動かすscroll経路を使わず、対象figureのDOMを読む。保存直前は従来どおり全体の保全を確認する。
+
+| 実結果 | 次に行う操作 |
+|---|---|
+| `completed` | 次の対象へ。保存・公開済みとは扱わない |
+| `pending`で未描画・仮ID | 同じguardの`reconcile()`で読取りだけ。再Applyしない |
+| 正しいcard＋残存URL、cleanup未着手 | 同じguardの`completeNativeEmbed()`を一度。Rangeの拒否は維持 |
+| `blocked`・結果不明・保護領域差分 | 入力停止。新moduleや直接入力で迂回しない |
+
+一周の測定は入力回数・読取り回数・経過時間を分ける。既に修復済みのstaging、TOC派生pos、X内部描画、ID読込みを新しい不具合として再開発しない。
+
+### 末尾カードと短い改稿
+
+末尾カードの追加・確認を含む改稿では、[差分改稿とカード確認](../../references/note-editor-delta-workflow.md)を読む。選定済みカードを転送前の計画と保存後のDOMの両方で検査する。カードのURLだけを成功とせず、計画の`require_rendered: true`と観測の`rendered`・`title`・`rendered_href`を既存`note_editor_prepublish_verify.py --footer-only --production-plan <plan>`へ渡す。本文を再送せず、現在の本人稿を保持して差分操作する。

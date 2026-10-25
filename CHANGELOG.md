@@ -1,11 +1,11 @@
 # 変更履歴
 
-## 0.3.13
+## 0.3.15
 
 日付: 2026-10-25
 
 変更:
-- ローカルGit名義の表示名判定を、作者検査と同じ採用済み一覧へ統一し、メールの完全一致条件は維持する。
+- 0.3.13のNote編集保護を保持してCI整理を統合。PR7の予定版0.3.14を予約し、本変更は0.3.15とする。
 - private名義検査の一時入力に固定上流のcommitter専用名義を接続し、役割別の公開名義検査を必須化。共有private設定・作者拒否・共同作者拒否を維持する。
 - CIの重複検査を公開package verifierへ統合し、共同執筆画面の変更がない場合は必須jobを完了して重い処理を省く。
 - 古いPR検証だけを取り消し、main・tag・release・手動実行はrun IDとattemptごとに保持する。
@@ -13,6 +13,24 @@
 検証:
 - `python -m pytest scripts/test_skill_integration.py tests -q`
 - `actionlint -shellcheck= -pyflakes=`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
+## 0.3.13
+
+日付: 2026-10-25
+
+変更:
+- Noteの埋め込み・画像選択・末尾カード読込みと差分改稿の手順を整理
+- タグ変更の前後照合と箇条書き表示classの誤停止を修正
+- AX本文の数字始まり行を要素境界と誤認せず、本文全体の一致と候補の一意性で照合
+- 名義検査の表示名判定を既存の許可名義に統一し、統合試験を隔離fixture化
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `node --test tests/note_editor_guarded_input.test.mjs`
 
 公開境界:
 - Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
