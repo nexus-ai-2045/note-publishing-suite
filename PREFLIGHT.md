@@ -24,16 +24,51 @@ repo-preflight の検査結果と、それに対する人間の判断を記録�
 
 ### 毎回の自動実行とローカル相当
 
+ローカル相当はCIのPython版と`requirements-dev.txt`から作った新規仮想環境で実行する。テストで使う新しい依存は同ファイルへ宣言し、手元に追加済みのライブラリだけに依存した成功をCI相当の根拠にしない。
+
 - 開発保証workflow（`repository-guarantees.yml`）は `test.yml` の再利用jobとしてPR・main/masterへのpushごとに自動実行する。`package-smoke` はこのjobの成功を前提とし、抜けたまま進めない
 - `workflow_dispatch` で BASE と HEAD が同一（空 diff）のときは差分検査を緑にしない（fail-closed）
 - 検査ロジックは上流を呼び、コピーしない。通常のPR／branch pushはoriginから取得したイベント基点との差分を検査し、新規branch・タグ・Release公開・通常テストの手動実行は対象コミットの実在する親を取得し、mainが進んでいても現在のmainを基点にしない。対応外イベントは停止する。保証workflowを直接手動dispatchした場合は従来の全体release検査を行う。test workflowからの呼出しは明示inputで区別し、main上の通常テストの手動実行も差分なしを理由に停止しない。readinessのpass以外とratchetの新規悪化は停止する。整合性のshadow所見は所見として区別する
 - マージは人が行う。required status checksやSettingsは変更せず、既存package-smokeの前提jobで接続する
 
+### CIの重複削減と実行の保持
+
+`package-smoke`のprovenance・名義・日本語・画像境界の検査は既存の公開package verifierに集約する。LinuxとWindowsのverifier、契約試験と必須jobは維持する。共同執筆画面は実Git差分で影響を判定し、対象変更がない場合も同じjob名で完了する。比較不能・初回push・tag・release・手動実行では省略しない。
+
+workflowとイベントを分け、同じPRの古い実行だけを取り消す。差分検査のmain pushは後続がdocsだけの場合に先行UI検証を代替できないため、run IDとattemptごとに全実行を保持する。再利用先には呼出元と衝突するconcurrency groupを追加しない。
+
+### 保護パス変更の本人確認
+
+必須チェック名 `base-guard` は常時実行する集約jobである。比較元をcheckoutし、固定したrepo-preflightの `base_guard.py --json` を隔離Pythonで実行する。候補はGit objectとして読むだけでcheckout・実行しない。上流のschema、終了コード、status、caller数、各findingを照合し、正常passは確認不要、head側の `protected_path_changed` だけがあるblockedは本人確認待ちとする。YAML不正、呼出先・pin・release不正、base側所見、未知・欠損・矛盾した出力、tool errorは本人確認で免除しない。
+
+確認待ちへ進む前に、GitHub APIの読取り権限だけで固定Environment `ci-protected-change-review` を取得する。`required_reviewers` がtrusted GitHub contextのrepository owner User ID一人だけ、`prevent_self_review=false`、`deployment_branch_policy.protected_branches=true` と `custom_branch_policies=false` であることを必須とする。未作成、レビュアーなし・別人・追加、型不正、API失敗は停止する。設定はworkflowから作成・変更しない。レビュアーIDをpackageへ固定値で複製しない。
+
+管理者による事前設定はGitHubの[Environment API](https://docs.github.com/en/rest/deployments/environments)で次のpayloadを使用する。`OWNER_USER_ID` はその時点で取得したrepository ownerのUser IDへ置換し、対象repositoryと本人の明示承認を照合する。secretの登録は不要。
+
+```json
+{
+  "wait_timer": 0,
+  "prevent_self_review": false,
+  "can_admins_bypass": false,
+  "reviewers": [{"type": "User", "id": "OWNER_USER_ID (integer)"}],
+  "deployment_branch_policy": {
+    "protected_branches": true,
+    "custom_branch_policies": false
+  }
+}
+```
+
+GitHubの[required reviewers](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments)による確認後だけ `owner-review` jobを実行する。job名とEnvironmentリンクはPR番号と実headを表示し、`pull_request_target` のbase側 `GITHUB_SHA` と区別する。このjobはcheckout、secret参照、書込み権限、公開・リリース処理を持たない。Environmentの管理者による確認省略は`can_admins_bypass=false`で禁止し、欠損・true・型不正は停止する。workflowによる自動承認は行わない。ローカルfixtureやコメントを本人確認の証拠にしない。
+
+集約jobはinspect成功・明示されたboolean出力を要求する。確認不要ならreviewのskip、確認必要ならreviewのsuccessのみ通す。拒否、取消、timeout、失敗、必要なreviewのskip、未知状態は通さない。補助コード `.github/scripts/base_guard_review.py` 自体も上流の既存 `.github/` 保護範囲に含める。
+
+導入PRは旧mainの `pull_request_target` が動くため、この変更の局所検証で旧チェックが緑になったとは扱わない。Environmentの設定・読戻し、現在の規則と明示許可に従う導入判断、マージ後の実PRでの待機→本人確認→成功、および確認不要経路の実行を別々に確認する。ローカル試験はlive本人確認の代替ではない。
+
 ### CIのprivate identity設定と実行境界
 
 `repository-guarantees`は、private設定を読む`private-readiness`と、候補のwheel・ratchet・整合性検査を行う別jobへ分ける。private jobは候補内のPython、pip、package、Nodeコードを実行しない。上流repo-preflightを固定SHAで取得し、実HEADを照合してから隔離Pythonで起動する。対象もイベントのSHAでcheckoutし、base/headを検査間で固定する。
 
-PRの名義検査は投稿者の実headを対象とし、GitHubが生成した一時merge commitを投稿者のコミットへ混ぜない。候補実行jobはイベントの合成merge SHAを検査し、検査済みの実headとbaseがその祖先であることを照合する。名義policyへGitHub名義を追加して通過させない。
+PRの名義検査は投稿者の実headを対象とし、GitHubが生成した一時merge commitを投稿者のコミットへ混ぜない。候補実行jobはイベントの合成merge SHAを検査し、検査済みの実headとbaseがその祖先であることを照合する。PRの合成merge作者を通すために名義policyを緩めない。下記のcommitter専用派生入力も、作者への流用は役割別検査で拒否する。
 
 PRでは`scan_base`を`merge-base(event_base, authored_head)`とし、分岐後の著者コミットを検査する。`event_base`はイベントが示す実baseのまま別出力に保持する。統合jobはこの実base・著者headをイベント値へ照合し、両方が合成mergeの祖先であることを検証する。forkpointを統合baseの代わりへ流用せず、不正base・共通履歴のないPRは停止する。
 
@@ -47,7 +82,7 @@ workflow自体の改変を許可するとSecretを読み得るため、workflow�
 
 リポジトリ直下の`/.worktrees/`は管理下Git checkoutを置く作業用出力としてGit対象外にする。provenance全体検査も、この配下でGitへ実登録されたcheckoutだけを親packageの再帰対象から外す。未登録フォルダー、別階層の同名フォルダー、明示指定したファイルやディレクトリは検査を維持する。元の原稿、資料、検査コードは引き続き検査・追跡し、この除外へ移して隠さない。配下checkoutの成果は各所有ブランチでレビュー・配送する。
 
-GitHubでPRをマージする運用では、採用済みの公開名義一覧にあるプラットフォームcommitterをCI専用設定へ完全一致で反映する。共有のprivate policyは書き換えず、既存のdeny条件と共同作者拒否を保った派生入力を使い、既知mergeの受入と未知名義の拒否を確認する。PR著者headの照合をこの設定で代用しない。
+GitHubでPRをマージする運用では、採用済みの公開名義一覧にあるプラットフォームcommitterをCI専用設定へ完全一致で反映する。共有のprivate policyは書き換えず、既存のdeny条件と共同作者拒否を保った派生入力を使い、既知mergeの受入と未知名義の拒否を確認する。PR著者headの照合をこの設定で代用しない。固定上流の`load_public_policy().committer_only`を読み、元のprivate入力を上流validatorで検証してから一時ファイルへ派生する。同じ固定版の公開一覧を`--allowed-identities`へ渡し、`--require-private-identity`と`public_attribution=pass`を必須にする。作者や署名へcommitter専用名義を使う場合はこの役割別検査で拒否する。
 
 ### 手元同等の確認コマンド
 

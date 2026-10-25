@@ -1,5 +1,26 @@
 # 変更履歴
 
+## 0.3.15
+
+- 保護対象の変更だけでbase-guardが常に赤になる状態を修復。固定上流の機械検査を維持し、保護対象だけの変更は本人を承認者にしたGitHub標準Environmentで確認後に通す。環境未設定・承認者不一致・不正定義・集約結果の欠落は停止する。
+- workflow解析テストのPyYAMLを開発・CI依存へ固定宣言し、CIと同じ依存だけを入れた新規環境で検証する手順を明記。
+
+日付: 2026-10-25
+
+変更:
+- 0.3.13のNote編集保護を保持してCI整理を統合。PR7の予定版0.3.14を予約し、本変更は0.3.15とする。
+- private名義検査の一時入力に固定上流のcommitter専用名義を接続し、役割別の公開名義検査を必須化。共有private設定・作者拒否・共同作者拒否を維持する。
+- CIの重複検査を公開package verifierへ統合し、共同執筆画面の変更がない場合は必須jobを完了して重い処理を省く。
+- 古いPR検証だけを取り消し、main・tag・release・手動実行はrun IDとattemptごとに保持する。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `actionlint -shellcheck= -pyflakes=`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.3.13
 
 日付: 2026-10-25

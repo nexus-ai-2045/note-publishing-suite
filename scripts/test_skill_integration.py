@@ -961,7 +961,9 @@ def test_github_identity_guard_contract_present(tmp_path: Path):
     assert "data/github_identity_guard_policy.example.json" in package
     assert "data/github_identity_guard_policy.local.json" in gitignore
     assert "example-private-account" in example
-    assert "Run GitHub identity guard" in workflow
+    assert "run: sh scripts/verify_public_package.sh" in workflow
+    verifier = (ROOT / "scripts/verify_public_package.sh").read_text(encoding="utf-8")
+    assert 'run_json_ok "GitHub identity guard" python3 scripts/github_identity_guard.py --json' in verifier
 
     standalone = tmp_path / 'identity-contract-fixture'
     copy_public_package_fixture(standalone)

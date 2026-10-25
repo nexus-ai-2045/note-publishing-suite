@@ -2,7 +2,8 @@ name: base-guard
 
 # 必須チェック「base-guard」。pull_request_target なので、定義は比較元（保護された側）の版が動く。
 # PR 側のコードは checkout も実行もしない。PR の commit を git の中身として読むだけ。
-# 赤にするもの: 検査を変えるパス（.github/・.githooks/・.repo-preflight/・.gitleaks.toml など）の変更、
+# 保護パスだけの変更は native Environment の人間レビューへ渡す。その他の不備は停止する。
+# 停止するもの:
 # preflight-gate の呼び出し先の owner/リポ違い、uses の @ と preflight-ref の不一致、呼び出しの削除、
 # 版のタグ（v*）から辿れない SHA（フォーク網の SHA）。タグは ruleset で保護する（人の GO が要る設定）。
 # 固定先: PREFLIGHT_REF は preflight.yml と同じ repo-preflight v0.10.0 の SHA。
@@ -12,12 +13,21 @@ on:
   pull_request_target:
     types: [opened, synchronize, reopened, edited]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}-${{ (github.event_name == 'pull_request' || github.event_name == 'pull_request_target') && 'latest' || format('{0}-{1}', github.run_id, github.run_attempt) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request_target' }}
+
 permissions:
   contents: read
 
 jobs:
-  base-guard:
-    name: base-guard
+  inspect:
+    name: Inspect base and PR
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      review_required: ${{ steps.inspect.outputs.review_required }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -69,12 +79,57 @@ jobs:
           GIT_CONFIG_KEY_0="http.${GITHUB_SERVER_URL%/}/.extraheader" \
           GIT_CONFIG_VALUE_0="$auth_header" \
           GIT_CONFIG_KEY_1=credential.helper \
-          GIT_CONFIG_VALUE_1= \
+          GIT_CONFIG_VALUE_1='' \
           GIT_TERMINAL_PROMPT=0 \
             git -C target fetch --no-tags origin "+refs/pull/${PR_NUMBER}/head:refs/remotes/pr/head"
           unset auth_header
           test "$(git -C target rev-parse 'refs/remotes/pr/head^{commit}')" = "$HEAD_SHA"
-      - name: Check base and PR definitions
+      - name: Inspect guard report and required reviewer policy
+        id: inspect
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: python tool/scripts/base_guard.py --repo target --base-ref "$BASE_SHA" --head-ref refs/remotes/pr/head --trusted-tool tool
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+          OWNER_ID: ${{ github.repository_owner_id }}
+          OWNER_TYPE: ${{ github.event.repository.owner.type }}
+          REVIEW_API_TOKEN: ${{ github.token }}
+        run: |
+          python -I target/.github/scripts/base_guard_review.py --repo target --tool tool \
+            --base "$BASE_SHA" --head "$HEAD_SHA" --pr "$PR_NUMBER" \
+            --repository "$REPOSITORY" --owner-id "$OWNER_ID" --owner-type "$OWNER_TYPE"
+
+  owner-review:
+    name: Review PR ${{ github.event.pull_request.number }} head ${{ github.event.pull_request.head.sha }}
+    needs: inspect
+    if: needs.inspect.result == 'success' && needs.inspect.outputs.review_required == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    environment:
+      name: ci-protected-change-review
+      url: ${{ format('{0}/{1}/compare/{2}...{3}', github.server_url, github.repository, github.event.pull_request.base.sha, github.event.pull_request.head.sha) }}
+    steps:
+      - name: Record native review completion
+        run: echo 'GitHub Environment の確認が完了しました。公開・リリースは行いません。'
+
+  base-guard:
+    name: base-guard
+    needs: [inspect, owner-review]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Require all applicable checks
+        env:
+          INSPECT_RESULT: ${{ needs.inspect.result }}
+          REVIEW_REQUIRED: ${{ needs.inspect.outputs.review_required }}
+          REVIEW_RESULT: ${{ needs.owner-review.result }}
+        run: |
+          set -euo pipefail
+          test "$INSPECT_RESULT" = success
+          case "$REVIEW_REQUIRED:$REVIEW_RESULT" in
+            false:skipped|true:success) echo 'base-guard: pass' ;;
+            *) echo 'base-guard: 必要な検査または本人確認が未完了です' >&2; exit 1 ;;
+          esac
