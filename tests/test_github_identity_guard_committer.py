@@ -28,6 +28,23 @@ def load_guard():
     return module
 
 
+@pytest.mark.parametrize(('name', 'email', 'allowed'), [
+    ('nexus_ai', CANONICAL_EMAIL, True),
+    ('nexus-ai-2045', CANONICAL_EMAIL, True),
+    ('nexus_ai', OTHER_ACCOUNT_NOREPLY, False),
+    ('nexus_ai', PERSONAL_MAIL_SHAPE, False),
+    ('fixture-other-name', CANONICAL_EMAIL, False),
+    ('GitHub', CANONICAL_EMAIL, False),
+    ('NEXUS_AI', CANONICAL_EMAIL, False),
+])
+def test_local_config_uses_same_canonical_names_and_exact_email(name, email, allowed):
+    guard = load_guard()
+    guard.run_git = lambda *args: name if args[-1] == 'user.name' else email
+    errors = []
+    guard.check_local_git_config(errors)
+    assert (not errors) is allowed
+
+
 def head_errors(
     guard,
     committer_name: str,

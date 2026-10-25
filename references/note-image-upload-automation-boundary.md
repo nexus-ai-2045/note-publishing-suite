@@ -40,13 +40,58 @@ OSクリップボードは `consented_os_clipboard` に限定して条件付き�
 | manual_user_upload | allowed_now | ユーザーが見えている note editor で手動 upload | 対象 editor / 画像対象 / 公開未クリック | 画像未設定または直前状態で停止 |
 | visible_windows_file_dialog | requires_user_confirmation | 画面に見えている Windows ファイル選択ダイアログだけをユーザー監督下で操作 | ダイアログ可視 / 対象 file 確認 / 公開未クリック | ダイアログをキャンセルして停止 |
 | cmux_dom_file_paste | requires_user_confirmation | cmux browser で画面に見えている active editor と local file を特定し、browser-scoped `File` paste を行う。OS clipboard、Cookie、note API は使わない | visible active editor identity / file name・MIME / paste 前後の画像件数・順序 / 公開未クリック | Undo または直前の検証済み下書き状態へ戻し、復旧不能なら保存せず停止 |
-| codex_iab_file_upload | blocked | Codex in-app Browser の file upload 非対応時は実uploadしない | `File uploads are not supported` を停止原因として記録 | 画像未設定で停止し、候補pathを返す |
+| codex_iab_file_upload | allowed_when_supported | 現在接続中の正式なfilechooser能力・対象タブ・承認済み画像を確認 | capability文書 / chooser実体 / 表示画像・順序・寸法 / 保存後読戻し | 非対応または結果不明で再入力せず停止 |
 | chrome_api_cookie_hidden_os | blocked | Chrome、note API、Cookie、セッション読み取り、隠れた画面、OSフォーカス奪取 | 実行しない | 対象外 |
 
 `cmux_dom_file_paste` の clipboard は browser 内で生成する `DataTransfer` / `ClipboardEvent`
 だけを指す。OS clipboard injection、一般的な隠れた window 操作、対象不明の DOM 操作を
 許可する例外ではない。CDN URL の再取得は 2026-07-13 実測で5枚中1枚を取りこぼしたため、
 確実な upload route として扱わない。
+
+## Codex in-app Browser の正式な画像選択
+
+非対応という過去の記録だけで停止しない。現在接続中のBrowserのドキュメントと
+`agent.documentation.get("file-uploads")` を読み、`waitForEvent("filechooser")` と
+chooserの `setFiles` が公開されていることを確認する。`File uploads are not supported`
+という実エラー、能力不明、対象不明なら同じ経路を再試行しない。
+
+1. 既存タブ一覧から対象Note・アカウントを確認し、採用画像の絶対path・hashを記録する。
+2. 扉画像は「画像を追加」を開き、現在の「画像をアップロード」を特定する。
+   本文画像は挿入先Pと選択Rangeを読み戻し、本文メニューの「画像」を特定する。
+3. **clickより前**に `tab.playwright.waitForEvent("filechooser", {timeoutMs:10000})` を開始する。
+   現在の可視UIの対象を1件だけclickし、返ったchooserへ `setFiles([absolutePath])` を行う。
+   未公開の `locator.setInputFiles`、OS clipboard、認証抽出、直接Note APIへ切り替えない。
+4. `setFiles`成功は画像選択まで。扉のcropは顔・装備・指定した構図を目視してから保存する。
+   本文は挿入位置・画像数・前後の文章を照合する。
+5. `img.complete`、`naturalWidth > 0`、CDN参照、下書き保存後の再読込みで確認する。
+   crop・描画・保存・公開はそれぞれ別結果として記録する。
+
+### 待機失敗で接続を失わない
+
+chooser待機Promiseには作成と同時に失敗handlerを付ける。clickの処理中に待機が失敗し、
+未処理rejectionで実行環境が終了すると、接続・変数・停止状態を失い、不要な再接続が増える。
+下例の`currentUploadButtonIndex`はfresh AXで今回の画像アップロードボタンに特定した値だけを使う。
+
+```javascript
+const chooserOutcome = tab.playwright.waitForEvent('filechooser', { timeoutMs: 10000 })
+  .then(chooser => ({ chooser }), () => ({ error: 'filechooser_wait_failed' }));
+let clickFailed = false;
+try { await tab.ax.click(currentUploadButtonIndex); }
+catch { clickFailed = true; }
+const opened = await chooserOutcome;
+if (clickFailed || opened.error) {
+  // 実エラーと現在画面を記録して停止。非対応と断定せず、click/uploadを再送しない。
+  throw new Error(clickFailed ? 'upload_click_unknown' : opened.error);
+}
+await opened.chooser.setFiles([approvedAbsoluteImagePath]);
+```
+
+同じbrowser bindingのまま既に読んだ能力文書を、各ボタン操作のたびに再取得しない。
+新しい接続、切断、能力不一致があれば読み直す。対象タブ・画像・fresh UIの確認は毎回維持する。
+これはupload成功の保証ではなく、既知の失敗時に不要な接続再構築を避けるための処理である。
+
+この経路は2026-10-24に扉1枚・本文1枚で実測した。成功を別環境・別タブへ一般化せず、
+正式chooserがない環境の停止条件と公開・予約禁止は維持する。
 
 ## Windows / Mac 環境差
 

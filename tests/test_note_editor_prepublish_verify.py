@@ -15,6 +15,75 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def tag_transition():
+    before = dict(article_id='article', account='writer', selection_scope_verified=True,
+                  selected_tags=['AI', 'Old'], suggested_tags=[])
+    return dict(phase='post_edit', baseline=before,
+                current=dict(before, selected_tags=['ai', 'New']),
+                planned_additions=['New'], planned_removals=['Old'])
+
+
+def test_tag_post_edit_preserves_original_baseline_and_verifies_full_transition():
+    sys.path.insert(0, str(ROOT / 'scripts'))
+    from note_editor_prepublish_verify import tag_operation_preflight
+    value = tag_transition()
+    original = copy.deepcopy(value)
+    result = tag_operation_preflight(value, 'article', 'writer', expected_tags=['AI', 'New'])
+    assert result['status'] == 'approved'
+    assert result['additions'] == []
+    assert result['automation_allowed'] is False
+    assert value == original
+
+
+@pytest.mark.parametrize('fault', ['no_expected', 'wrong_expected', 'extra_current',
+                                  'unplanned_removal', 'unplanned_addition', 'duplicate',
+                                  'wrong_account', 'unverified_region', 'unknown_phase',
+                                  'duplicate_expected', 'invalid_expected', 'missing_removals',
+                                  'unknown_removal', 'overlapping_plan'])
+def test_tag_post_edit_rejects_unbound_or_unplanned_change(fault):
+    sys.path.insert(0, str(ROOT / 'scripts'))
+    from note_editor_prepublish_verify import tag_operation_preflight
+    value, expected = tag_transition(), ['AI', 'New']
+    if fault == 'no_expected':
+        expected = None
+    elif fault == 'wrong_expected':
+        expected = ['AI', 'Other']
+    elif fault == 'extra_current':
+        value['current']['selected_tags'].append('Extra')
+    elif fault == 'unplanned_removal':
+        value['planned_removals'] = []
+    elif fault == 'unplanned_addition':
+        value['planned_additions'] = []
+    elif fault == 'duplicate':
+        value['planned_removals'].append('old')
+    elif fault == 'wrong_account':
+        value['current']['account'] = 'other'
+    elif fault == 'unverified_region':
+        value['current']['selection_scope_verified'] = False
+    elif fault == 'duplicate_expected':
+        expected.append('ai')
+    elif fault == 'invalid_expected':
+        expected = ['AI', 42]
+    elif fault == 'missing_removals':
+        value.pop('planned_removals')
+    elif fault == 'unknown_removal':
+        value['planned_removals'].append('NotInBaseline')
+    elif fault == 'overlapping_plan':
+        value['planned_additions'].append('Old')
+    else:
+        value['phase'] = 'unknown'
+    assert tag_operation_preflight(value, 'article', 'writer', expected_tags=expected)['status'] == 'blocked'
+
+
+def test_tag_default_pre_edit_still_rejects_drift():
+    sys.path.insert(0, str(ROOT / 'scripts'))
+    from note_editor_prepublish_verify import tag_operation_preflight
+    value = tag_transition()
+    value.pop('phase')
+    result = tag_operation_preflight(value, 'article', 'writer')
+    assert 'tag_selected_changed_since_baseline' in result['reasons']
+
+
 @pytest.mark.parametrize('lane', ['continuation_article', 'production_candidate'])
 def test_previous_tag_comparison_cannot_claim_empty_inventory(lane):
     sys.path.insert(0, str(ROOT / 'scripts'))
@@ -103,6 +172,27 @@ def ready_observation() -> dict:
         "article_type": "無料",
         "final_buttons": [{"label": "投稿する", "clicked": False}],
     }
+
+
+@pytest.mark.parametrize("fault", [None, "missing", "loading", "empty_title", "wrong_href"])
+def test_footer_render_requirement(tmp_path, fault):
+    obs = ready_observation()
+    plan = obs["production_plan"]
+    plan["links"][0]["require_rendered"] = True
+    obs["production_plan"] = reviewed(plan)
+    node = obs["footer"]["nodes"][0]
+    node.update(rendered=True, title="Loaded magazine", rendered_href=node["data_src"])
+    if fault == "missing":
+        node.pop("rendered")
+    elif fault == "loading":
+        node["rendered"] = False
+    elif fault == "empty_title":
+        node["title"] = " "
+    elif fault == "wrong_href":
+        node["rendered_href"] = "https://example.com/wrong"
+    code, payload = run_checker(tmp_path, obs)
+    assert (code == 0) is (fault is None)
+    assert ("footer_card_not_rendered" in issue_codes(payload)) is (fault is not None)
 
 
 def issue_codes(payload: dict) -> set[str]:

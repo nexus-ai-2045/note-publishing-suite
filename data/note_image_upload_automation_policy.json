@@ -111,6 +111,22 @@
         "clipboard_overwrite_and_text_only_restore_understood"
       ],
       "rollback": "stop_without_clipboard_access_when_consent_invalid"
+    },
+    {
+      "route_id": "codex_iab_file_upload",
+      "boundary": "documented_browser_native_filechooser",
+      "status": "allowed_when_supported",
+      "requires_current_conversation_approval": true,
+      "summary": "現在接続中の対象タブで公式filechooser能力を確認し、承認済み画像を可視UIの正式なsetFilesで選択する。OS clipboardや認証値は使わない。",
+      "smoke_checks": [
+        "current_runtime_filechooser_documentation_confirmed",
+        "target_editor_and_local_image_confirmed",
+        "chooser_observed_before_setFiles",
+        "rendered_image_order_and_dimensions_verified",
+        "saved_draft_readback_verified",
+        "publish_or_schedule_not_clicked"
+      ],
+      "rollback": "stop_without_retry_on_unsupported_or_uncertain_outcome; preserve_last_verified_draft"
     }
   ],
   "prohibited_actions": [

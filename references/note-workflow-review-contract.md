@@ -323,7 +323,9 @@ policyは `schema: image-reference-policy/v1`、`required_character_id`、`refer
 
 前話がない記事は `previous_article: {"status": "none", "reason": "初回記事の理由", "reference": "production-pack.md#first"}` で明示する。`continuation_article` はこの省略経路を使えず、前話のID・参照・タグ・比較が必要。原稿front matterの続き記事指定をpacket側で初回扱いへ上書きしない。
 
-設定段階は未選択の提案を確認できる。タグ操作前は既存 `tag_preflight` のbaseline/currentを読み戻し、候補欄と選択済み欄を区別する。`publish` では同じ既存preflightを必須とし、対象記事・名義・選択領域確認・baseline/current一致を検査した上で、**current.selected_tags** が `settings.tags` / 設計と一致する必要がある。suggested_tagsやplanned_additionsを実選択へ昇格させない。操作後には、その時点で人間が確認したbaselineとcurrentを新しく取得する。
+設定段階は未選択の提案を確認できる。タグ操作前は既存 `tag_preflight` のbaseline/currentを読み戻し、候補欄と選択済み欄を区別する。`phase`未指定または`pre_edit`では対象記事・名義・選択領域確認・baseline/current一致を検査する。`publish` でも同じpreflightを必須とし、**current.selected_tags** が `settings.tags` / 設計と一致する必要がある。suggested_tagsやplanned_additionsを実選択へ昇格させない。
+
+承認済みのタグ変更後は`phase: "post_edit"`を使い、変更前baselineを上書きせず、操作後のfresh readbackをcurrentへ置く。`planned_additions`と`planned_removals`を明示し、`(baseline.selected_tags − planned_removals) ∪ planned_additions`、current.selected_tags、呼出元の選定済みexpected_tagsの三者一致を既存関数が検査する。追加・削除の交差、元にない削除、重複、不正型、対象違い、未確認領域、未知のphaseは停止する。表記の大小文字は既存`normalize_tag`へ統一する。直接関数を呼ぶ場合もexpected_tagsを必須で渡す。検査成功は実操作・本人承認・公開権限の証明ではなく、workflowの現版receipt検査は引き続き必要。
 
 供給snapshotのeditor検査も、`stage: "settings" | "publish"` と `tag_design` / `draft_text` を渡して同じvalidatorを使う。publishは `note_id` / `account` / `tag_preflight` の実選択を照合する。旧fixtureなどstageを宣言しない一般観測は従来の重複検査を維持するが、workflow publish必須検査の代わりにはならない。footer-onlyの検査成功もタグ・公開ゲートの成功ではない。JSONは記録の整合性だけを検査し、実DOM操作・選定の正しさ・本人承認の真正性を保証しない。
 
