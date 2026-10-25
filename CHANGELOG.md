@@ -1,9 +1,20 @@
 # 変更履歴
 
-## 未リリース
+## 0.3.16
 
+日付: 2026-10-26
+
+変更:
 - 運用台帳の保存先と本文workspaceを、両方の明示指定がある場合に分離。本文・archiveのworkspace内照合とpackage内出力拒否は維持。
 - symlink経由の保存・lock・復旧journalを同じ実体へ揃え、壊れた参照から別の台帳を作らず停止。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `VERSION_BUMP_BASE_REF=origin/main python scripts/check_version_bump.py`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
 
 ## 0.3.15
 
