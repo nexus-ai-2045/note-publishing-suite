@@ -284,6 +284,22 @@ function validPayload(value) {
 
 // Native AX is tab-bound. Only its documented full state may replace an unavailable
 // document.hasFocus; a false DOM focus result is never overridden.
+function nativeBodyRowMatches(state, start, end, bodyText) {
+  const expected = bodyText.replace(/\s/gu, '');
+  if (!expected) return false;
+  let cursor = start, index = 0;
+  // Consume the known DOM body first. A body line may itself look like an AX row.
+  while (index < expected.length && cursor < end) {
+    const unit = state[cursor++];
+    if (/\s/u.test(unit)) continue;
+    if (unit !== expected[index++]) return false;
+  }
+  if (index !== expected.length) return false;
+  const tail = state.slice(cursor, end);
+  return /^\s*$/u.test(tail)
+    || /^[ \t\r]*\n\s*(?:\d+ (?:button|container|heading|image|link|text|static text|text entry area|checkbox|radio button|switch|combo box|pop up button|content list)\b|The focused UI element is \d+ )/u.test(tail);
+}
+
 function nativeRootFocus(state, lock, snapshot) {
   if (typeof state !== 'string' || snapshot.activeElementIsRoot !== true
     || snapshot.focused === false || snapshot.documentFocusKnown === true && snapshot.focused !== true) return null;
@@ -295,14 +311,11 @@ function nativeRootFocus(state, lock, snapshot) {
   const id = focused[0][1];
   const rows = [...state.matchAll(new RegExp(`^[ \t]*${id} text entry area \\(settable\\) ([^\\r\\n]*)`, 'gm'))];
   const normalize = value => value.replace(/\s/gu, '');
-  if (rows.length !== 1 || !normalize(snapshot.bodyText)
+  const matchingRows = rows.filter(row => nativeBodyRowMatches(state,
+    row.index + row[0].length - row[1].length, focused[0].index, snapshot.bodyText));
+  if (matchingRows.length !== 1 || !normalize(snapshot.bodyText)
     || normalize(focused[0][2]) !== normalize(snapshot.bodyText)) return null;
   // Bind the focused ID to the body row, not merely to any editable title field.
-  const rowValueStart = rows[0].index + rows[0][0].length - rows[0][1].length;
-  let rowValue = state.slice(rowValueStart, focused[0].index);
-  const nextRow = rowValue.match(/^[ \t]*\d+ [a-z][^\r\n]*/m);
-  if (nextRow) rowValue = rowValue.slice(0, nextRow.index);
-  if (normalize(rowValue) !== normalize(snapshot.bodyText)) return null;
   return id;
 }
 
@@ -312,13 +325,9 @@ function nativeBodyRoot(state, lock, snapshot) {
   const header = state.match(/^Browser tab: ([^,\r\n]+), Title: ("(?:\\.|[^"\\])*"), URL: ("(?:\\.|[^"\\])*")\./);
   if (!header || header[1].trim() !== lock.tabId || JSON.parse(header[2]) !== snapshot.title
     || JSON.parse(header[3]) !== lock.noteUrl) return null;
-  const normalize = value => value.replace(/\s/gu, '');
   const rows = [...state.matchAll(/^[ \t]*(\d+) text entry area \(settable\) /gm)];
-  const matches = rows.filter(row => {
-    let value = state.slice(row.index + row[0].length);
-    value = value.split(/\n[ \t]*\d+ [a-z]|\nThe focused UI element is /)[0];
-    return normalize(snapshot.bodyText) && normalize(value) === normalize(snapshot.bodyText);
-  });
+  const matches = rows.filter(row => nativeBodyRowMatches(
+    state, row.index + row[0].length, state.length, snapshot.bodyText));
   return matches.length === 1 ? Number(matches[0][1]) : null;
 }
 

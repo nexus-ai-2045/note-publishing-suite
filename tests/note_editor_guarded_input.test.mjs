@@ -779,6 +779,45 @@ function nativeBackend() {
   return d;
 }
 
+for (const line of ['2026 report', '1 example', '  1 example', '12 button 本文の記述',
+  '7 text entry area (settable) 本文の記述',
+  '430 text entry area (settable) 本文の記述', '2026 🤖 report']) {
+  test(`native AX: 数字始まりの本文行を保持する ${line}`, async () => {
+    const d = nativeBackend();
+    const paragraph = new Element('P', {}, [`前文\n${line}\n末尾`]);
+    paragraph.parentElement = d.root; d.root.childNodes.push(paragraph);
+    const input = guard(d.tab), checkpoint = await input.observe();
+    assert.equal(checkpoint.state, 'observed');
+    assert.equal((await input.pasteUrl({ checkpoint, payload })).state, 'completed');
+    assert.equal(d.tab.writes.length, 1);
+  });
+  test(`native dialog: 数字始まりの本文行で誤停止しない ${line}`, async () => {
+    const { tab, caption, sync } = dialogBackend();
+    tab.current.blocks[0] = p(`前文\n${line}\n末尾`); sync();
+    assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption })).state, 'completed');
+    assert.equal(tab.writes.filter(w => w[0] === '適用').length, 1);
+  });
+}
+test('native dialog: DOM本文の後の未知のAX追加本文を受理しない', async () => {
+  const { tab, caption } = dialogBackend(), get = tab.ax.get;
+  tab.ax.get = async () => (await get()).replace(tab.current.bodyText, tab.current.bodyText + '\n2026 report');
+  assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption })).state, 'blocked');
+  assert.equal(tab.writes.length, 0);
+});
+test('native AX: 実在する同ID本文rowの重複は拒否する', async () => {
+  const d = nativeBackend();
+  d.axChange = s => s.replace('The focused UI element is ',
+    `  430 text entry area (settable) ${d.root.textContent}\nThe focused UI element is `);
+  assert.equal((await guard(d.tab).observe()).state, 'blocked');
+  assert.equal(d.tab.writes.length, 0);
+});
+test('native dialog: 実在する別ID本文rowの重複は拒否する', async () => {
+  const { tab, caption } = dialogBackend(), get = tab.ax.get;
+  tab.ax.get = async () => (await get()).replace('The focused UI element is ',
+    `  431 text entry area (settable) ${tab.current.bodyText}\nThe focused UI element is `);
+  assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption })).state, 'blocked');
+  assert.equal(tab.writes.length, 0);
+});
 test('native AXはhasFocus未提供でも対象Tab・本文全文・選択のfresh一致で単一paste', async () => {
   const d = nativeBackend(); const input = guard(d.tab);
   const checkpoint = await input.observe(); assert.equal(checkpoint.state, 'observed');
