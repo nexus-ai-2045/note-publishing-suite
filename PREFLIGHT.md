@@ -24,6 +24,8 @@ repo-preflight の検査結果と、それに対する人間の判断を記録�
 
 ### 毎回の自動実行とローカル相当
 
+ローカル相当はCIのPython版と`requirements-dev.txt`から作った新規仮想環境で実行する。テストで使う新しい依存は同ファイルへ宣言し、手元に追加済みのライブラリだけに依存した成功をCI相当の根拠にしない。
+
 - 開発保証workflow（`repository-guarantees.yml`）は `test.yml` の再利用jobとしてPR・main/masterへのpushごとに自動実行する。`package-smoke` はこのjobの成功を前提とし、抜けたまま進めない
 - `workflow_dispatch` で BASE と HEAD が同一（空 diff）のときは差分検査を緑にしない（fail-closed）
 - 検査ロジックは上流を呼び、コピーしない。通常のPR／branch pushはoriginから取得したイベント基点との差分を検査し、新規branch・タグ・Release公開・通常テストの手動実行は対象コミットの実在する親を取得し、mainが進んでいても現在のmainを基点にしない。対応外イベントは停止する。保証workflowを直接手動dispatchした場合は従来の全体release検査を行う。test workflowからの呼出しは明示inputで区別し、main上の通常テストの手動実行も差分なしを理由に停止しない。readinessのpass以外とratchetの新規悪化は停止する。整合性のshadow所見は所見として区別する
