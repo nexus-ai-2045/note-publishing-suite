@@ -1,5 +1,20 @@
 # 変更履歴
 
+## 0.3.17
+
+日付: 2026-10-26
+
+変更:
+- README が参照する使い方動画のサムネ assets/demo/usage-walkthrough-thumb.svg を旧リポから戻した（中身は変えていない）。PR11の予定版0.3.16を予約し、本変更は0.3.17とする。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `ruff と pytest scripts/test_skill_integration.py tests が合格`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.3.15
 
 - 保護対象の変更だけでbase-guardが常に赤になる状態を修復。固定上流の機械検査を維持し、保護対象だけの変更は本人を承認者にしたGitHub標準Environmentで確認後に通す。環境未設定・承認者不一致・不正定義・集約結果の欠落は停止する。
