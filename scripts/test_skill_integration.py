@@ -922,7 +922,7 @@ def test_provenance_label_checker_contract_present(tmp_path: Path):
     assert "user_speech_inside_external_fact" in result.stdout
 
 
-def test_github_identity_guard_contract_present():
+def test_github_identity_guard_contract_present(tmp_path: Path):
     script = (ROOT / "scripts/github_identity_guard.py").read_text(
         encoding="utf-8"
     )
@@ -963,16 +963,20 @@ def test_github_identity_guard_contract_present():
     assert "example-private-account" in example
     assert "Run GitHub identity guard" in workflow
 
+    standalone = tmp_path / 'identity-contract-fixture'
+    copy_public_package_fixture(standalone)
+    initialize_standalone_public_repo_fixture(standalone, 'identity contract fixture')
     result = subprocess.run(
         [
             sys.executable,
-            str(ROOT / "scripts/github_identity_guard.py"),
+            str(standalone / "scripts/github_identity_guard.py"),
             "--json",
         ],
-        cwd=ROOT,
+        cwd=standalone,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        env={**os.environ, 'GITHUB_REPOSITORY': 'nexus-ai-2045/note-publishing-suite'},
         check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr

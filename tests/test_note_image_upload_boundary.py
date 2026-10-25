@@ -252,3 +252,22 @@ def test_clipboard_table_missing_or_unsafe_fails_closed(tmp_path, monkeypatch):
         boundary.write_text(original.replace(row, replacement), encoding="utf-8")
         monkeypatch.setattr(checker, "BOUNDARY_PATH", boundary)
         assert "boundary route table invalid: consented_os_clipboard" in checker.validate_docs()
+
+
+def test_formal_iab_route_requires_capability_and_saved_readback():
+    checker = load_checker_module()
+    policy = load_policy()
+    route = next(r for r in policy["automation_routes"]
+                 if r["route_id"] == "codex_iab_file_upload")
+    assert route["status"] == "allowed_when_supported"
+    for unsafe in ("allowed_now", "blocked"):
+        changed = deepcopy(policy)
+        next(r for r in changed["automation_routes"]
+             if r["route_id"] == "codex_iab_file_upload")["status"] = unsafe
+        assert checker.validate_policy(changed)
+    for required in ("current_runtime_filechooser_documentation_confirmed",
+                     "chooser_observed_before_setFiles", "saved_draft_readback_verified"):
+        changed = deepcopy(policy)
+        next(r for r in changed["automation_routes"]
+             if r["route_id"] == "codex_iab_file_upload")["smoke_checks"].remove(required)
+        assert checker.validate_policy(changed)

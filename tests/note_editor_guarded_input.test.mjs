@@ -9,6 +9,348 @@ const payload = 'https://example.org/';
 const text = value => ({ tag: '#text', text: value });
 const p = value => ({ tag: 'P', attrs: [], children: value ? [text(value)] : [{ tag: 'BR', attrs: [], children: [] }] });
 const card = () => ({ tag: 'FIGURE', attrs: [['data-src', payload]], children: [] });
+const nativeCard = () => ({ tag: 'FIGURE', attrs: [['data-src', payload], ['id', 'new-native-card']], children: [] });
+
+function dialogBackend() {
+  const tab = backend();
+  const caption = '作品を紹介します';
+  const link = { tag: 'A', attrs: [['href', payload]], children: [text('本文中の同じリンク')] };
+  tab.current.blocks = [p('導入'), { tag: 'P', attrs: [], children: [link] }, p(caption), p(payload),
+    { tag: 'TABLE-OF-CONTENTS', attrs: [['contenteditable', 'false']], children: [] },
+    { tag: 'FIGURE', attrs: [['data-src', 'https://example.org/old']], children: [{ tag: 'IMG', attrs: [['src', 'old.png']], children: [] }] }, p('末尾')];
+  const value = n => n.tag === '#text' ? n.text : n.children.map(value).join('');
+  function sync() { tab.current.bodyText = tab.current.blocks.map(value).join(''); tab.current.rawHtml = JSON.stringify(tab.current.blocks); }
+  sync();
+  function select(index, selected = false) {
+    let last = tab.current.blocks[index]; const path = [];
+    while (last.children?.length) { path.push(last.children.length - 1); last = last.children.at(-1); }
+    const length = last.tag === '#text' ? last.text.length : 0;
+    const start = { blockIndex: index, nodePath: [0], offset: selected ? 0 : length };
+    const end = { blockIndex: index, nodePath: path, offset: length };
+    if (!selected) start.nodePath = [...path];
+    tab.current.selection = { intersectionsKnown: true, ranges: [{ start, end, protectedIntersections: [] }],
+      collapsed: !selected, rangeCount: 1, blockIndex: index, inside: true, text: selected ? payload : '' };
+  }
+  tab.ax = {
+    async get() { return `Browser tab: ${tab.axTarget ?? tab.id}, Title: ${JSON.stringify(tab.current.title)}, URL: ${JSON.stringify(tab.current.url)}.\n  430 text entry area (settable) ${tab.current.bodyText}\n` +
+      (tab.current.embedInput ? (tab.applyButtons ?? '  850 button 適用, ID: :r17:\n') : '') +
+      (tab.rawAxLeaves ?? '') +
+      `The focused UI element is 430 text entry area (settable) ${tab.current.bodyText}`; },
+    async selectText(id, target, options) {
+      assert.equal(id, options.selectionType === 'text' ? tab.expectedRawTarget ?? 430 : 430);
+      (tab.selectedAxTargets ??= []).push(id); tab.writes.push(['select', target]); tab.current.focused = true;
+      select(tab.wrongCursor ? 0 : options.selectionType === 'cursor_after' ? 2 : tab.wrongRaw ? 1 : 4, options.selectionType === 'text');
+    },
+    async pressKey(point, key) {
+      assert.equal(key, 'Backspace'); tab.writes.push(['Backspace']); tab.current.blocks[4] = p(''); sync();
+    },
+    async click(id) {
+      assert.equal(id, tab.expectedApplyId ?? 850); tab.clickedApplyId = id;
+      tab.writes.push(['適用']); tab.current.blocks[3] = nativeCard(); sync();
+    },
+  };
+  tab.playwright.getByRole = (role, { name }) => ({ async click() {
+    tab.writes.push([name]);
+    if (name === '埋め込み') {
+      tab.current.blocks.splice(3, 0, p('')); sync();
+      tab.current.embedInput = { count: 1, active: true, visible: true, value: '' };
+      tab.current.focused = false;
+      tab.current.selection = { inside: false, collapsed: true, rangeCount: 1, blockIndex: -1,
+        intersectionsKnown: true, ranges: [{ start: null, end: null, protectedIntersections: [] }] };
+    }
+    if (name === '適用') throw Error('Playwright Apply must never be used');
+  } });
+  tab.playwright.getByPlaceholder = () => ({ async waitFor(options) { assert.equal(options.state, 'visible'); tab.dialogWaited = true; }, async fill(url) {
+    assert.equal(url, payload); assert.equal(tab.dialogWaited, true); tab.writes.push(['fill']); tab.current.embedInput.value = url;
+  } });
+  tab.playwright.locator = () => ({ async waitFor() { if (tab.timeout) throw Error('timeout'); } });
+  return { tab, caption, sync };
+}
+test('native dialog: caption/raw URLの間へカードを作り同一inline linkと既存画像・TOCを保持', async () => {
+  const { tab, caption } = dialogBackend();
+  const original = structuredClone(tab.current.blocks);
+  const result = await guard(tab).embedViaNativeDialog({ payload, caption });
+  assert.equal(result.state, 'completed'); assert.equal(result.reason, 'native_embed_verified');
+  assert.deepEqual(tab.current.blocks.slice(0, 3), original.slice(0, 3));
+  assert.deepEqual(tab.current.blocks.slice(5), original.slice(4));
+  assert.deepEqual(tab.current.blocks[3], nativeCard()); assert.deepEqual(tab.current.blocks[4], p(''));
+  assert.equal(tab.writes.filter(w => w[0] === '適用').length, 1);
+});
+test('native dialog: captionの複数人物・作品inlineリンクをすべて保持する', async () => {
+  const { tab, caption, sync } = dialogBackend();
+  tab.current.blocks[2].children = [
+    { tag: 'A', attrs: [['href', 'https://example.org/person']], children: [text(caption.slice(0, 3))] },
+    { tag: 'A', attrs: [['href', 'https://example.org/work']], children: [text(caption.slice(3))] },
+  ]; sync();
+  const original = structuredClone(tab.current.blocks[2]);
+  assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption })).state, 'completed');
+  assert.deepEqual(tab.current.blocks[2], original);
+});
+for (const buttons of ['', '  850 button 不適用\n', '  850 button 適用 (disabled)\n', '  850 button 適用\n  851 button 適用\n']) test(`native dialog: exact一意Apply以外はAXclickしない ${JSON.stringify(buttons)}`, async () => {
+  const { tab, caption } = dialogBackend(); tab.applyButtons = buttons;
+  assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption })).reason, 'native_embed_apply_unverified');
+  assert.equal(tab.clickedApplyId, undefined); assert(!tab.writes.some(w => w[0] === '適用'));
+});
+test('native dialog: AXclick非対応は操作前に拒否', async () => {
+  const { tab, caption } = dialogBackend(); delete tab.ax.click;
+  assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption })).state, 'blocked');
+  assert.equal(tab.writes.length, 0);
+});
+test('native dialog: Apply AXの別tab headerを拒否', async () => {
+  const { tab, caption } = dialogBackend(); const original = tab.playwright.getByPlaceholder;
+  tab.playwright.getByPlaceholder = (...args) => ({ async waitFor(opts) { return original(...args).waitFor(opts); }, async fill(url) {
+    await original(...args).fill(url); tab.axTarget = 'different-tab';
+  } });
+  assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption })).reason, 'native_embed_apply_unverified');
+  assert.equal(tab.clickedApplyId, undefined);
+});
+test('native dialog: Applyは固定idでなくfresh AX stateのidを使う', async () => {
+  const { tab, caption } = dialogBackend(); tab.applyButtons = '  951 button 適用\n'; tab.expectedApplyId = 951;
+  assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption })).state, 'completed');
+  assert.equal(tab.clickedApplyId, 951);
+});
+test('native dialog: caption cursor違いはmenu操作前に停止', async () => {
+  const { tab, caption } = dialogBackend(); tab.wrongCursor = true;
+  assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption })).reason, 'native_embed_wrong_caption_cursor');
+  assert.deepEqual(tab.writes, [['select', caption]]);
+});
+test('native dialog: raw URLでなくinline linkを選んだらBackspaceしない', async () => {
+  const { tab, caption } = dialogBackend(); tab.wrongRaw = true;
+  assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption })).reason, 'native_embed_wrong_raw_selection');
+  assert(!tab.writes.some(w => w[0] === 'Backspace'));
+});
+test('native dialog: 既存カード重複とcaption曖昧はwrite前に停止', async () => {
+  for (const duplicate of ['card', 'caption', 'raw']) {
+    const { tab, caption, sync } = dialogBackend(); tab.current.blocks.push(duplicate === 'card' ? card() : p(duplicate === 'caption' ? caption : payload)); sync();
+    assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption })).state, 'blocked');
+    assert.equal(tab.writes.length, 0);
+  }
+});
+test('native dialog: timeoutは共有channelを止め再操作せずread-onlyで完成形だけ受理', async () => {
+  const { tab, caption, sync } = dialogBackend(); tab.timeout = true;
+  const input = guard(tab);
+  assert.equal((await input.embedViaNativeDialog({ payload, caption })).state, 'pending');
+  const writes = tab.writes.length;
+  assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption })).state, 'pending');
+  assert.equal((await input.reconcile()).state, 'pending'); assert.equal(tab.writes.length, writes);
+  tab.current.blocks[4] = p(''); sync();
+  assert.equal((await input.reconcile()).state, 'completed'); assert.equal(tab.writes.length, writes);
+});
+async function pendingNativeCard() {
+  const fixture = dialogBackend(), input = guard(fixture.tab);
+  fixture.tab.timeout = true;
+  assert.equal((await input.embedViaNativeDialog({ payload, caption: fixture.caption })).state, 'pending');
+  return { ...fixture, input };
+}
+test('verified cleanup: pendingの正しいcard+rawだけを削除し再Applyしない', async () => {
+  const { tab, input } = await pendingNativeCard(), original = structuredClone(tab.current.blocks);
+  const applies = tab.writes.filter(w => w[0] === '適用').length;
+  assert.equal((await input.completeNativeEmbed()).state, 'completed');
+  assert.equal(tab.writes.filter(w => w[0] === '適用').length, applies);
+  assert.deepEqual(tab.current.blocks.slice(0, 4), original.slice(0, 4));
+  assert.deepEqual(tab.current.blocks.slice(5), original.slice(5));
+  const writes = tab.writes.length;
+  assert.equal((await input.completeNativeEmbed()).reason, 'no_pending_native_embed');
+  assert.equal(tab.writes.length, writes);
+});
+test('verified cleanup: stagingだけなら一切操作せずpending', async () => {
+  const { tab, input, sync } = await pendingNativeCard(); tab.current.blocks[3] = p(''); sync();
+  const writes = tab.writes.length;
+  assert.equal((await input.completeNativeEmbed()).state, 'pending');
+  assert.equal(tab.writes.length, writes);
+});
+test('verified cleanup: protected本文変更をwrite前に拒否', async () => {
+  const { tab, input, sync } = await pendingNativeCard(); tab.current.blocks[0] = p('改変'); sync();
+  const writes = tab.writes.length;
+  assert.equal((await input.completeNativeEmbed()).state, 'blocked'); assert.equal(tab.writes.length, writes);
+});
+test('verified cleanup: inline誤選択をBackspace前に拒否', async () => {
+  const { tab, input } = await pendingNativeCard(); tab.wrongRaw = true;
+  assert.equal((await input.completeNativeEmbed()).reason, 'native_embed_wrong_raw_selection');
+  assert(!tab.writes.some(w => w[0] === 'Backspace'));
+});
+test('verified cleanup: failedreadはpendingのまま無操作、安定後に明示cleanup可能', async () => {
+  const { tab, input } = await pendingNativeCard(), writes = tab.writes.length;
+  tab.readFailure = true;
+  assert.equal((await input.completeNativeEmbed()).state, 'pending'); assert.equal(tab.writes.length, writes);
+  tab.readFailure = false;
+  assert.equal((await input.completeNativeEmbed()).state, 'completed');
+});
+test('verified cleanup: 結果不明のBackspaceを二度送らない', async () => {
+  const { tab, input } = await pendingNativeCard();
+  tab.ax.pressKey = async () => { tab.writes.push(['Backspace']); throw Error('timeout'); };
+  assert.equal((await input.completeNativeEmbed()).state, 'pending');
+  const writes = tab.writes.length;
+  assert.equal((await input.completeNativeEmbed()).state, 'pending'); assert.equal(tab.writes.length, writes);
+  assert.equal(tab.writes.filter(w => w[0] === 'Backspace').length, 1);
+});
+test('verified cleanup: 通常routeの無反応Backspaceも明示cleanupで再送しない', async () => {
+  const { tab, caption } = dialogBackend(), input = guard(tab);
+  tab.ax.pressKey = async () => { tab.writes.push(['Backspace']); };
+  assert.equal((await input.embedViaNativeDialog({ payload, caption })).state, 'pending');
+  const writes = tab.writes.length;
+  assert.equal((await input.completeNativeEmbed()).state, 'pending'); assert.equal(tab.writes.length, writes);
+});
+for (const route of ['normal', 'complete']) test(`newcard settle: ${route}で新規カードだけのmetadata/preview変化を許す`, async () => {
+  const fixture = route === 'complete' ? await pendingNativeCard() : dialogBackend();
+  const { tab, caption, sync } = fixture, input = fixture.input ?? guard(tab), select = tab.ax.selectText;
+  const protectedOld = structuredClone(tab.current.blocks.slice(route === 'complete' ? 5 : 4));
+  tab.ax.selectText = async (...args) => {
+    await select(...args);
+    if (args[2].selectionType === 'text') {
+      tab.current.blocks[3].attrs.push(['data-identifier', 'settled']);
+      tab.current.blocks[3].children = [{ tag: 'DIV', attrs: [], children: [text('provider preview')] }]; sync();
+    }
+  };
+  const result = route === 'complete' ? await input.completeNativeEmbed() : await input.embedViaNativeDialog({ payload, caption });
+  assert.equal(result.state, 'completed'); assert.deepEqual(tab.current.blocks.slice(5), protectedOld);
+  assert.equal(tab.current.blocks[3].attrs.find(a => a[0] === 'id')[1], 'new-native-card');
+});
+for (const route of ['normal', 'complete']) test(`raw AX leaf: ${route}は一意のexact static textを選びcaptionはrootのまま`, async () => {
+  const fixture = route === 'complete' ? await pendingNativeCard() : dialogBackend();
+  const { tab, caption } = fixture, input = fixture.input ?? guard(tab);
+  tab.rawAxLeaves = `  299 text ${payload}\n  300 text prefix ${payload}\n`;
+  tab.expectedRawTarget = 299;
+  assert.equal((route === 'complete' ? await input.completeNativeEmbed() : await input.embedViaNativeDialog({ payload, caption })).state, 'completed');
+  assert.deepEqual(tab.selectedAxTargets, [430, 299]);
+});
+test('raw AX leaf: 複数exact leafは推測せずroot fallback後のRangeで拒否', async () => {
+  const { tab, caption } = dialogBackend(); tab.rawAxLeaves = `  299 text ${payload}\n  301 text ${payload}\n`; tab.wrongRaw = true;
+  assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption })).reason, 'native_embed_wrong_raw_selection');
+  assert.deepEqual(tab.selectedAxTargets, [430, 430]); assert(!tab.writes.some(w => w[0] === 'Backspace'));
+});
+test('raw AX leaf: exact文字でも違うPを選べばBackspaceしない', async () => {
+  const { tab, caption } = dialogBackend(); tab.rawAxLeaves = `  299 text ${payload}\n`; tab.expectedRawTarget = 299; tab.wrongRaw = true;
+  assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption })).reason, 'native_embed_wrong_raw_selection');
+  assert.deepEqual(tab.selectedAxTargets, [430, 299]); assert(!tab.writes.some(w => w[0] === 'Backspace'));
+});
+test('raw AX leaf: leafに近似URLしかなければ既存root pathを使う', async () => {
+  const { tab, caption } = dialogBackend(); tab.rawAxLeaves = `  299 text prefix ${payload}\n`;
+  assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption })).state, 'completed');
+  assert.deepEqual(tab.selectedAxTargets, [430, 430]);
+});
+for (const route of ['normal', 'complete']) for (const [name, mutate] of [
+  ['URL', tab => { tab.current.blocks[3].attrs.find(a => a[0] === 'data-src')[1] = 'https://other.example/'; }],
+  ['id', tab => { tab.current.blocks[3].attrs.find(a => a[0] === 'id')[1] = 'other-card'; }],
+  ['position', tab => { [tab.current.blocks[2], tab.current.blocks[3]] = [tab.current.blocks[3], tab.current.blocks[2]]; }],
+  ['oldcard metadata', tab => { tab.current.blocks[6].attrs.push(['data-identifier', 'changed']); }],
+  ['author text', tab => { tab.current.blocks[0] = p('改変'); }],
+]) test(`newcard settle: ${route}の${name}変更をcleanup前に拒否`, async () => {
+  const fixture = route === 'complete' ? await pendingNativeCard() : dialogBackend();
+  const { tab, caption, sync } = fixture, input = fixture.input ?? guard(tab), select = tab.ax.selectText;
+  tab.ax.selectText = async (...args) => {
+    await select(...args); if (args[2].selectionType === 'text') { mutate(tab); sync(); }
+  };
+  const result = route === 'complete' ? await input.completeNativeEmbed() : await input.embedViaNativeDialog({ payload, caption });
+  assert.equal(result.state, 'blocked'); assert(!tab.writes.some(w => w[0] === 'Backspace'));
+});
+test('newcard settle: cleanup後のカードid変更も完了にしない', async () => {
+  const { tab, caption, sync } = dialogBackend(), press = tab.ax.pressKey;
+  tab.ax.pressKey = async (...args) => { await press(...args); tab.current.blocks[3].attrs.find(a => a[0] === 'id')[1] = 'replaced'; sync(); };
+  assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption })).state, 'blocked');
+});
+test('native staging診断は不一致pathと照合flagだけを返し本文値を含めない', async () => {
+  const { tab, caption, sync } = dialogBackend(), role = tab.playwright.getByRole;
+  tab.playwright.getByRole = (...args) => ({ async click() {
+    await role(...args).click();
+    if (args[1].name === '埋め込み') { tab.current.blocks[0] = p('秘密の本文値'); sync(); }
+  } });
+  const result = await guard(tab).embedViaNativeDialog({ payload, caption });
+  assert.equal(result.diagnostic.checks.prefix, false);
+  assert.equal(result.diagnostic.checks.suffix, true);
+  assert.match(result.diagnostic.mismatch_path, /^\$\.blocks\.0\./);
+  assert(!JSON.stringify(result).includes('秘密の本文値'));
+});
+test('native dialog: menu後targetが変われば次のwriteを拒否', async () => {
+  const { tab, caption } = dialogBackend();
+  const original = tab.playwright.getByRole;
+  tab.playwright.getByRole = (...args) => ({ async click() {
+    await original(...args).click();
+    if (args[1].name === 'メニューを開く') tab.current.url = 'https://editor.note.com/notes/nother/edit/';
+  } });
+  assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption })).state, 'blocked');
+  assert.deepEqual(tab.writes, [['select', caption], ['メニューを開く']]);
+});
+for (const driftAfter of ['メニューを開く', '埋め込み', 'fill']) test(`native dialog: ${driftAfter}後の本文不変Range driftをApply前に拒否`, async () => {
+  const { tab, caption } = dialogBackend();
+  const drift = () => {
+    const q = tab.current.selection;
+    q.ranges[0].start = { blockIndex: 0, nodePath: [0], offset: 1 };
+    q.ranges[0].end = { blockIndex: 0, nodePath: [0], offset: 1 }; q.blockIndex = 0; q.inside = true;
+  };
+  const role = tab.playwright.getByRole, placeholder = tab.playwright.getByPlaceholder;
+  tab.playwright.getByRole = (...args) => ({ async click() {
+    await role(...args).click(); if (args[1].name === driftAfter) drift();
+  } });
+  tab.playwright.getByPlaceholder = (...args) => ({ async waitFor(opts) { return placeholder(...args).waitFor(opts); }, async fill(url) {
+    await placeholder(...args).fill(url); if (driftAfter === 'fill') drift();
+  } });
+  const result = await guard(tab).embedViaNativeDialog({ payload, caption });
+  assert.equal(result.state, 'blocked');
+  assert.equal(result.diagnostic.code, 'native_embed_caption_range_changed');
+  assert(!tab.writes.some(w => w[0] === '適用'));
+});
+test('native dialog: dialogへのfocus移動は保存されたcaption Rangeと区別する', async () => {
+  const { tab, caption } = dialogBackend();
+  const role = tab.playwright.getByRole, select = tab.ax.selectText;
+  tab.playwright.getByRole = (...args) => ({ async click() {
+    await role(...args).click(); if (args[1].name !== '適用') tab.current.focused = false;
+  } });
+  tab.ax.selectText = async (...args) => { await select(...args); tab.current.focused = true; };
+  assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption })).state, 'completed');
+});
+test('native dialog: dialog中にRange取得不能ならApply前に停止', async () => {
+  const { tab, caption } = dialogBackend(); const original = tab.playwright.getByRole;
+  tab.playwright.getByRole = (...args) => ({ async click() {
+    await original(...args).click();
+    if (args[1].name === '埋め込み') tab.current.selection.ranges = [];
+  } });
+  assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption })).state, 'blocked');
+  assert(!tab.writes.some(w => w[0] === '適用'));
+});
+for (const [name, change] of [
+  ['staging以外の本文変更', tab => { tab.current.blocks[0] = p('書き換え'); }],
+  ['余分な空P', tab => { tab.current.blocks.splice(3, 0, p('')); }],
+  ['stagingに内容混入', tab => { tab.current.blocks[3] = p('余分な内容'); }],
+  ['URL欄複数', tab => { tab.current.embedInput.count = 2; }],
+  ['URL欄非active', tab => { tab.current.embedInput.active = false; }],
+  ['URL欄不可視', tab => { tab.current.embedInput.visible = false; }],
+  ['空でないURL欄', tab => { tab.current.embedInput.value = 'https://other.example/'; }],
+]) test(`native dialog: ${name}をfill/Apply前に拒否`, async () => {
+  const { tab, caption, sync } = dialogBackend(); const original = tab.playwright.getByRole;
+  tab.playwright.getByRole = (...args) => ({ async click() {
+    await original(...args).click(); if (args[1].name === '埋め込み') { change(tab); sync(); }
+  } });
+  assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption })).state, 'blocked');
+  assert(!tab.writes.some(w => ['fill', '適用'].includes(w[0])));
+});
+test('native dialog: fillしたURLの値が違えばApplyしない', async () => {
+  const { tab, caption } = dialogBackend(); const original = tab.playwright.getByPlaceholder;
+  tab.playwright.getByPlaceholder = (...args) => ({ async waitFor(opts) { return original(...args).waitFor(opts); }, async fill(url) {
+    await original(...args).fill(url); tab.current.embedInput.value = 'https://other.example/';
+  } });
+  assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption })).state, 'blocked');
+  assert(!tab.writes.some(w => w[0] === '適用'));
+});
+for (const index of [2, 3]) test(`native dialog: retained root bookmark index ${index}だけ許容`, async () => {
+  const { tab, caption } = dialogBackend(); const original = tab.playwright.getByRole;
+  tab.playwright.getByRole = (...args) => ({ async click() {
+    await original(...args).click();
+    if (args[1].name === '埋め込み') {
+      const point = { blockIndex: index, nodePath: index === 2 ? [0] : [], offset: index === 2 ? caption.length : 0 };
+      tab.current.selection = { rangeCount: 1, intersectionsKnown: true, collapsed: true, inside: true,
+        blockIndex: index, ranges: [{ start: point, end: { ...point }, protectedIntersections: [] }] };
+    }
+  } });
+  assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption })).state, 'completed');
+});
+test('native dialog: arbitrary callbackと不正URLは操作前に拒否', async () => {
+  for (const extra of [{ callback() {} }, { payload: 'https://u:p@example.org/' }, { payload: 'https://example.org:8443/' }, { payload: 'https://example.org/\n' }]) {
+    const { tab, caption } = dialogBackend();
+    assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption, ...extra })).state, 'blocked');
+    assert.equal(tab.writes.length, 0);
+  }
+});
 function snapshot() {
   return {
     url: noteUrl, title: '無害fixture', rootCount: 1, rootAttrs: [['contenteditable', 'true']],
@@ -149,13 +491,125 @@ function domBackend() {
   tab.playwright.evaluate = async fn => {
     tab.reads++;
     // 実入口が渡した関数を、新しいscopeで実行。外部closure依存もここで失敗する。
-    return runInNewContext(`(${fn.toString()})()`, { document, window });
+    return runInNewContext(`(${fn.toString()})()`, { document, window, URL });
   };
   tab.effect = () => {
     root.childNodes[1] = new Element('FIGURE', { 'data-src': payload }); root.childNodes[1].parentElement = root;
   };
   return { tab, root, blank, title, toc, iframe, selection, window, document, setRoots: value => { roots = value; }, blur: () => { focused = false; } };
 }
+
+const tweetSource = 'https://x.com/creator/status/12345';
+function twitterFixture(fallback = false, widget = 'twitter-widget-14') {
+  const frame = new Element('IFRAME', { id: widget, ...(fallback
+    ? { style: 'position: absolute; visibility: hidden; width: 0px; height: 0px;' }
+    : { src: `https://platform.twitter.com/embed/Tweet.html?id=12345&embedId=${widget}&features=runtime`, 'data-tweet-id': '12345' }) });
+  const renderer = new Element('DIV', { class: 'twitter-tweet twitter-tweet-rendered' }, [frame]);
+  const quote = new Element('BLOCKQUOTE', { align: 'center', class: 'twitter-tweet', 'data-dnt': 'true', 'data-twitter-extracted-i123456': 'true' }, [
+    new Element('P', { dir: 'ltr', lang: 'en' }, ['provider tweet']), '— Creator ',
+    new Element('A', { href: `${tweetSource}?ref_src=twsrc%5Etfw`, tabindex: '-1' }, ['date']),
+  ]);
+  const script = new Element('SCRIPT', { async: '', charset: 'utf-8', src: 'https://platform.x.com/widgets.js' });
+  const span = new Element('SPAN', {}, [renderer, ...(fallback ? [quote] : []), '\n', script, '\n\n']);
+  const figure = new Element('FIGURE', { contenteditable: 'false', 'embedded-service': 'twitter',
+    'data-src': tweetSource, id: 'protected-figure', name: 'protected-figure' }, [span]);
+  return { figure, frame, renderer, quote, span, script };
+}
+function mountTwitter(d, fixture) { d.root.childNodes[3] = fixture.figure; fixture.figure.parentElement = d.root; }
+test('実DOM Twitter: 検証済みfallback→同一post iframeの描画遷移を本文変更にしない', async () => {
+  const d = domBackend(); mountTwitter(d, twitterFixture(true));
+  const before = await d.tab.playwright.evaluate(readNoteDom);
+  const input = guard(d.tab), checkpoint = await input.observe(), effect = d.tab.effect;
+  d.tab.effect = () => { effect(); mountTwitter(d, twitterFixture()); };
+  assert.equal((await input.pasteUrl({ checkpoint, payload })).state, 'completed');
+  const after = await d.tab.playwright.evaluate(readNoteDom);
+  assert.deepEqual(JSON.parse(before.blocksJson)[3], JSON.parse(after.blocksJson)[3]);
+  assert.notEqual(before.rawHtml, after.rawHtml); assert(before.rawHtml.includes('BLOCKQUOTE'));
+});
+test('実DOM Twitter: 同一sourceのvolatilewidget ID変更もidentityを保つ', async () => {
+  const d = domBackend(); mountTwitter(d, twitterFixture());
+  const input = guard(d.tab), checkpoint = await input.observe(), effect = d.tab.effect;
+  d.tab.effect = () => { effect(); mountTwitter(d, twitterFixture(false, 'twitter-widget-999')); };
+  assert.equal((await input.pasteUrl({ checkpoint, payload })).state, 'completed');
+});
+for (const [name, change] of [
+  ['wrong host', f => { f.frame.attributes.find(a => a.name === 'src').value = 'https://evil.example/embed/Tweet.html?id=12345'; }],
+  ['wrong iframe id', f => { f.frame.attributes.find(a => a.name === 'src').value = 'https://platform.twitter.com/embed/Tweet.html?id=999'; }],
+  ['wrong data-tweet-id', f => { f.frame.attributes.find(a => a.name === 'data-tweet-id').value = '999'; }],
+  ['wrong figure URL', f => { f.figure.attributes.find(a => a.name === 'data-src').value = 'https://x.com/creator/status/999'; }],
+  ['editable figure', f => { f.figure.attributes.find(a => a.name === 'contenteditable').value = 'true'; }],
+  ['unknown renderer', f => { f.renderer.tagName = 'SECTION'; }],
+  ['author image inside wrapper', f => { f.span.childNodes.push(new Element('IMG', { src: 'author.png' })); }],
+  ['untrusted script', f => { f.script.attributes.find(a => a.name === 'src').value = 'https://evil.example/widgets.js'; }],
+  ['protected outer id', f => { f.figure.attributes.find(a => a.name === 'id').value = 'different'; }],
+]) test(`実DOM Twitter: ${name}はprojectionで隠さず拒否`, async () => {
+  const d = domBackend(); mountTwitter(d, twitterFixture(true));
+  const input = guard(d.tab), checkpoint = await input.observe(), effect = d.tab.effect;
+  d.tab.effect = () => { effect(); const f = twitterFixture(); change(f); mountTwitter(d, f); };
+  assert.equal((await input.pasteUrl({ checkpoint, payload })).state, 'blocked');
+});
+for (const [name, change] of [
+  ['fallback anchor別post', f => { f.quote.childNodes.at(-1).attributes.find(a => a.name === 'href').value = 'https://x.com/creator/status/999'; }],
+  ['fallback中wrongframehost', f => { f.frame.attributes.push({ name: 'src', value: 'https://evil.example/embed/Tweet.html?id=12345' }); }],
+  ['fallbackに画像混入', f => { f.quote.childNodes.push(new Element('IMG', { src: 'author.png' })); }],
+  ['fallback消失かつsrcなし', f => { f.span.childNodes.splice(1, 1); }],
+]) test(`実DOM Twitter: ${name}は同一tweet投影として扱わない`, async () => {
+  const d = domBackend(); mountTwitter(d, twitterFixture(true));
+  const input = guard(d.tab), checkpoint = await input.observe(), effect = d.tab.effect;
+  d.tab.effect = () => { effect(); const f = twitterFixture(true); change(f); mountTwitter(d, f); };
+  assert.equal((await input.pasteUrl({ checkpoint, payload })).state, 'blocked');
+});
+for (const lost of ['image', 'TOC', 'link']) test(`実DOM Twitter: 正常描画遷移でも著者の${lost}欠落は拒否`, async () => {
+  const d = domBackend(); mountTwitter(d, twitterFixture(true));
+  const extra = new Element('P', {}, [new Element(lost === 'image' ? 'IMG' : 'A', lost === 'image' ? { src: 'author.png' } : { href: 'https://author.example/' }, lost === 'image' ? [] : ['著者リンク'])]);
+  d.root.childNodes.push(extra); extra.parentElement = d.root;
+  const input = guard(d.tab), checkpoint = await input.observe(), effect = d.tab.effect;
+  d.tab.effect = () => { effect(); mountTwitter(d, twitterFixture()); if (lost === 'TOC') d.root.childNodes.splice(2, 1); else d.root.childNodes.pop(); };
+  assert.equal((await input.pasteUrl({ checkpoint, payload })).state, 'blocked');
+});
+
+test('実DOM読取: native URL textareaの一意・focus・可視・入力値を観測する', async () => {
+  const d = domBackend(), input = new Element('TEXTAREA', { placeholder: 'https://example.com' });
+  input.value = payload;
+  const query = d.document.querySelectorAll;
+  d.document.querySelectorAll = selector => selector === 'textarea[placeholder="https://example.com"]' ? [input] : query(selector);
+  d.document.activeElement = input;
+  const observed = await d.tab.playwright.evaluate(readNoteDom);
+  assert.deepEqual(JSON.parse(JSON.stringify(observed.embedInput)), { count: 1, active: true, visible: true, value: payload });
+  assert.equal(observed.focused, false);
+});
+function tocRecords() {
+  return [1, 2].map((n) => ({ node: { type: 'heading', attrs: { level: 2, align: '', id: `heading-${n}` },
+    content: [{ type: 'text', text: `見出し${n}` }] }, pos: n * 100, text: `見出し${n}`, level: 2 }));
+}
+test('実DOM読取: invalidJSON/未知TOC shapeを正規化せず保持する', async () => {
+  for (const raw of ['[見出し]', JSON.stringify([{ ...tocRecords()[0], extra: true }])]) {
+    const d = domBackend(); d.toc.attributes.find(a => a.name === 'toc').value = raw;
+    const observed = await d.tab.playwright.evaluate(readNoteDom);
+    const blocks = JSON.parse(observed.blocksJson);
+    assert.equal(blocks[2].attrs.find(a => a[0] === 'toc')[1], raw);
+  }
+});
+test('実DOM読取: 正規TOCの数値posだけの変化を許し他の全fieldは保持', async () => {
+  const d = domBackend(); const toc = d.toc.attributes.find(a => a.name === 'toc');
+  toc.value = JSON.stringify(tocRecords());
+  const input = guard(d.tab), checkpoint = await input.observe(), effect = d.tab.effect;
+  d.tab.effect = () => { effect(); const records = tocRecords(); records.forEach(r => { r.pos += 77; }); toc.value = JSON.stringify(records); };
+  assert.equal((await input.pasteUrl({ checkpoint, payload })).state, 'completed');
+});
+for (const [name, change] of [
+  ['title', records => { records[0].text = '変更'; records[0].node.content[0].text = '変更'; }],
+  ['id', records => { records[0].node.attrs.id = '別id'; }],
+  ['order', records => { records.reverse(); }],
+  ['未知shape', records => { records[0].unknown = true; }],
+  ['非数値pos', records => { records[0].pos = '100'; }],
+]) test(`実DOM読取: TOC ${name}変更は既存保護差分として拒否`, async () => {
+  const d = domBackend(), toc = d.toc.attributes.find(a => a.name === 'toc');
+  toc.value = JSON.stringify(tocRecords());
+  const input = guard(d.tab), checkpoint = await input.observe(), effect = d.tab.effect;
+  d.tab.effect = () => { effect(); const records = tocRecords(); change(records); toc.value = JSON.stringify(records); };
+  assert.equal((await input.pasteUrl({ checkpoint, payload })).state, 'blocked');
+});
 
 test('実DOM読取関数→fresh再取得→paste→全文比較を同じ入口で通す', async () => {
   const { tab, iframe } = domBackend(); const input = guard(tab); const checkpoint = await input.observe();
@@ -177,6 +631,40 @@ test('入力後のfocus表示と直下Pのparagraphマーカーだけは本文�
     paragraph.attributes = [];
   };
   assert.equal((await input.pasteUrl({ checkpoint, payload })).state, 'completed');
+});
+test('直下ULのbulletList表示class消失だけでは入力結果を破損扱いしない', async () => {
+  const d = domBackend();
+  const list = new Element('UL', { class: 'bulletList', id: 'protected-list' }, [
+    new Element('LI', {}, [new Element('P', {}, ['保持する要点'])]),
+  ]);
+  list.parentElement = d.root; d.root.childNodes.push(list);
+  const input = guard(d.tab), checkpoint = await input.observe(), effect = d.tab.effect;
+  d.tab.effect = () => { effect(); list.attributes = list.attributes.filter(a => a.name !== 'class'); };
+  assert.equal((await input.pasteUrl({ checkpoint, payload })).state, 'completed');
+  assert.equal(d.tab.writes.length, 1);
+});
+for (const [name, change, nested = false] of [
+  ['style', n => n.attributes.push({ name: 'style', value: 'display:none' })],
+  ['class', n => n.attributes.push({ name: 'class', value: 'hidden' })],
+  ['id', n => { n.attributes.find(a => a.name === 'id').value = 'changed-list'; }],
+  ['本文', n => { n.childNodes[0].childNodes[0].childNodes[0].textContent = '変更'; }],
+  ['項目欠落', n => { n.childNodes = []; }],
+  ['OL化', n => { n.tagName = 'OL'; }],
+  ['LI型', n => { n.childNodes[0].tagName = 'P'; }],
+  ['リンク先', n => { n.childNodes[0].childNodes[0].childNodes[0].attributes[0].value = 'https://example.org/changed'; }],
+  ['入れ子UL', () => {}, true],
+]) test(`bulletList許容でも${name}は入力後に停止する`, async () => {
+  const d = domBackend();
+  const list = new Element('UL', { class: 'bulletList', id: 'protected-list' }, [
+    new Element('LI', {}, [new Element('P', {}, name === 'リンク先'
+      ? [new Element('A', { href: 'https://example.org/original' }, ['保持する要点'])] : ['保持する要点'])]),
+  ]);
+  const wrapper = nested ? new Element('BLOCKQUOTE', {}, [list]) : list;
+  wrapper.parentElement = d.root; d.root.childNodes.push(wrapper);
+  const input = guard(d.tab), checkpoint = await input.observe(), effect = d.tab.effect;
+  d.tab.effect = () => { effect(); list.attributes = list.attributes.filter(a => a.name !== 'class'); change(list); };
+  assert.equal((await input.pasteUrl({ checkpoint, payload })).state, 'blocked');
+  assert.equal(d.tab.writes.length, 1);
 });
 test('直下Pの意味あるclass変更は入力後も停止する', async () => {
   const d = domBackend();
@@ -708,4 +1196,42 @@ test('document範囲0でもhidden祖先が本文をclipしていれば中心hit�
   d.tab.ax={async scroll(){throw Error('must not scroll');}};
   assert.equal((await d.tab.playwright.evaluate(readNoteDom)).view,null);
   assert.equal((await guard(d.tab).scrollToEdge({edge:'bottom'})).reason,'scroll_observation_unavailable');
+});
+
+test('native dialog: 紹介Pのsoft breakとリンクを保持する', async () => {
+  const { tab, caption, sync } = dialogBackend();
+  tab.current.blocks[2].children = [text(caption.slice(0, 3)), { tag: 'BR', attrs: [], children: [] }, text(caption.slice(3))]; sync();
+  const original = structuredClone(tab.current.blocks[2]);
+  assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption })).state, 'completed');
+  assert.deepEqual(tab.current.blocks[2], original);
+});
+
+test('native dialog: 一時的なAX本文遅延は読取りだけで安定を待つ', async () => {
+  const { tab, caption } = dialogBackend(); const original = tab.ax.get; let calls = 0;
+  tab.ax.get = async () => {
+    const state = await original();
+    return calls++ === 0 ? state.replace(`430 text entry area (settable) ${tab.current.bodyText}`, '430 text entry area (settable) temporary') : state;
+  };
+  assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption })).state, 'completed');
+  assert.equal(tab.writes.filter(w => w[0] === 'select' && w[1] === caption).length, 1);
+  assert.equal(tab.writes.filter(w => w[0] === '適用').length, 1);
+});
+test('native dialog: AX本文が安定しなければ操作前に拒否する', async () => {
+  const { tab, caption } = dialogBackend(); const original = tab.ax.get; let calls = 0;
+  tab.ax.get = async () => { calls++; return (await original()).replace(`430 text entry area (settable) ${tab.current.bodyText}`, '430 text entry area (settable) wrong'); };
+  assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption })).state, 'blocked');
+  assert.equal(calls, 3); assert.equal(tab.writes.length, 0);
+});
+
+for (const initialId of [null, 'null']) test(`native dialog: card ID ${initialId}は再Applyせず生成を待つ`, async () => {
+  const { tab, caption, sync } = dialogBackend(); const click = tab.ax.click;
+  tab.ax.click = async id => { await click(id); tab.current.blocks[3].attrs = [['data-src', payload], ...(initialId === null ? [] : [['id', initialId]])]; sync(); };
+  const input = guard(tab); const result = await input.embedViaNativeDialog({ payload, caption });
+  assert.equal(result.state, 'pending'); assert.equal(result.reason, 'native_embed_card_id_loading');
+  assert.equal((await input.completeNativeEmbed()).state, 'pending');
+  assert(!tab.writes.some(w => w[0] === 'Backspace'));
+  tab.current.blocks[3].attrs = [['data-src', payload], ['id', 'eventual-native-card']]; sync();
+  assert.equal((await input.completeNativeEmbed()).state, 'completed');
+  assert.equal(tab.writes.filter(w => w[0] === '適用').length, 1);
+  assert.equal(tab.writes.filter(w => w[0] === 'Backspace').length, 1);
 });

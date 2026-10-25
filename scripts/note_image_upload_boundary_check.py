@@ -15,6 +15,20 @@ POLICY_PATH = ROOT / "data/note_image_upload_automation_policy.json"
 BOUNDARY_PATH = ROOT / "references/note-image-upload-automation-boundary.md"
 
 REQUIRED_ROUTES: dict[str, dict[str, Any]] = {
+    "codex_iab_file_upload": {
+        "boundary": "documented_browser_native_filechooser",
+        "status": "allowed_when_supported",
+        "requires_current_conversation_approval": True,
+        "smoke_checks": [
+            "current_runtime_filechooser_documentation_confirmed",
+            "target_editor_and_local_image_confirmed",
+            "chooser_observed_before_setFiles",
+            "rendered_image_order_and_dimensions_verified",
+            "saved_draft_readback_verified",
+            "publish_or_schedule_not_clicked"
+        ],
+        "rollback": "stop_without_retry_on_unsupported_or_uncertain_outcome; preserve_last_verified_draft"
+    },
     "consented_os_clipboard": {
         "boundary": "local_user_machine_scoped_expiring_consent",
         "status": "requires_user_confirmation",

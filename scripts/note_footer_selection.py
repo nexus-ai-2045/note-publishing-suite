@@ -181,12 +181,12 @@ def validate_footer_selection(data: dict[str, Any], plan: Any) -> list[dict[str,
         links = []
     if decision == "omit" and links:
         fail("footer_plan_decision_mismatch", "フッター非採用の選定リンクは空配列が必要です")
-    expected: dict[str, tuple[int, str, bool]] = {}
+    expected: dict[str, tuple[int, str, bool, bool]] = {}
     for index, link in enumerate(links):
         if not isinstance(link, dict):
             fail("footer_plan_link_invalid", "選定リンクの形式が不正です")
             continue
-        if set(link) - {"url", "registry_ref", "reason", "presentation", "required"}:
+        if set(link) - {"url", "registry_ref", "reason", "presentation", "required", "require_rendered"}:
             fail("footer_plan_link_unknown_fields", "選定リンクに未知の項目があります")
         url = link.get("url")
         if not _url(url):
@@ -211,8 +211,10 @@ def validate_footer_selection(data: dict[str, Any], plan: Any) -> list[dict[str,
             continue
         if url in expected:
             fail("footer_plan_duplicate_url", "選定計画でURLが重複しています")
+        if type(link.get("require_rendered", False)) is not bool:
+            fail("footer_plan_link_invalid", "require_renderedは真偽値が必要です")
         if decision != "omit":
-            expected[url] = (index, link["presentation"], link["required"])
+            expected[url] = (index, link["presentation"], link["required"], link.get("require_rendered", False))
     footer = data.get("footer")
     nodes = footer.get("nodes") if isinstance(footer, dict) else None
     if isinstance(footer, dict) and set(footer) - {"nodes"}:
@@ -269,15 +271,21 @@ def validate_footer_selection(data: dict[str, Any], plan: Any) -> list[dict[str,
         if url not in expected:
             fail("footer_extra_url", "選定計画にないリンクが観測されています")
             continue
-        index, planned_presentation, _ = expected[url]
+        index, planned_presentation, _, require_rendered = expected[url]
         order.append(index)
         if presentation != planned_presentation:
             fail(
                 "footer_presentation_mismatch",
                 "カードと文字リンクの表示種別が選定計画と一致しません",
             )
+        if require_rendered and presentation == "card" and (
+            node.get("rendered") is not True
+            or not _nonempty(node.get("title"))
+            or node.get("rendered_href") != url
+        ):
+            fail("footer_card_not_rendered", "カードの読込み済み表示・タイトル・リンク先を確認できません")
     if order != sorted(order):
         fail("footer_order_mismatch", "リンクのDOM順が選定計画と一致しません")
-    if any(required and url not in seen for url, (_, _, required) in expected.items()):
+    if any(required and url not in seen for url, (_, _, required, _) in expected.items()):
         fail("footer_required_missing", "必須の選定リンクが観測されていません")
     return errors
