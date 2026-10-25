@@ -161,8 +161,8 @@ def check_local_git_config(errors: list[dict[str, str]]) -> None:
     # config, and that must not make read-only verification fail.
     name = run_git("config", "--local", "--get", "user.name")
     email = run_git("config", "--local", "--get", "user.email")
-    if name and name != EXPECTED_GIT_NAME:
-        add_error(errors, "git_config", f"user.name must be {EXPECTED_GIT_NAME}, got {name}")
+    if name and name not in CANONICAL_NAMES:
+        add_error(errors, "git_config", f"user.name must be one of {sorted(CANONICAL_NAMES)}, got {name}")
     if email and email != EXPECTED_GIT_EMAIL:
         add_error(
             errors,

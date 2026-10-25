@@ -51,6 +51,15 @@ def readiness(tmp_path):
     pin = _repo(trusted)
     scripts = trusted / "scripts"
     scripts.mkdir()
+    (scripts / "identity_gate.py").write_text('''
+import json, os, pathlib
+from types import SimpleNamespace
+def load_policy():
+    policy = json.loads(pathlib.Path(os.environ["PREFLIGHT_PRIVATE_PATTERNS_FILE"]).read_text())
+    assert policy == {"valid": True}
+def load_public_policy():
+    return SimpleNamespace(committer_only={"Platform <platform@example.invalid>"})
+''', encoding="utf-8")
     (scripts / "readiness_scan.py").write_text('''
 import json, os, pathlib, stat, subprocess, sys
 assert "PRIVATE_DENYLIST_INPUT" not in os.environ
@@ -67,9 +76,11 @@ for key in ("PUBLIC_IDENTITY_DENYLIST", "PREFLIGHT_PRIVATE_PATTERNS_FILE"):
     assert not path.is_relative_to(pathlib.Path(os.environ["GITHUB_WORKSPACE"]))
 policy = json.loads(pathlib.Path(os.environ["PREFLIGHT_PRIVATE_PATTERNS_FILE"]).read_text())
 pathlib.Path(os.environ["RUNNER_TEMP"], "scanner-called").touch()
-assert policy == {"valid": True}
+assert policy == {"valid": True, "allow_emails": ["platform@example.invalid"]}
+assert "--require-private-identity" in sys.argv
+assert sys.argv[sys.argv.index("--allowed-identities") + 1] == str(pathlib.Path(os.environ["RUNNER_TEMP"], "repo-preflight/references/public-commit-identities.json"))
 print(json.dumps({"scan": {"status": "pass", "head": os.environ["TARGET_HEAD_SHA"],
-    "checks": {"private_identity_scan": {"status": "pass"}, "identity_gate": {"status": "pass"}}}}))
+    "checks": {"private_identity_scan": {"status": "pass"}, "identity_gate": {"status": "pass"}, "public_attribution": {"status": "pass"}}}}))
 ''', encoding="utf-8")
     # A candidate Python startup hook must never execute in the secret process.
     marker = tmp_path / "candidate-executed"
@@ -137,6 +148,8 @@ def test_scanner_output_is_not_forwarded_to_public_log(readiness):
 
 
 @pytest.mark.parametrize("checks", [
+    {"private_identity_scan": {"status": "pass"}, "identity_gate": {"status": "pass"}},
+    {"private_identity_scan": {"status": "pass"}, "identity_gate": {"status": "pass"}, "public_attribution": {"status": "fail"}},
     {}, {"private_identity_scan": {"status": "not_configured"}, "identity_gate": {"status": "pass"}},
     {"private_identity_scan": {"status": "pass"}, "identity_gate": {"status": "fail"}},
 ])

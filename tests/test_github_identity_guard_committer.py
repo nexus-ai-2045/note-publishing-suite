@@ -125,3 +125,26 @@ def test_other_authors_are_blocked(name: str, email: str, message_start: str):
     errors = head_errors(guard, "GitHub", GITHUB_EMAIL, name, email)
     assert [e["check"] for e in errors] == ["head_commit"]
     assert errors[0]["message"].startswith(message_start)
+
+
+@pytest.mark.parametrize(("name", "email", "accepted"), [
+    ("nexus-ai-2045", CANONICAL_EMAIL, True),
+    ("nexus_ai", CANONICAL_EMAIL, True),
+    ("fixture-other-name", CANONICAL_EMAIL, False),
+    ("NEXUS_AI", CANONICAL_EMAIL, False),
+    ("GitHub", GITHUB_EMAIL, False),
+    ("nexus_ai", OTHER_ACCOUNT_NOREPLY, False),
+    ("nexus_ai", PERSONAL_MAIL_SHAPE, False),
+])
+def test_local_git_identity_uses_canonical_names_only(tmp_path, monkeypatch, name, email, accepted):
+    import subprocess
+
+    guard = load_guard()
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    for key, value in (("user.name", name), ("user.email", email)):
+        subprocess.run(["git", "-C", str(tmp_path), "config", "--local", key, value], check=True)
+    monkeypatch.setattr(guard, "ROOT", tmp_path)
+    errors = []
+    guard.check_local_git_config(errors)
+    assert (not errors) is accepted
+    assert all(error["check"] == "git_config" for error in errors)

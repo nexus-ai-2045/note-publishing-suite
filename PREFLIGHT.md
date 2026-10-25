@@ -29,11 +29,17 @@ repo-preflight の検査結果と、それに対する人間の判断を記録�
 - 検査ロジックは上流を呼び、コピーしない。通常のPR／branch pushはoriginから取得したイベント基点との差分を検査し、新規branch・タグ・Release公開・通常テストの手動実行は対象コミットの実在する親を取得し、mainが進んでいても現在のmainを基点にしない。対応外イベントは停止する。保証workflowを直接手動dispatchした場合は従来の全体release検査を行う。test workflowからの呼出しは明示inputで区別し、main上の通常テストの手動実行も差分なしを理由に停止しない。readinessのpass以外とratchetの新規悪化は停止する。整合性のshadow所見は所見として区別する
 - マージは人が行う。required status checksやSettingsは変更せず、既存package-smokeの前提jobで接続する
 
+### CIの重複削減と実行の保持
+
+`package-smoke`のprovenance・名義・日本語・画像境界の検査は既存の公開package verifierに集約する。LinuxとWindowsのverifier、契約試験と必須jobは維持する。共同執筆画面は実Git差分で影響を判定し、対象変更がない場合も同じjob名で完了する。比較不能・初回push・tag・release・手動実行では省略しない。
+
+workflowとイベントを分け、同じPRの古い実行だけを取り消す。差分検査のmain pushは後続がdocsだけの場合に先行UI検証を代替できないため、run IDとattemptごとに全実行を保持する。再利用先には呼出元と衝突するconcurrency groupを追加しない。
+
 ### CIのprivate identity設定と実行境界
 
 `repository-guarantees`は、private設定を読む`private-readiness`と、候補のwheel・ratchet・整合性検査を行う別jobへ分ける。private jobは候補内のPython、pip、package、Nodeコードを実行しない。上流repo-preflightを固定SHAで取得し、実HEADを照合してから隔離Pythonで起動する。対象もイベントのSHAでcheckoutし、base/headを検査間で固定する。
 
-PRの名義検査は投稿者の実headを対象とし、GitHubが生成した一時merge commitを投稿者のコミットへ混ぜない。候補実行jobはイベントの合成merge SHAを検査し、検査済みの実headとbaseがその祖先であることを照合する。名義policyへGitHub名義を追加して通過させない。
+PRの名義検査は投稿者の実headを対象とし、GitHubが生成した一時merge commitを投稿者のコミットへ混ぜない。候補実行jobはイベントの合成merge SHAを検査し、検査済みの実headとbaseがその祖先であることを照合する。PRの合成merge作者を通すために名義policyを緩めない。下記のcommitter専用派生入力も、作者への流用は役割別検査で拒否する。
 
 PRでは`scan_base`を`merge-base(event_base, authored_head)`とし、分岐後の著者コミットを検査する。`event_base`はイベントが示す実baseのまま別出力に保持する。統合jobはこの実base・著者headをイベント値へ照合し、両方が合成mergeの祖先であることを検証する。forkpointを統合baseの代わりへ流用せず、不正base・共通履歴のないPRは停止する。
 
@@ -47,7 +53,7 @@ workflow自体の改変を許可するとSecretを読み得るため、workflow�
 
 リポジトリ直下の`/.worktrees/`は管理下Git checkoutを置く作業用出力としてGit対象外にする。provenance全体検査も、この配下でGitへ実登録されたcheckoutだけを親packageの再帰対象から外す。未登録フォルダー、別階層の同名フォルダー、明示指定したファイルやディレクトリは検査を維持する。元の原稿、資料、検査コードは引き続き検査・追跡し、この除外へ移して隠さない。配下checkoutの成果は各所有ブランチでレビュー・配送する。
 
-GitHubでPRをマージする運用では、採用済みの公開名義一覧にあるプラットフォームcommitterをCI専用設定へ完全一致で反映する。共有のprivate policyは書き換えず、既存のdeny条件と共同作者拒否を保った派生入力を使い、既知mergeの受入と未知名義の拒否を確認する。PR著者headの照合をこの設定で代用しない。
+GitHubでPRをマージする運用では、採用済みの公開名義一覧にあるプラットフォームcommitterをCI専用設定へ完全一致で反映する。共有のprivate policyは書き換えず、既存のdeny条件と共同作者拒否を保った派生入力を使い、既知mergeの受入と未知名義の拒否を確認する。PR著者headの照合をこの設定で代用しない。固定上流の`load_public_policy().committer_only`を読み、元のprivate入力を上流validatorで検証してから一時ファイルへ派生する。同じ固定版の公開一覧を`--allowed-identities`へ渡し、`--require-private-identity`と`public_attribution=pass`を必須にする。作者や署名へcommitter専用名義を使う場合はこの役割別検査で拒否する。
 
 ### 手元同等の確認コマンド
 

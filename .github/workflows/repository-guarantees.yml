@@ -211,10 +211,29 @@ jobs:
                   for file, value in ((denyfile, denylist), (patternfile, patterns)):
                       file.touch(mode=0o600)
                       file.write_text(value, encoding="utf-8")
+                  # 固定した上流だけから公開名義を読む。候補のpolicyでは拡張しない。
+                  sys.path.insert(0, str(scripts))
+                  import identity_gate
+                  public_policy = identity_gate.load_public_policy()
+                  # 元入力を先に検証し、空/不正policyが追加処理で有効にならないようにする。
+                  os.environ["PREFLIGHT_PRIVATE_PATTERNS_FILE"] = str(patternfile)
+                  identity_gate.load_policy()
+                  os.environ.pop("PREFLIGHT_PRIVATE_PATTERNS_FILE", None)
+                  derived = json.loads(patterns)
+                  for identity in sorted(public_policy.committer_only):
+                      name, email = identity.rsplit(" <", 1)
+                      email = email.removesuffix(">")
+                      if email not in derived.setdefault("allow_emails", []):
+                          derived["allow_emails"].append(email)
+                      if derived.get("allow_names") and name not in derived["allow_names"]:
+                          derived["allow_names"].append(name)
+                  patternfile.write_text(json.dumps(derived), encoding="utf-8")
                   child_env["PUBLIC_IDENTITY_GUARD_SCRIPT"] = str(scripts / "identity_normalization.py")
                   child_env["PUBLIC_IDENTITY_DENYLIST"] = str(denyfile)
                   child_env["PREFLIGHT_PRIVATE_PATTERNS_FILE"] = str(patternfile)
-                  args = ["--repo", str(target)]
+                  # private policyの共有allowlistに加えて役割別の公開名義を必須検査する。
+                  args = ["--repo", str(target), "--require-private-identity",
+                          "--allowed-identities", str(trusted / "references" / "public-commit-identities.json")]
                   base = os.environ.get("CONSISTENCY_REMOTE_REF", "")
                   if os.environ["GITHUB_EVENT_NAME"] == "workflow_dispatch" and os.environ.get("PIPELINE_CALL") != "true":
                       args += ["--release", "--consistency-base-ref", base]
@@ -238,12 +257,13 @@ jobs:
                       and payload.get("head") == os.environ["TARGET_HEAD_SHA"]
                       and checks.get("private_identity_scan", {}).get("status") == "pass"
                       and checks.get("identity_gate", {}).get("status") == "pass"
+                      and checks.get("public_attribution", {}).get("status") == "pass"
                   )
                   if not ok:
                       # 固定keyとstatus列挙だけ。path、reason、名義、stdout全文は出さない。
                       statuses = {"pass", "fail", "blocked", "tool_error", "unknown", "not_configured"}
                       for key in ("clean_worktree", "secret_scan", "personal_path_scan",
-                                  "private_identity_scan", "identity_gate", "commit_identity",
+                                  "private_identity_scan", "identity_gate", "public_attribution", "commit_identity",
                                   "repository_consistency"):
                           status = checks.get(key, {}).get("status")
                           print(key + "=" + (status if status in statuses else "unknown"))
