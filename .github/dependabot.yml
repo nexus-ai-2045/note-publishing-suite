@@ -1,0 +1,12 @@
+# Dependabot の対象を本体だけにする設定。
+# imported/ は取り込み時点の保管庫（読むだけの写し）なので、依存の更新対象から外す。
+# 版の更新 PR は出さない（open-pull-requests-limit: 0）。本体の安全更新は従来どおり。
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    exclude-paths:
+      - "imported/**"
