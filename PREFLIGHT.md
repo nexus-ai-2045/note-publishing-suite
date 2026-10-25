@@ -35,6 +35,32 @@ repo-preflight の検査結果と、それに対する人間の判断を記録�
 
 workflowとイベントを分け、同じPRの古い実行だけを取り消す。差分検査のmain pushは後続がdocsだけの場合に先行UI検証を代替できないため、run IDとattemptごとに全実行を保持する。再利用先には呼出元と衝突するconcurrency groupを追加しない。
 
+### 保護パス変更の本人確認
+
+必須チェック名 `base-guard` は常時実行する集約jobである。比較元をcheckoutし、固定したrepo-preflightの `base_guard.py --json` を隔離Pythonで実行する。候補はGit objectとして読むだけでcheckout・実行しない。上流のschema、終了コード、status、caller数、各findingを照合し、正常passは確認不要、head側の `protected_path_changed` だけがあるblockedは本人確認待ちとする。YAML不正、呼出先・pin・release不正、base側所見、未知・欠損・矛盾した出力、tool errorは本人確認で免除しない。
+
+確認待ちへ進む前に、GitHub APIの読取り権限だけで固定Environment `ci-protected-change-review` を取得する。`required_reviewers` がtrusted GitHub contextのrepository owner User ID一人だけ、`prevent_self_review=false`、`deployment_branch_policy.protected_branches=true` と `custom_branch_policies=false` であることを必須とする。未作成、レビュアーなし・別人・追加、型不正、API失敗は停止する。設定はworkflowから作成・変更しない。レビュアーIDをpackageへ固定値で複製しない。
+
+管理者による事前設定はGitHubの[Environment API](https://docs.github.com/en/rest/deployments/environments)で次のpayloadを使用する。`OWNER_USER_ID` はその時点で取得したrepository ownerのUser IDへ置換し、対象repositoryと本人の明示承認を照合する。secretの登録は不要。
+
+```json
+{
+  "wait_timer": 0,
+  "prevent_self_review": false,
+  "reviewers": [{"type": "User", "id": "OWNER_USER_ID (integer)"}],
+  "deployment_branch_policy": {
+    "protected_branches": true,
+    "custom_branch_policies": false
+  }
+}
+```
+
+GitHubの[required reviewers](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments)による確認後だけ `owner-review` jobを実行する。job名とEnvironmentリンクはPR番号と実headを表示し、`pull_request_target` のbase側 `GITHUB_SHA` と区別する。このjobはcheckout、secret参照、書込み権限、公開・リリース処理を持たない。GitHubが提供する管理者の手動bypassは管理権限の境界として残り、workflowによる自動承認は行わない。ローカルfixtureやコメントを本人確認の証拠にしない。
+
+集約jobはinspect成功・明示されたboolean出力を要求する。確認不要ならreviewのskip、確認必要ならreviewのsuccessのみ通す。拒否、取消、timeout、失敗、必要なreviewのskip、未知状態は通さない。補助コード `.github/scripts/base_guard_review.py` 自体も上流の既存 `.github/` 保護範囲に含める。
+
+導入PRは旧mainの `pull_request_target` が動くため、この変更の局所検証で旧チェックが緑になったとは扱わない。Environmentの設定・読戻し、現在の規則と明示許可に従う導入判断、マージ後の実PRでの待機→本人確認→成功、および確認不要経路の実行を別々に確認する。ローカル試験はlive本人確認の代替ではない。
+
 ### CIのprivate identity設定と実行境界
 
 `repository-guarantees`は、private設定を読む`private-readiness`と、候補のwheel・ratchet・整合性検査を行う別jobへ分ける。private jobは候補内のPython、pip、package、Nodeコードを実行しない。上流repo-preflightを固定SHAで取得し、実HEADを照合してから隔離Pythonで起動する。対象もイベントのSHAでcheckoutし、base/headを検査間で固定する。
