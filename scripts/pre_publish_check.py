@@ -275,6 +275,35 @@ def collect_published_issues(text: str) -> list[dict[str, Any]]:
     return issues
 
 
+def _has_early_summary_section(intro: str) -> bool:
+    """Recognize a summary heading only with prose inside the early window."""
+    in_summary = False
+    # Reuse the existing stdlib Markdown visibility helper: fenced/inline code
+    # and link destinations must not supply reader-facing summary content.
+    visible = re.sub(r"<!--.*?(?:-->|\Z)", "", intro, flags=re.S)
+    # The caller already removed frontmatter. A leading blank prevents a body
+    # horizontal rule from being parsed as a new frontmatter opener.
+    rendered = {row - 1: text for row, text in
+                _load_sibling_module("note_author_vocabulary").visible_lines(("\n" + visible).encode("utf-8")).items()}
+    for row, line in enumerate(visible.splitlines(), 1):
+        if row not in rendered or line.expandtabs(4).startswith("    "):
+            continue
+        heading = re.match(r"^ {0,3}#{1,6}[ \t]+(.+?)\s*#*\s*$", line)
+        if heading:
+            in_summary = bool(re.fullmatch(
+                r"(?:この記事の)?要点(?:[（(].*[）)])?|ここだけ読めば[^\n]*", heading.group(1)
+            ))
+            continue
+        if in_summary:
+            prose = re.sub(r"^[ \t]*(?:[-*+] |\d+\. )", "", rendered[row]).strip()
+            if re.search(r"TODO|TBD|FIXME|準備中|執筆中|未記入|未定|(?:あとで|後で)追記", prose, re.I):
+                continue
+            # A marker-only or tiny placeholder line is not a substantive summary.
+            if len(re.findall(r"[^\W\d_]", prose)) >= 12:
+                return True
+    return False
+
+
 def collect_issues(text: str) -> list[dict[str, Any]]:
     """制作中Markdownの検査。既定の構成要件を維持する。"""
     metadata, body = split_frontmatter(text)
@@ -305,7 +334,8 @@ def collect_issues(text: str) -> list[dict[str, Any]]:
     if not re.search(r"^#\s+\S+", body, re.M) and not frontmatter_title:
         issues.append({"severity": "warning", "code": "missing_h1", "message": "本文H1またはfrontmatterのtitleがありません"})
     intro = body[:900]
-    if not re.search(r"(先に結論|結論から|この記事で.{0,80}(分かる|伝える|整理|やる)|要するに|持ち帰)", intro, re.S):
+    if not (re.search(r"(先に結論|結論から|この記事で.{0,80}(分かる|伝える|整理|やる)|要するに|持ち帰)", intro, re.S)
+            or _has_early_summary_section(intro)):
         issues.append({
             "severity": "error",
             "code": "missing_early_takeaway",

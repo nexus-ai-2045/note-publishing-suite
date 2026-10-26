@@ -1,5 +1,20 @@
 # 変更履歴
 
+## 0.3.20
+
+日付: 2026-10-27
+
+変更:
+- 冒頭900字以内の「この記事の要点」「ここだけ読めば」見出しと実質的な要約本文を、既存の結論先出し条件に追加。空欄・準備中・コメント・コード例・別節本文だけでは合格させない。
+- 利用者の明示的な外部settingsのtag_count_policyをworkflowとeditor検査へ束縛。既定5〜10を維持し、検証済みの設定で最大20件まで許可。packetだけの上限拡張と不正型は拒否。
+
+検証:
+- `uv run --with-requirements requirements-dev.txt python -m pytest tests/test_tag_operation_preflight.py tests/test_note_workflow_gate.py tests/test_note_editor_prepublish_verify.py tests/test_pre_publish_editorial_review.py -q`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.3.19
 
 日付: 2026-10-27
