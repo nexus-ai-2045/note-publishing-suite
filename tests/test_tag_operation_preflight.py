@@ -251,3 +251,31 @@ def test_editor_cli_uses_external_count_policy_only(tmp_path, tag_design, adopte
     codes = {row['code'] for row in json.loads(result.stdout)['issues']}
     assert ('tag_design_count_invalid' in codes) is not adopted
     assert ('tag_design_policy_invalid' in codes) is not adopted
+
+
+@pytest.mark.parametrize('selected, approved', [
+    (['Topic', 'Context', 'Series'], True),
+    (['#topic', 'CONTEXT', '#Series'], True),
+    (['Series', 'Context', 'Topic'], False),
+])
+def test_post_edit_requires_normalized_selected_tag_order(selected, approved):
+    from note_editor_prepublish_verify import tag_operation_preflight
+    expected = ['Topic', 'Context', 'Series']
+    baseline = dict(article_id='article', account='writer', selected_tags=expected,
+                    suggested_tags=[], selection_scope_verified=True)
+    value = dict(phase='post_edit', baseline=baseline,
+                 current=dict(baseline, selected_tags=selected),
+                 planned_additions=[], planned_removals=[])
+    result = tag_operation_preflight(value, 'article', 'writer', expected_tags=expected)
+    assert result['status'] == ('approved' if approved else 'blocked')
+    assert ('tag_selected_order_mismatch' in result['reasons']) is not approved
+    assert result['additions'] == []
+
+
+def test_pre_edit_tag_invariance_still_ignores_order():
+    from note_editor_prepublish_verify import tag_operation_preflight
+    baseline = dict(article_id='article', account='writer', selected_tags=['Topic', 'Series'],
+                    suggested_tags=[], selection_scope_verified=True)
+    value = dict(baseline=baseline, current=dict(baseline, selected_tags=['Series', 'Topic']),
+                 planned_additions=[])
+    assert tag_operation_preflight(value, 'article', 'writer')['status'] == 'approved'

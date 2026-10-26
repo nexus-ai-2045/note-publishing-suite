@@ -266,6 +266,8 @@ def tag_operation_preflight(readback: Any, article_id: str, account: str, *,
                 reasons.append("tag_transition_design_mismatch")
             if selected != expected:
                 reasons.append("tag_selected_design_mismatch")
+            elif list(map(normalize_tag, current["selected_tags"])) != list(map(normalize_tag, expected_tags)):
+                reasons.append("tag_selected_order_mismatch")
     elif not reasons:
         baseline_tags = set(map(normalize_tag, baseline["selected_tags"]))
         selected = set(map(normalize_tag, current["selected_tags"]))

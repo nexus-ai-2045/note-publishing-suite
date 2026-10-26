@@ -1,5 +1,20 @@
 # 変更履歴
 
+## 0.3.21
+
+日付: 2026-10-27
+
+変更:
+- 公開前タグ操作のpost_editで、選択済みタグとexpected_tagsの正規化後の順序を照合。pre_editの集合不変性と表記alias互換を保持し、公開ページのタグ再配列とは区別。
+
+検証:
+- `uv run --with-requirements requirements-dev.txt python -m pytest tests/test_tag_operation_preflight.py -q`
+- `uv run --with-requirements requirements-dev.txt python -m pytest tests/test_note_workflow_gate.py -k 'publish_post_edit or twelve_tags or adopted_tag_sources' -q`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.3.20
 
 日付: 2026-10-27

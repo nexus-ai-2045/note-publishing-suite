@@ -1211,3 +1211,15 @@ def test_workspace_rejects_invalid_count_policy(packet, tmp_path, policy):
     config_path.write_text(json.dumps(config))
     with pytest.raises(ValueError, match='タグ件数policy'):
         gate.read_workspace_settings(config_path, 'article')
+
+
+@pytest.mark.parametrize('order', ['same', 'alias', 'reversed'])
+def test_publish_post_edit_requires_selected_tag_order(packet, order):
+    expected = list(packet['settings']['tags'])
+    selected = (list(reversed(expected)) if order == 'reversed' else
+                ['#' + tag.casefold() for tag in expected] if order == 'alias' else expected)
+    packet['tag_preflight'].update(phase='post_edit', planned_additions=[], planned_removals=[])
+    packet['tag_preflight']['current']['selected_tags'] = selected
+    result = approve(packet, 'publish')
+    assert result['status'] == ('blocked' if order == 'reversed' else 'approved'), result['reasons']
+    assert ('tag_selection: tag_selected_order_mismatch' in result['reasons']) is (order == 'reversed')
