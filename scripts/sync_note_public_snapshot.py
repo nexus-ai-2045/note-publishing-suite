@@ -26,6 +26,30 @@ class AtomicReplaceDurabilityError(OSError):
     """os.replace は完了したが、親directoryの永続化確認に失敗した。"""
 
 
+def canonical_destination(path: Path) -> Path:
+    """書込み先を実体へ正規化し、壊れたfile symlinkを拒否する。
+
+    atomic replace はlinkそのものを置換するため、aliasをそのまま渡すとcanonical
+    fileから切り離された別storeを作る。既存のsymlinkは実体へ向け、壊れたlinkは
+    新しい保存先を黙って作らず停止する。
+    """
+    path = Path(path)
+    if path.is_symlink():
+        try:
+            resolved = path.resolve(strict=True)
+        except FileNotFoundError as exc:
+            raise ValueError(f"保存先symlinkが壊れています: {path}") from exc
+        if not resolved.is_file():
+            raise ValueError(f"保存先symlinkの実体が通常fileではありません: {path}")
+        return resolved
+    parent = path.parent
+    while not parent.exists() and parent != parent.parent:
+        if parent.is_symlink():
+            raise ValueError(f"保存先の親symlinkが壊れています: {parent}")
+        parent = parent.parent
+    return path.resolve()
+
+
 def fsync_directory(path: Path) -> None:
     """rename/unlinkしたdirectory entryを電源断後も残す。"""
     if os.name == "nt":
@@ -54,6 +78,7 @@ def quote(value: str) -> str:
 
 def atomic_write_bytes(path: Path, payload: bytes) -> None:
     """同一directory内でstageしてから置換し、途中内容をliveに見せない。"""
+    path = canonical_destination(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     temp_path: Path | None = None
     target_mode = stat.S_IMODE(path.stat().st_mode) if path.exists() else 0o644
@@ -82,7 +107,8 @@ def atomic_write_bytes(path: Path, payload: bytes) -> None:
 @contextmanager
 def ledger_file_lock(ledger_path: Path):
     """ledger path単位のOS lock。crash時はOSが解放し、repo内にlockfileを残さない。"""
-    lock_key = hashlib.sha256(str(ledger_path.resolve()).encode("utf-8")).hexdigest()
+    ledger_path = canonical_destination(ledger_path)
+    lock_key = hashlib.sha256(str(ledger_path).encode("utf-8")).hexdigest()
     lock_path = Path(tempfile.gettempdir()) / f"note-public-snapshot-{lock_key}.lock"
     with lock_path.open("a+b") as handle:
         if os.name == "nt":
@@ -169,13 +195,16 @@ def resolve_ledger_path(explicit: Path | None) -> Path | None:
 
 def resolve_workspace_root(ledger_path: Path, explicit: Path | None = None) -> Path:
     """採用workspaceを明示解決する。旧data直下の台帳だけ互換既定を保つ。"""
-    ledger = ledger_path.resolve()
+    ledger = canonical_destination(ledger_path)
+    explicit_supplied = explicit is not None
     if explicit is None:
         if ledger.parent.name != "data":
             raise ValueError("任意の台帳保存先には --workspace-root を指定してください")
         explicit = ledger.parent.parent
     root = explicit.resolve()
-    if not root.is_dir() or not ledger.is_relative_to(root):
+    if not root.is_dir():
+        raise ValueError("workspace-root は既存directoryである必要があります")
+    if not explicit_supplied and not ledger.is_relative_to(root):
         raise ValueError("台帳は既存の workspace-root 内へ指定してください")
     return root
 
@@ -193,6 +222,7 @@ def archive_rel_path(ledger_path: Path, output: Path, *, workspace_root: Path | 
 
 
 def transaction_path(ledger_path: Path) -> Path:
+    ledger_path = canonical_destination(ledger_path)
     return ledger_path.with_name(f".{ledger_path.name}{TRANSACTION_SUFFIX}")
 
 
@@ -455,8 +485,8 @@ def main(argv: list[str] | None = None) -> int:
     source_draft = Path(args.source_draft)
     inputs = [source_draft] + ([args.local_observation] if args.local_observation else [])
     if args.write_ledger:
-        args.output = args.output.resolve()
-        ledger = ledger.resolve() if ledger else None
+        args.output = canonical_destination(args.output)
+        ledger = canonical_destination(ledger) if ledger else None
     outputs = [args.output] + ([ledger, transaction_path(ledger)] if ledger else [])
     if args.write_ledger:
         reject_package_outputs(outputs, PACKAGE_ROOT)

@@ -108,6 +108,57 @@ def test_transaction_different_draft_target_stops(tmp_path):
     assert before == (pub.read_bytes(), drafts.read_bytes())
 
 
+def test_publication_transaction_path_uses_canonical_published_ledger(tmp_path):
+    pub, _, _, _, _ = setup(tmp_path)
+    alias = tmp_path / "published-alias.json"
+    alias.symlink_to(pub)
+
+    assert post.transaction_path(alias) == post.transaction_path(pub)
+
+
+@pytest.mark.parametrize("link_kind", ["file", "parent"])
+def test_sync_cli_rejects_broken_output_alias_before_fetch(tmp_path, monkeypatch, link_kind):
+    pub, _, draft, ev, _ = setup(tmp_path)
+    if link_kind == "file":
+        output = tmp_path / "broken-output.md"
+        output.symlink_to(tmp_path / "missing-output.md")
+    else:
+        parent = tmp_path / "broken-output-parent"
+        parent.symlink_to(tmp_path / "missing-output-parent", target_is_directory=True)
+        output = parent / "snapshot.md"
+    before = pub.read_bytes()
+    monkeypatch.setattr(sync, "fetch_published_note", lambda _: pytest.fail("network called"))
+
+    with pytest.raises(ValueError, match="symlinkが壊れています"):
+        sync.main(["--url", URL, "--output", str(output), "--source-draft", str(draft),
+                   "--ledger", str(pub), "--local-observation", str(ev), "--write-ledger"])
+
+    assert pub.read_bytes() == before
+    assert not (tmp_path / "missing-output.md").exists()
+    assert not (tmp_path / "missing-output-parent").exists()
+
+
+@pytest.mark.parametrize("link_kind", ["file", "parent"])
+def test_post_cli_rejects_broken_ledger_alias_before_write(tmp_path, link_kind):
+    pub, drafts, draft, ev, args = setup(tmp_path)
+    if link_kind == "file":
+        broken = tmp_path / "broken-ledger.json"
+        broken.symlink_to(tmp_path / "missing-ledger.json")
+    else:
+        parent = tmp_path / "broken-ledger-parent"
+        parent.symlink_to(tmp_path / "missing-ledger-parent", target_is_directory=True)
+        broken = parent / "published_notes.json"
+    args[args.index("--published-ledger") + 1] = str(broken)
+    before = pub.read_bytes(), drafts.read_bytes()
+
+    with pytest.raises(ValueError, match="symlinkが壊れています"):
+        post.main(args + ["--write-ledger"])
+
+    assert (pub.read_bytes(), drafts.read_bytes()) == before
+    assert not (tmp_path / "missing-ledger.json").exists()
+    assert not (tmp_path / "missing-ledger-parent").exists()
+
+
 def test_snapshot_never_overwrites_source_alias(tmp_path, monkeypatch):
     pub, _, draft, ev, _ = setup(tmp_path)
     before = draft.read_bytes()

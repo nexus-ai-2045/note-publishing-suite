@@ -140,6 +140,51 @@ def test_atomic_write_preserves_existing_file_mode(tmp_path):
         assert stat.S_IMODE(target.stat().st_mode) == 0o640
 
 
+def test_atomic_write_through_file_symlink_updates_canonical_target(tmp_path):
+    target = tmp_path / "canonical.json"
+    alias = tmp_path / "alias.json"
+    target.write_bytes(b"old")
+    alias.symlink_to(target)
+
+    sync.atomic_write_bytes(alias, b"new")
+
+    assert target.read_bytes() == b"new"
+    assert alias.is_symlink()
+    assert alias.resolve() == target.resolve()
+
+
+def test_atomic_write_rejects_broken_file_symlink(tmp_path):
+    alias = tmp_path / "broken.json"
+    alias.symlink_to(tmp_path / "missing.json")
+
+    with pytest.raises(ValueError, match="symlinkが壊れています"):
+        sync.atomic_write_bytes(alias, b"must-not-create")
+
+    assert alias.is_symlink()
+    assert not (tmp_path / "missing.json").exists()
+
+
+def test_atomic_write_rejects_broken_parent_symlink(tmp_path):
+    parent_alias = tmp_path / "data-alias"
+    parent_alias.symlink_to(tmp_path / "missing-data", target_is_directory=True)
+
+    with pytest.raises(ValueError, match="親symlinkが壊れています"):
+        sync.atomic_write_bytes(parent_alias / "ledger.json", b"must-not-create")
+
+
+def test_ledger_lock_and_transaction_path_share_canonical_file_for_alias(tmp_path):
+    ledger = tmp_path / "published_notes.json"
+    alias = tmp_path / "published-alias.json"
+    ledger.write_text("[]", encoding="utf-8")
+    alias.symlink_to(ledger)
+
+    assert sync.transaction_path(alias) == sync.transaction_path(ledger)
+    with sync.ledger_file_lock(alias):
+        with pytest.raises(RuntimeError, match="別processが更新中"):
+            with sync.ledger_file_lock(ledger):
+                pass
+
+
 def test_archive_rel_path_is_repo_relative_posix(tmp_path):
     """台帳に書く値は repo 相対 POSIX 形式。Windows の区切りを混ぜない。"""
     ledger = _ledger(tmp_path, [dict(r) for r in ROWS])
@@ -579,11 +624,28 @@ def test_nested_ledger_without_workspace_stops_before_fetch_or_write(tmp_path, m
     assert not output.exists()
 
 
-def test_explicit_workspace_rejects_outside_ledger_and_output(tmp_path):
+def test_explicit_workspace_separates_runtime_ledger_from_archive_workspace(tmp_path):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     ledger = _ledger(workspace, [dict(ROWS[1])])
     with pytest.raises(ValueError, match="repo root 外"):
         sync.archive_rel_path(ledger, tmp_path / "outside.md", workspace_root=workspace)
-    with pytest.raises(ValueError, match="workspace-root"):
-        sync.archive_rel_path(tmp_path / "private" / "published_notes.json", workspace / "a.md", workspace_root=workspace)
+    independent_ledger = tmp_path / "runtime-store" / "published_notes.json"
+    assert sync.archive_rel_path(independent_ledger, workspace / "a.md", workspace_root=workspace) == "a.md"
+
+
+def test_explicit_workspace_allows_independent_ledger_for_write(tmp_path, monkeypatch):
+    workspace = tmp_path / "article-workspace"
+    workspace.mkdir()
+    ledger = _ledger(tmp_path / "runtime-store", [dict(ROWS[1])])
+    output = workspace / "content" / "published" / "article-b.md"
+    monkeypatch.setattr(sync, "fetch_published_note", lambda _: {"title": "公開版", "body": "本文"})
+
+    assert sync.main([
+        "--write-ledger", "--url", ROWS[1]["url"], "--output", str(output),
+        "--source-draft", str(Path(__file__)), "--ledger", str(ledger),
+        "--workspace-root", str(workspace),
+    ]) == 0
+
+    assert output.is_file()
+    assert json.loads(ledger.read_text(encoding="utf-8"))[0]["archive_path"] == "content/published/article-b.md"
