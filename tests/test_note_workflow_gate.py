@@ -1172,3 +1172,42 @@ def test_progress_proof_is_observed_without_changing_approval_subject(packet, mo
     changed = gate.check_packet(packet, 'edit', 'current')
     assert changed['status'] == 'blocked'
     assert changed['subject_hashes'] != before['subject_hashes']
+
+
+@pytest.mark.parametrize('stage', ['settings', 'publish'])
+@pytest.mark.parametrize('adopted', [False, True])
+def test_twelve_tags_use_external_workspace_count_policy(packet, tmp_path, stage, adopted):
+    policy = dict(id='nps-local-tags/v1', min_tags=5, max_tags=12)
+    packet['tag_design']['policy'] = dict(policy)
+    packet['tag_count_policy'] = dict(policy)  # packet-only cap is never authoritative
+    extra = [f'Brand{n}' for n in range(7)]
+    packet['settings']['tags'].extend(extra)
+    packet['tag_design']['tags'].extend(dict(tag=tag, role='series', reason='本人指定ブランド',
+                                            evidence_ref='conversation://current') for tag in extra)
+    for key in ['baseline', 'current']:
+        packet['tag_preflight'][key]['selected_tags'] = list(packet['settings']['tags'])
+    packet['tag_preflight']['planned_additions'] = list(packet['settings']['tags'])
+    config_path = tmp_path / 'workspace-settings.json'
+    if adopted:
+        config = json.loads(config_path.read_text())
+        config['tag_count_policy'] = policy
+        config_path.write_text(json.dumps(config))
+        packet['ssot_readback'], _ = gate.read_workspace_settings(config_path, 'article')
+    result = approve(packet, stage)
+    if adopted:
+        assert result['status'] == 'approved', result['reasons']
+        assert result['expected_readback']['tag_count_policy'] == policy
+    else:
+        assert 'tag_design: tag_design_count_invalid' in result['reasons']
+        assert 'tag_design: tag_design_policy_invalid' in result['reasons']
+
+
+@pytest.mark.parametrize('policy', [None, {}, dict(id='nps-local-tags/v1', min_tags=5, max_tags=True),
+                                   dict(id='nps-local-tags/v1', min_tags=5, max_tags=21)])
+def test_workspace_rejects_invalid_count_policy(packet, tmp_path, policy):
+    config_path = tmp_path / 'workspace-settings.json'
+    config = json.loads(config_path.read_text())
+    config['tag_count_policy'] = policy
+    config_path.write_text(json.dumps(config))
+    with pytest.raises(ValueError, match='タグ件数policy'):
+        gate.read_workspace_settings(config_path, 'article')

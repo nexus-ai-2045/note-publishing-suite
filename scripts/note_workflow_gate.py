@@ -121,6 +121,12 @@ def read_workspace_settings(settings_path: Path | None, article_id: str, *,
     expected = {"settings_sha256": hashlib.sha256(raw).hexdigest(), "reference_hashes": reference_hashes}
     if "tag_reference_policy" in config:
         expected["tag_reference_policy"] = tag_reference_policy
+    if "tag_count_policy" in config:
+        count_policy = config["tag_count_policy"]
+        validate_count = _load_sibling_module("note_editor_prepublish_verify").validate_tag_count_policy
+        if errors := validate_count(count_policy):
+            raise ValueError("タグ件数policyが不正です: " + "; ".join(errors))
+        expected["tag_count_policy"] = dict(count_policy)
     linebreak_policy = _load_sibling_module("note_linebreak_gate").resolve_policy(style, article_id, require_article_id=True)
     if linebreak_policy is not None:
         expected["linebreak_policy"] = linebreak_policy
@@ -564,7 +570,8 @@ def check_packet(packet: Any, stage: str, conversation_id: str, base_dir: Path =
             tag_errors = validate_tag_design(design, packet.get("article_id"), settings_value.get("tags"),
                                             draft_text, article_lane=packet.get("article_lane", "production_candidate"),
                                             reference_policy=expected.get("tag_reference_policy") if storage_dirs else None,
-                                            reference_hashes=expected.get("reference_hashes") if storage_dirs else None)
+                                            reference_hashes=expected.get("reference_hashes") if storage_dirs else None,
+                                            count_policy=expected.get("tag_count_policy") if storage_dirs else None)
             reasons.extend("tag_design: " + error for error in tag_errors)
             if isinstance(design, dict):
                 hashes["tag_design"] = canonical_sha256(design)

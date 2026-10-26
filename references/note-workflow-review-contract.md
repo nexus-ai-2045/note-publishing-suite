@@ -317,7 +317,13 @@ policyは `schema: image-reference-policy/v1`、`required_character_id`、`refer
 
 候補生成は利用側の採用済みマーケティング正本を起点とする。主題語だけで完了せず、著者の固定指定、記事ごとのブランド・連載・共同体候補、過去記事の採用タグ、今回の本人追加・除外を比較する。既存の候補生成器があれば利用し、その固有辞書・閾値・ブランド戦略は利用側に保持する。NPSに第二の辞書や推薦エンジンを作らず、結果の根拠と採否を既存 `tag_design` へ接続する。表示件数の大・中・小を示す場合は採用元の分類基準、観測日時、対象名義と有効期限を確認し、欠測・古い観測は不明とする。件数から検索需要や効果を保証しない。
 
-これは架空の構造例で、本文hash・選定理由・参照・前話比較は実際の記録に置き換える。各tagに `reason` / `evidence_ref` が必要で、`topic`（主題）、`context`（文脈）、`series`（連載または記事・著者の固有タグ）の3役割を含める。意味の妥当性や著者採用を自動分類・認定しない。5〜10は既存制作手順のlocal policyであり、Noteのプラットフォーム上限や公式推奨ではない。policyの省略・任意のmin/maxへの差替えは拒否する。
+これは架空の構造例で、本文hash・選定理由・参照・前話比較は実際の記録に置き換える。各tagに `reason` / `evidence_ref` が必要で、`topic`（主題）、`context`（文脈）、`series`（連載または記事・著者の固有タグ）の3役割を含める。意味の妥当性や著者採用を自動分類・認定しない。5〜10は既存制作手順のlocal policyであり、Noteのプラットフォーム上限や公式推奨ではない。既定は維持する。利用者が必要なタグ数を明示採用した場合は、package外のworkspace settingsへ次の任意設定を置ける。
+
+```json
+"tag_count_policy": {"id": "nps-local-tags/v1", "min_tags": 5, "max_tags": 12}
+```
+
+整数のみを認め、`5 <= min_tags <= max_tags <= 20`を必要とする。bool・小数・未知キー・別idは拒否する。`tag_design.policy`は採用settingsの値と完全一致させ、packetや観測JSONだけに上限を書いても拡張しない。workspace設定がなければ既定の5〜10を要求する。workflowのsettings/publishと、`note_editor_prepublish_verify.py --settings <外部settings> --article-id <ID>`が同じvalidatorへ設定を渡す。件数を増やしても本文hash・資料readback・タグ順と設計／設定の一致・前話比較・選択済みタグの検査は維持する。実UIの順序と本人指定ブランドの位置はfresh readbackで別途確認する。
 
 `body_sha256` は `pre_publish_check.split_frontmatter(draft_text)[1].encode('utf-8')` のSHA-256とする。front matterだけを除いた本文で、返された先頭改行や末尾をtrimせずそのままhashする。front matterなしのHTMLを対象にした場合はその全文になる。原稿ファイル全体のhashと混同しない。
 

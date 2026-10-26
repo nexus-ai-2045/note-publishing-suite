@@ -205,3 +205,41 @@ def test_production_lane_spelling_cannot_skip_preservation(tmp_path, lane_key):
     assert set(issue["detail"]["stop_causes"]) == {
         "production_shortening_source_required", "production_shortening_budget_required"
     }
+
+
+@pytest.mark.parametrize("heading", [
+    "## この記事の要点（ここだけ読めば、全体がわかります）",
+    "## この記事の要点",
+    "## 要点",
+    "## ここだけ読めば全体がわかります",
+])
+def test_early_summary_heading_with_substantive_content_is_a_takeaway(heading: str):
+    text = f"# 記事\n\n導入です。\n\n{heading}\n\n- 複数の制作工程を比較すると、確認の順序が作業時間に影響します。\n"
+    assert "missing_early_takeaway" not in {i["code"] for i in check.collect_issues(text)}
+
+
+@pytest.mark.parametrize("section", [
+    "## この記事の要点（ここだけ読めば、全体がわかります）\n",
+    "## 要点\n\n- \n- \n",
+    "## 要点\n\nTODO\nTBD\n準備中\n",
+    "## 要点\n\n<!-- 複数の制作工程を比較すると、確認の順序が作業時間に影響します。 -->\n",
+    "## 要点\n\n## 本文\n複数の制作工程を比較すると、確認の順序が作業時間に影響します。\n",
+    "```markdown\n## 要点\n複数の制作工程を比較すると、確認の順序が作業時間に影響します。\n```\n",
+    "## 要点\n\n```\n複数の制作工程を比較すると、確認の順序が作業時間に影響します。\n```\n",
+    "## 要点\n\n    print('substantive looking code only')\n",
+    "## 要点\n\n![](https://example.com/substantive-looking-image-only.png)\n",
+    "## 要点\n\n```python\n```not_a_close\nsubstantive_looking_code_only = True\n```\n",
+    "## 要点\n\n" + " \n" * 500 + "複数の制作工程を比較すると、確認の順序が作業時間に影響します。",
+])
+def test_empty_placeholder_or_non_early_summary_keeps_takeaway_error(section: str):
+    assert "missing_early_takeaway" in {i["code"] for i in check.collect_issues("# 記事\n\n" + section)}
+
+
+@pytest.mark.parametrize("intro", ["先に結論を述べます。", "結論から始めます。", "この記事で分かることを整理します。", "要するに確認順が大切です。", "持ち帰りは確認手順です。"])
+def test_existing_takeaway_patterns_are_preserved(intro: str):
+    assert "missing_early_takeaway" not in {i["code"] for i in check.collect_issues("# 記事\n\n" + intro)}
+
+
+def test_body_horizontal_rule_is_not_reparsed_as_vocabulary_frontmatter():
+    body = "---\n\n# 記事\n\n## 要点\n\n確認の順序を固定すると、作業の抜け漏れを防ぐことができます。\n"
+    assert "missing_early_takeaway" not in {i['code'] for i in check.collect_issues(body)}

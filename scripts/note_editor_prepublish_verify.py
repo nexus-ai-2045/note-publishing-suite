@@ -79,9 +79,22 @@ def validate_previous_tag_comparison(value: Any, article_id: str, article_lane: 
     return []
 
 
-def _tag_design_entries(rows: Any) -> tuple[list[str], list[str]]:
+DEFAULT_TAG_COUNT_POLICY = {"id": "nps-local-tags/v1", "min_tags": 5, "max_tags": 10}
+
+
+def validate_tag_count_policy(policy: Any) -> list[str]:
+    """Validate a bounded local policy; only external settings may select it."""
+    if (not isinstance(policy, dict) or set(policy) != {"id", "min_tags", "max_tags"}
+            or policy.get("id") != "nps-local-tags/v1"
+            or type(policy.get("min_tags")) is not int or type(policy.get("max_tags")) is not int
+            or not 5 <= policy["min_tags"] <= policy["max_tags"] <= 20):
+        return ["tag_count_policy_invalid"]
+    return []
+
+
+def _tag_design_entries(rows: Any, count_policy: dict[str, Any]) -> tuple[list[str], list[str]]:
     errors: list[str] = []
-    if not isinstance(rows, list) or not 5 <= len(rows) <= 10:
+    if not isinstance(rows, list) or not count_policy["min_tags"] <= len(rows) <= count_policy["max_tags"]:
         errors.append("tag_design_count_invalid")
         rows = []
     names: list[str] = []
@@ -165,7 +178,8 @@ def validate_tag_reference_readback(design: Any, policy: Any, hashes: Any) -> li
 
 def validate_tag_design(design: Any, article_id: str, tags: Any, draft_text: Any,
                         *, article_lane: str = "production_candidate",
-                        reference_policy: Any = None, reference_hashes: Any = None) -> list[str]:
+                        reference_policy: Any = None, reference_hashes: Any = None,
+                        count_policy: Any = None) -> list[str]:
     """選定根拠を現在本文へ束縛する。分類の意味・本人採用・実選択は自動認定しない。"""
     if not isinstance(design, dict):
         return ["tag_design_missing"]
@@ -187,14 +201,15 @@ def validate_tag_design(design: Any, article_id: str, tags: Any, draft_text: Any
         else:
             if design.get("body_sha256") != current_hash:
                 errors.append("tag_design_body_mismatch")
+    expected_policy = DEFAULT_TAG_COUNT_POLICY if count_policy is None else count_policy
+    if policy_errors := validate_tag_count_policy(expected_policy):
+        return errors + policy_errors
     policy = design.get("policy")
-    if (not isinstance(policy, dict) or type(policy.get("min_tags")) is not int
-            or type(policy.get("max_tags")) is not int
-            or policy != {"id": "nps-local-tags/v1", "min_tags": 5, "max_tags": 10}):
+    if validate_tag_count_policy(policy) or policy != expected_policy:
         errors.append("tag_design_policy_invalid")
     errors.extend(validate_tag_strategy(design.get("strategy")))
     errors.extend(validate_tag_reference_readback(design, reference_policy, reference_hashes))
-    names, entry_errors = _tag_design_entries(design.get("tags"))
+    names, entry_errors = _tag_design_entries(design.get("tags"), expected_policy)
     errors.extend(entry_errors)
     if (not isinstance(tags, list) or not tags
             or any(not isinstance(tag, str) or not normalize_tag(tag) for tag in tags)
@@ -353,7 +368,7 @@ def validate_magazine(data: dict[str, Any]) -> list[dict[str, str]]:
 
 
 def validate_tags(data: dict[str, Any], *, reference_policy: Any = None,
-                  reference_hashes: Any = None) -> list[dict[str, str]]:
+                  reference_hashes: Any = None, count_policy: Any = None) -> list[dict[str, str]]:
     seen: set[str] = set()
     duplicates: set[str] = set()
     for tag in as_list(data.get("tags")):
@@ -374,7 +389,8 @@ def validate_tags(data: dict[str, Any], *, reference_policy: Any = None,
         reasons = validate_tag_design(data.get("tag_design"), text_value(data.get("note_id", data.get("article_id"))),
                                       data.get("tags"), data.get("draft_text"),
                                       article_lane=text_value(data.get("article_lane")),
-                                      reference_policy=reference_policy, reference_hashes=reference_hashes)
+                                      reference_policy=reference_policy, reference_hashes=reference_hashes,
+                                      count_policy=count_policy)
         if data.get("stage") == "publish":
             preflight = tag_operation_preflight(data.get("tag_preflight"), text_value(data.get("note_id")),
                                                 text_value(data.get("account")), expected_tags=data.get("tags"))
@@ -583,7 +599,8 @@ def build_result(
         issues.extend(validate_toc(data))
         issues.extend(validate_magazine(data))
         issues.extend(validate_tags(data, reference_policy=expected.get("tag_reference_policy"),
-                                    reference_hashes=expected.get("reference_hashes")))
+                                    reference_hashes=expected.get("reference_hashes"),
+                                    count_policy=expected.get("tag_count_policy")))
         issues.extend(validate_tag_preflight(data))
         issues.extend(validate_article_type(data))
         issues.extend(validate_final_buttons(data))

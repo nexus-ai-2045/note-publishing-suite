@@ -174,3 +174,80 @@ def test_tag_strategy_branding_can_explain_absent_brand_tag(tag_design):
     from note_editor_prepublish_verify import validate_tag_design
     tag_design["strategy"]["branding"] = dict(reason="今回の読者導線は連載名で示すためブランドタグを加えない", evidence_ref="review://branding/approved")
     assert validate_tag_design(tag_design, "nexample", [r["tag"] for r in tag_design["tags"]], "Body") == []
+
+
+def expand_tag_design_to_twelve(design):
+    design['tags'].extend(dict(tag=f'Brand{n}', role='series', reason='本人が保持を指定したブランド',
+                               evidence_ref='conversation://current') for n in range(7))
+    design['policy']['max_tags'] = 12
+    return [row['tag'] for row in design['tags']]
+
+
+def test_twelve_tags_require_external_policy_not_packet_self_declaration(tag_design):
+    from note_editor_prepublish_verify import validate_tag_design
+    tags = expand_tag_design_to_twelve(tag_design)
+    errors = validate_tag_design(tag_design, 'nexample', tags, 'Body')
+    assert 'tag_design_count_invalid' in errors
+    assert 'tag_design_policy_invalid' in errors
+    assert validate_tag_design(tag_design, 'nexample', tags, 'Body', count_policy=tag_design['policy']) == []
+
+
+@pytest.mark.parametrize('policy', [
+    {}, None, [], {'id': 'other', 'min_tags': 5, 'max_tags': 12},
+    {'id': 'nps-local-tags/v1', 'min_tags': True, 'max_tags': 12},
+    {'id': 'nps-local-tags/v1', 'min_tags': 5, 'max_tags': True},
+    {'id': 'nps-local-tags/v1', 'min_tags': 5, 'max_tags': 12.0},
+    {'id': 'nps-local-tags/v1', 'min_tags': 4, 'max_tags': 12},
+    {'id': 'nps-local-tags/v1', 'min_tags': 13, 'max_tags': 12},
+    {'id': 'nps-local-tags/v1', 'min_tags': 5, 'max_tags': 21},
+    {'id': 'nps-local-tags/v1', 'min_tags': 5, 'max_tags': 12, 'extra': 1},
+])
+def test_count_policy_rejects_malformed_types_and_bounds(policy):
+    from note_editor_prepublish_verify import validate_tag_count_policy
+    assert validate_tag_count_policy(policy) == ['tag_count_policy_invalid']
+
+
+@pytest.mark.parametrize('fault, expected', [
+    ('order', 'tag_design_settings_mismatch'), ('body', 'tag_design_body_mismatch'),
+    ('references', 'tag_reference_readback_missing_or_stale'),
+    ('policy', 'tag_design_policy_invalid'), ('duplicate', 'tag_design_duplicate'),
+])
+def test_explicit_twelve_tag_policy_preserves_other_bindings(tag_design, fault, expected):
+    from note_editor_prepublish_verify import validate_tag_design
+    tags = expand_tag_design_to_twelve(tag_design)
+    kwargs = dict(count_policy=dict(tag_design['policy']))
+    if fault == 'order': tags.reverse()
+    elif fault == 'body': tag_design['body_sha256'] = '0' * 64
+    elif fault == 'policy': tag_design['policy']['max_tags'] = 13
+    elif fault == 'duplicate': tag_design['tags'][-1]['tag'] = tags[0]
+    else:
+        kwargs.update(reference_policy=dict(schema='nps-tag-reference-policy/v1', required=True,
+            strategy_sources={axis: ['source.md'] for axis in ('content', 'discovery', 'branding')}),
+            reference_hashes={'source.md': '0' * 64})
+    assert expected in validate_tag_design(tag_design, 'nexample', tags, 'Body', **kwargs)
+
+
+@pytest.mark.parametrize('adopted', [False, True])
+def test_editor_cli_uses_external_count_policy_only(tmp_path, tag_design, adopted):
+    import json
+    import subprocess
+    from note_editor_prepublish_verify import __file__ as script
+    tags = expand_tag_design_to_twelve(tag_design)
+    profile = tmp_path / 'voice.md'
+    profile.write_text('Author voice', encoding='utf-8')
+    settings = dict(schema_version='nps-workspace-settings/v1', workspace_root='.',
+        storage=dict(drafts='drafts', sources='sources', feedback='feedback'),
+        style=dict(default_profile='voice.md', article_profiles={}))
+    if adopted:
+        settings['tag_count_policy'] = dict(tag_design['policy'])
+    config = tmp_path / 'settings.json'
+    config.write_text(json.dumps(settings), encoding='utf-8')
+    data = dict(stage='settings', note_id='nexample', tags=tags, draft_text='Body',
+        tag_design=tag_design, tag_count_policy=dict(tag_design['policy']))
+    observation = tmp_path / 'observation.json'
+    observation.write_text(json.dumps(data), encoding='utf-8')
+    result = subprocess.run([sys.executable, script, str(observation), '--json', '--settings', str(config),
+                             '--article-id', 'nexample'], capture_output=True, text=True, check=False)
+    codes = {row['code'] for row in json.loads(result.stdout)['issues']}
+    assert ('tag_design_count_invalid' in codes) is not adopted
+    assert ('tag_design_policy_invalid' in codes) is not adopted
