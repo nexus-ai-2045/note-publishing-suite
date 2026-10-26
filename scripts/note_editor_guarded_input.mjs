@@ -499,8 +499,36 @@ export function createNoteInputGuard(tab, { tabId, noteUrl }) {
     if (!equal(before.blocks.slice(0, index), after.blocks.slice(0, index))
       || !equal(before.blocks.slice(index + 1), after.blocks.slice(index + paragraphs.length))) return 'blocked';
     const inserted = after.blocks.slice(index, index + paragraphs.length);
+    const identityAttrs = node => node.attrs.filter(([name]) => ['id', 'name'].includes(name));
+    const nonIdentityAttrs = node => node.attrs.filter(([name]) => !['id', 'name'].includes(name));
+    // Only Note's observed UUID-v4 id/name pair is managed. Unknown/partial
+    // identities never authorize rebinding; identifier-free fixtures stay exact.
+    const managedIdentity = node => {
+      if (node?.tag !== 'P') return null;
+      const entries = identityAttrs(node);
+      const id = attr(node, 'id');
+      return entries.length === 2 && entries.filter(([name]) => name === 'id').length === 1
+        && entries.filter(([name]) => name === 'name').length === 1 && attr(node, 'name') === id
+        && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id) ? id : null;
+    };
+    const original = before.blocks[index];
+    const originalId = managedIdentity(original);
+    if (originalId) {
+      // Protect root identities and all outside descendants on both sides;
+      // root/prefix/suffix equality alone cannot detect a new identity collision.
+      const outsideIds = new Set([
+        { attrs: before.rootAttrs }, { attrs: after.rootAttrs },
+        ...before.blocks.filter((_, i) => i !== index),
+        ...after.blocks.slice(0, index), ...after.blocks.slice(index + paragraphs.length),
+      ].flatMap(descendants).flatMap(node => (node.attrs ?? [])
+        .filter(([name]) => ['id', 'name'].includes(name)).map(([, value]) => value)));
+      const insertedIds = inserted.map(managedIdentity);
+      if (outsideIds.has(originalId) || insertedIds.some(id => !id || outsideIds.has(id))
+        || new Set(insertedIds).size !== insertedIds.length) return 'blocked';
+    }
     return inserted.length === paragraphs.length && inserted.every((node, i) => {
-      if (node.tag !== 'P' || !equal(node.attrs, before.blocks[index].attrs)
+      if (node.tag !== 'P' || !(originalId ? equal(nonIdentityAttrs(node), nonIdentityAttrs(original))
+        : equal(node.attrs, original.attrs))
         || node.children.some(n => n.tag !== '#text' && !(n.tag === 'BR' && !n.children.length
           && (!n.attrs.length || equal(n.attrs, [['class', 'ProseMirror-trailingBreak']]))))) return false;
       const children = [...node.children];

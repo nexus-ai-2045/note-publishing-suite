@@ -1052,6 +1052,92 @@ test('型付き段落はescapeしたHTMLを一度だけ貼り付けて照合す�
   assert.deepEqual(tab.writes,[[null,'<p>一行&lt;&gt;&amp;&quot;<br>二行</p><p>次の段落</p>',{format:'html'}]]);
 });
 
+// Native Note replaces the empty paragraph's id/name with a fresh pair for
+// each pasted paragraph. Only these managed identities may change.
+const paragraphIds = [
+  'dbc00000-0000-4000-8000-000000000001',
+  '840c0000-0000-4000-8000-000000000002',
+  '3b400000-0000-4000-8000-000000000003',
+];
+function identifiedParagraph(value, id, extra = []) {
+  return { ...p(value), attrs: [['id', id], ['name', id], ...extra] };
+}
+async function nativeParagraphFixture(change = () => {}) {
+  const tab = backend();
+  const extra = [['data-owner', 'preserved']];
+  tab.current.blocks[1] = identifiedParagraph('', paragraphIds[0], extra);
+  const input = guard(tab); const checkpoint = await input.observe();
+  const before = structuredClone(tab.current);
+  tab.effect = () => {
+    tab.current.blocks.splice(1, 1,
+      identifiedParagraph('一段', paragraphIds[1], extra),
+      identifiedParagraph('二段', paragraphIds[2], extra));
+    change(tab.current);
+  };
+  return { tab, input, checkpoint, before };
+}
+test('native段落: 空PのUUID id/nameだけを二つの新UUIDへ束縛し全外側blockを保持', async () => {
+  const { tab, input, checkpoint, before } = await nativeParagraphFixture();
+  const result = await input.pasteParagraphs({ checkpoint, paragraphs: ['一段', '二段'] });
+  assert.equal(result.state, 'completed');
+  assert.equal(tab.writes.length, 1);
+  assert.deepEqual(tab.current.blocks.slice(0, 1), before.blocks.slice(0, 1));
+  assert.deepEqual(tab.current.blocks.slice(3), before.blocks.slice(2));
+  assert.deepEqual(tab.current.rootAttrs, before.rootAttrs);
+  assert.equal(tab.current.title, before.title);
+  assert.equal(tab.current.url, before.url);
+});
+for (const [name, change] of [
+  ['duplicate inserted identity', s => { s.blocks[2].attrs = structuredClone(s.blocks[1].attrs); }],
+  ['mismatched name', s => { s.blocks[1].attrs[1][1] = paragraphIds[2]; }],
+  ['missing name', s => { s.blocks[1].attrs.splice(1, 1); }],
+  ['unknown identity', s => { s.blocks[1].attrs[0][1] = s.blocks[1].attrs[1][1] = 'spoofed-id'; }],
+  ['duplicate id attribute', s => { s.blocks[1].attrs.push(['id', paragraphIds[1]]); }],
+  ['nonidentity attribute change', s => { s.blocks[1].attrs[2][1] = 'changed'; }],
+  ['nonidentity attribute removal', s => { s.blocks[1].attrs.pop(); }],
+  ['unexpected inline element', s => { s.blocks[1].children = [{ tag: 'STRONG', attrs: [], children: [text('一段')] }]; }],
+  ['extra break', s => { s.blocks[1].children.push({ tag: 'BR', attrs: [], children: [] }); }],
+  ['outside text change', s => { s.blocks[0].children = [text('変化')]; }],
+  ['outside identity change', s => { s.blocks[3].attrs = [['id', paragraphIds[2]]]; }],
+  ['title change', s => { s.title = '変化'; }],
+  ['root change', s => { s.rootAttrs.push(['data-owner', 'changed']); }],
+]) test(`native段落: ${name}は一度の入力後にchannelを停止`, async () => {
+  const { tab, input, checkpoint } = await nativeParagraphFixture(change);
+  assert.equal((await input.pasteParagraphs({ checkpoint, paragraphs: ['一段', '二段'] })).state, 'blocked');
+  assert.equal((await guard(tab).pasteParagraphs({ checkpoint, paragraphs: ['一段', '二段'] })).state, 'blocked');
+  assert.equal(tab.writes.length, 1);
+});
+for (const identityAttr of ['id', 'name']) test(`native段落: 既存descendantの${identityAttr}とのUUID衝突を停止`, async () => {
+  const tab = backend();
+  tab.current.blocks[0].children.push({ tag: 'SPAN', attrs: [[identityAttr, paragraphIds[1]]], children: [] });
+  tab.current.blocks[1] = identifiedParagraph('', paragraphIds[0]);
+  const input = guard(tab); const checkpoint = await input.observe();
+  tab.effect = () => { tab.current.blocks.splice(1, 1,
+    identifiedParagraph('一段', paragraphIds[1]), identifiedParagraph('二段', paragraphIds[2])); };
+  assert.equal((await input.pasteParagraphs({ checkpoint, paragraphs: ['一段', '二段'] })).state, 'blocked');
+  assert.equal(tab.writes.length, 1);
+});
+for (const identityAttr of ['id', 'name']) test(`native段落: rootの${identityAttr}とのUUID衝突を停止`, async () => {
+  const tab = backend();
+  tab.current.rootAttrs.push([identityAttr, paragraphIds[1]]);
+  tab.current.blocks[1] = identifiedParagraph('', paragraphIds[0]);
+  const input = guard(tab); const checkpoint = await input.observe();
+  const rootAttrs = structuredClone(tab.current.rootAttrs);
+  tab.effect = () => { tab.current.blocks.splice(1, 1,
+    identifiedParagraph('一段', paragraphIds[1]), identifiedParagraph('二段', paragraphIds[2])); };
+  assert.equal((await input.pasteParagraphs({ checkpoint, paragraphs: ['一段', '二段'] })).state, 'blocked');
+  assert.deepEqual(tab.current.rootAttrs, rootAttrs);
+  assert.equal((await guard(tab).pasteParagraphs({ checkpoint, paragraphs: ['一段', '二段'] })).state, 'blocked');
+  assert.equal(tab.writes.length, 1);
+});
+for (const attrs of [[], [['id', 'unknown'], ['name', 'unknown']], [['id', paragraphIds[0]]]])
+  test(`native段落: 元Pの未管理identityから再束縛しない ${JSON.stringify(attrs)}`, async () => {
+    const tab = backend(); tab.current.blocks[1].attrs = attrs;
+    const input = guard(tab); const checkpoint = await input.observe();
+    tab.effect = () => { tab.current.blocks.splice(1, 1, identifiedParagraph('一段', paragraphIds[1])); };
+    assert.equal((await input.pasteParagraphs({ checkpoint, paragraphs: ['一段'] })).state, 'blocked');
+  });
+
 for (const [name,change] of [
   ['前P末尾anchor',q=>{q.ranges[0].start.blockIndex=0;q.ranges[0].start.offset=9;}],
   ['終端が対象外',q=>{q.ranges[0].end.blockIndex=2;}],
