@@ -1,16 +1,32 @@
 # 変更履歴
 
-## 0.3.16
+## 0.3.18
 
 日付: 2026-10-26
 
 変更:
+- 予定版0.3.16はmainの0.3.17より前のため使わず、0.3.18とする。
 - 運用台帳の保存先と本文workspaceを、両方の明示指定がある場合に分離。本文・archiveのworkspace内照合とpackage内出力拒否は維持。
 - symlink経由の保存・lock・復旧journalを同じ実体へ揃え、壊れた参照から別の台帳を作らず停止。
 
 検証:
 - `python -m pytest scripts/test_skill_integration.py tests -q`
 - `VERSION_BUMP_BASE_REF=origin/main python scripts/check_version_bump.py`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
+## 0.3.17
+
+日付: 2026-10-26
+
+変更:
+- README が参照する使い方動画のサムネ assets/demo/usage-walkthrough-thumb.svg を旧リポから戻した（中身は変えていない）。PR11の予定版0.3.16を予約し、本変更は0.3.17とする。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `ruff と pytest scripts/test_skill_integration.py tests が合格`
 
 公開境界:
 - Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
