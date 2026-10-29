@@ -2,6 +2,7 @@
 """公開後のworkspace台帳更新。既定dry-run、外部送信なし。"""
 from __future__ import annotations
 import argparse
+import hashlib
 from contextlib import ExitStack
 import json
 import re
@@ -162,18 +163,22 @@ def main(argv: list[str] | None = None, *, runtime_verifier: RuntimeVerifier | N
         raise ValueError("published-body-sha256 は64桁のSHA-256が必要です")
     observed = load_local_observation(args.local_observation, args.url) if args.local_observation else None
     feedback_context = None
+    footer_context = None
     if any(value is not None for value in (args.settings, args.review_source, args.review_prior, args.conversation_id, args.review_article_id)):
         if not args.settings or not args.review_source or not args.conversation_id:
             parser.error("feedback接続には--settings/--review-source/--conversation-idが必要です")
         read_workspace_settings = _load_sibling_module("note_workflow_gate").read_workspace_settings
-        _, dirs = read_workspace_settings(args.settings, args.review_article_id or note_id)
+        expected, dirs = read_workspace_settings(args.settings, args.review_article_id or note_id)
+        footer_context = dict(policy=expected.get("footer_readback_policy"),
+                              article_id=args.review_article_id or note_id,
+                              article_sha256=hashlib.sha256(args.draft.read_bytes()).hexdigest())
         feedback_context = dict(dirs=dirs, source=args.review_source, draft=args.draft,
                                 prior=args.review_prior or args.review_source, conversation_id=args.conversation_id,
                                 article_id=args.review_article_id or note_id)
     postpublish_review = check_postpublish_review(observed,
         base_dir=args.local_observation.parent if args.local_observation else Path("."),
         runtime_verifier=runtime_verifier, feedback_context=feedback_context,
-        write_feedback=args.write_ledger)
+        write_feedback=args.write_ledger, footer_context=footer_context)
     changes = {"local_source": str(args.draft), "source": "note-publishing-suite",
                "plain_status": "published_observed" if observed else args.verification_status}
     if observed:

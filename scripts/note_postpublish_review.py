@@ -89,7 +89,8 @@ def _validate_ai(review: dict, observed: dict, base_dir: Path) -> tuple[list[dic
 def check_postpublish_review(observed: dict | None, *, base_dir: Path = Path("."),
                              runtime_verifier: RuntimeVerifier | None = None,
                              feedback_context: dict | None = None,
-                             write_feedback: bool = False) -> dict:
+                             write_feedback: bool = False,
+                             footer_context: dict | None = None) -> dict:
     """runtime_verifierは実tool回収ownerが供給する。CLIの自己申告flagで代用しない。"""
     result = {"status": "waiting_for_publication", "postpublication_complete": False,
               "mechanical": {"status": "not_run"}, "ai_review": {"status": "not_run"},
@@ -107,6 +108,15 @@ def check_postpublish_review(observed: dict | None, *, base_dir: Path = Path("."
         if observed.get("body_sha256", body_hash) != body_hash:
             raise ValueError("公開観測本文hashが一致しません")
         result.update(status="postpublish_review_pending", note_id=observed["note_id"], body_sha256=body_hash)
+        if footer_context is not None:
+            footer = _load_sibling_module("note_footer_selection").check_readback(
+                footer_context.get("policy"), observed.get("footer_readback"),
+                article_id=footer_context.get("article_id"),
+                article_sha256=footer_context.get("article_sha256"), public_only=True,
+                expected_url=observed.get("url"))
+            result["footer_readback"] = footer
+            if footer["status"] == "blocked":
+                raise ValueError("公開後のカード・導線の読戻しが不足しています")
         issues = collect_issues(observed["body"])
         result["mechanical"] = {"status": "checked", "input_format": "published_plain", "body_sha256": body_hash, "issues": issues}
         if any(item.get("code") == "secret_like_value" for item in issues):

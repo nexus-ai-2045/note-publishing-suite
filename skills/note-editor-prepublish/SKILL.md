@@ -81,6 +81,7 @@ Note editor への反映、目次、リンク、画像、埋め込み、タグ�
 - `production_candidate` の本文を editor 操作テスト目的で改変しない。
   editor 操作検証が必要な場合は `editor_fixture` lane の無害なテスト文を使う。
 - 画像アップロードは内部ブラウザだけで完全自動化できる前提にしない。必要なら手動または supervised 操作に分ける。
+- 正式chooserが提供される場合は `scripts/note_editor_guarded_input.mjs` の `chooseImageFile` で待機→click→setFilesの順を固定する。`selected`を描画・保存成功へ読み替えず、既存画像QAを続ける。
 - Codex in-app Browser が file upload をサポートしない場合、画像候補選定までで止め、実uploadはユーザー監督の手動操作へ渡す。
 - 画像 upload 境界は `../../references/note-image-upload-automation-boundary.md` と `../../scripts/note_image_upload_boundary_check.py` で確認する。画面に見えている Windows ファイル選択ダイアログだけを扱う場合も、現在会話での明示確認があるまで実行しない。
 - リンクカード埋め込み、目次位置、カーソル操作は実測確認できない場合、手動境界として報告する。

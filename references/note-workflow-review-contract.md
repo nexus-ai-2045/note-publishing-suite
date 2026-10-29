@@ -531,3 +531,105 @@ feedbackのsource_snapshotは既存の不変素材のままでよい。
 この検査は版・原文の実在・独立レビュー宣言の整合性を確認する。LLMの意味判定、
 担当IDの真正性、日時の真正性、人間承認の真正性や公開権限を保証しない。
 呼出元は独立担当の実結果を回収し、内容に影響する指示をprogress_onlyへ誤分類しない。
+
+## 公開前草稿の任意契約
+
+利用側が公開・予約確定前に複数の告知等の草稿を用意する場合は、採用済みの外部settingsへ次を追加できる。
+未設定または有効な`required: false`は従来互換とし、全利用者への必須条件にはしない。
+必須スロットの名前、媒体別の文章・文字数・語調のルール、実際の草稿は利用側workspaceが所有する。
+packageにはそれらの私的な内容を置かない。
+
+```json
+{
+  "publication_drafts_policy": {
+    "schema": "nps-publication-drafts-policy/v1",
+    "required": true,
+    "required_slots": ["channel_one"]
+  }
+}
+```
+
+`note-workflow-review/v1` packetの`publication_drafts_manifest`へ、草稿manifestのpathを指定する。
+packetから外部policyを無効化できない。
+`read_workspace_settings`がpolicyを読戻し、`check_packet(..., stage="publish")`が即時公開と予約確定の両方で検査する。
+草稿がまだない制作途中の`edit`・`research`・`layout`・`settings`には、この実体検査を先取りしない。
+段階や台帳は増やさない。
+
+manifestは`schema: nps-publication-drafts/v1`、対象`article_id`、現在の`draft`ファイル全bytesの
+`article_draft_sha256`と`items`を持つ。
+各itemは次の形で、`required_slots`の全スロットを重複なく一度ずつ並べる。
+
+```json
+{
+  "slot": "channel_one",
+  "path": "channel-one.md",
+  "sha256": "DRAFT_FILE_SHA256",
+  "review": {
+    "path": "channel-one.review.json",
+    "sha256": "REVIEW_FILE_SHA256"
+  }
+}
+```
+
+manifestの相対pathはpacketの解決基準、itemの草稿とreviewの相対pathはmanifestの所在が基準になる。
+manifestと草稿は採用した`storage.drafts`内、reviewは`storage.drafts`・`storage.sources`・
+`storage.feedback`のいずれかの内側へ限定する。
+package内への参照、保存先外へ出るsymlink、複数スロットで同一ファイルを使うaliasを拒否する。
+ファイルは非空UTF-8の実体でなければならない。
+上記のhash表記は説明用で、実行時には実bytesから求めたSHA256へ置き換える。
+
+確認証拠ファイルは次の構造を持つ。
+`article_draft_sha256`は現在の記事原稿、`draft_sha256`はこのスロットの草稿に対応する。
+
+```json
+{
+  "schema": "nps-publication-draft-review/v1",
+  "article_id": "article",
+  "article_draft_sha256": "ARTICLE_FILE_SHA256",
+  "slot": "channel_one",
+  "draft_sha256": "DRAFT_FILE_SHA256",
+  "status": "confirmed",
+  "actor": "assistant",
+  "reviewer_id": "reviewer",
+  "reviewed_at": "2020-01-01T00:00:00+00:00",
+  "evidence_ref": "runtime://draft-review",
+  "summary": "この版の草稿を確認した結果"
+}
+```
+
+草稿確認の`actor`は`assistant`または`user`を許容する。
+確認日時はtimezone付きで未来日時ではなく、確認者・実結果への参照・要約も必要。
+`status`や意味の検査結果を自己申告しただけでは、草稿・確認証拠の実体、hash、記事/草稿/スロットの版一致を代替できない。
+一方、この検査が示すのはファイルと宣言された確認証拠の一致までであり、文章の意味の品質や確認者の真正性を保証しない。
+実行ownerが確認の実施と証拠を結び付ける。
+
+検査結果のhashを`publish`の承認対象へ含める。
+草稿、manifest、確認証拠または記事原稿を変更すると旧版の公開receiptでは通らず、
+読取り中のbytes変更や参照先の差替えも停止する。
+`publication_drafts_policy`の未知schema・不正宣言を、任意契約だからと無視しない。
+この検査は読取り専用で、草稿・feedback・公開台帳を更新せず、外部通信や投稿もしない。
+草稿確認の完了は公開・予約確定の本人receipt、SNS等への送信許可、実際の送信完了とは別に扱う。
+`manual_publish_required`等の既存の公開境界は維持する。
+
+policyはworkspace全体、または`style.article_profiles[article_id]`に宣言できる。
+記事別の宣言を優先する。スロット数は記事の必要性から決め、固定数を要求しない。
+必要な告知の内容と不要とする判断は利用側の制作記録に置く。
+
+## 保存後と公開後の末尾カード確認
+
+採用した末尾の実表示を公開ゲートで必須にする場合は、外部settingsのworkspaceまたは
+記事profileへ`footer_readback_policy: {"schema":"nps-footer-readback-policy/v1","required":true}`を置く。
+不要とした記事は`required:false`と空でない`reason`を明示できる。
+新しいカード選定台帳を作らず、既存の`footer-selection`と`require_rendered`を使う。
+
+packetの`footer_readback`は既存の`article_id`・`series`・`footer.nodes`に加え、
+`production_plan`へ選定計画オブジェクト、`article_draft_sha256`へ現在原稿hash、
+`url`・timezone付き`captured_at`・`surface`を持つ。
+`surface`は`reader_saved`・`reserved`・`public`のいずれかで、編集画面の観測は代用しない。
+`require_rendered`を指定したカードは実際のタイトルとリンク先も読み取る。
+生URL・空widget・未読込み・対象違い・原稿版の違いは停止する。
+
+`publish`は既存layout計画とカードの実表示を照合する。
+公開後は`post_publish.py`から同じ検査へ渡し、`public`面と対象記事URLの一致を要求する。
+予約中の本人向け表示を、一般公開後の確認に数えない。
+検査成功は供給snapshotの整合性であり、実観測の真正性や本人承認は呼出元が確認する。

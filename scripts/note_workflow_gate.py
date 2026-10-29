@@ -169,6 +169,11 @@ def read_workspace_settings(settings_path: Path | None, article_id: str, *,
                 raise ValueError("会話原資料のhashが不一致です")
             fidelity["source"] = str(source)
         expected["conversation_fidelity_policy"] = fidelity
+    for policy_key, module in (("publication_drafts_policy", "note_publication_drafts"),
+                               ("footer_readback_policy", "note_footer_selection")):
+        selected = profile.get(policy_key) if isinstance(profile, dict) and policy_key in profile else config.get(policy_key)
+        if selected is not None or policy_key in config or isinstance(profile, dict) and policy_key in profile:
+            expected[policy_key] = _load_sibling_module(module).validate_policy(selected)
     if "research_quality_policy" in config:
         validate_policy = _load_sibling_module("note_research_quality").validate_policy
         expected["research_quality_policy"] = validate_policy(config["research_quality_policy"])
@@ -295,13 +300,16 @@ def check_packet(packet: Any, stage: str, conversation_id: str, base_dir: Path =
     if packet.get("route") not in tuple(ROUTES):
         reasons.append("routeが不正です")
     storage_dirs: dict[str, Path] = {}
+    expected = {}
     quality_policy = None
     history_policy = None
     history_application_refs = None
+    publication_drafts_policy = None
     try:
         expected, storage_dirs = read_workspace_settings(settings_path, packet.get("article_id"))
         quality_policy = expected.get("research_quality_policy")
         history_policy = expected.get("history_learning_policy")
+        publication_drafts_policy = expected.get("publication_drafts_policy")
         result["expected_readback"] = expected
         hashes["workspace_settings"] = expected["settings_sha256"]
         hashes["style_references"] = canonical_sha256(expected["reference_hashes"])
@@ -589,6 +597,30 @@ def check_packet(packet: Any, stage: str, conversation_id: str, base_dir: Path =
         except (UnicodeError, TypeError, ValueError):
             reasons.append("tag_designを正規化または本文と照合できません")
 
+    if stage == "publish":
+        footer_policy = expected.get("footer_readback_policy")
+        readback = _load_sibling_module("note_footer_selection").check_readback(
+            footer_policy, packet.get("footer_readback"), article_id=packet["article_id"],
+            article_sha256=hashes.get("draft"), layout=packet.get("layout"),
+            expected_url=packet.get("edit_plan", {}).get("target_url"))
+        result["footer_readback"] = readback
+        if readback["status"] == "blocked":
+            reasons.extend(readback["errors"])
+        elif readback["status"] == "ok":
+            hashes["footer_readback"] = canonical_sha256(readback["hashes"])
+        check_drafts = _load_sibling_module("note_publication_drafts").check_manifest
+        draft_value = packet.get("draft")
+        publication_drafts = check_drafts(publication_drafts_policy,
+            packet.get("publication_drafts_manifest"), article_id=packet["article_id"],
+            draft_path=Path(draft_value) if isinstance(draft_value, str) else Path(""),
+            storage_dirs=storage_dirs, base_dir=base_dir,
+            expected_article_sha256=hashes.get("draft"))
+        result["publication_drafts"] = publication_drafts
+        if publication_drafts["status"] == "blocked":
+            reasons.extend(publication_drafts["errors"])
+        elif publication_drafts["status"] == "ok":
+            hashes["publication_drafts"] = canonical_sha256(publication_drafts["hashes"])
+
     check_image_settings = _load_sibling_module("image_reference_gate").check_settings
     cover_value = packet.get("settings", {}).get("cover_image") if isinstance(packet.get("settings"), dict) else None
     cover_path = Path(cover_value) if isinstance(cover_value, str) and cover_value.strip() else None
@@ -649,6 +681,10 @@ def check_packet(packet: Any, stage: str, conversation_id: str, base_dir: Path =
             keys += ("tag_design",)
         if item == "publish":
             keys += ("tag_selection",)
+            if publication_drafts_policy and publication_drafts_policy["required"]:
+                keys += ("publication_drafts",)
+            if expected and expected.get("footer_readback_policy", {}).get("required"):
+                keys += ("footer_readback",)
         if image_result["status"] == "ok" and item in {"edit", "settings", "publish"}:
             keys += ("image_reference_evidence",)
         if "prepublish_review_receipt" in packet:

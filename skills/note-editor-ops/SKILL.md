@@ -130,6 +130,29 @@ DOM取得とpasteの間は別transport呼出しなので、同時の人間操作
 不明な入力結果を再pasteしない。実GUIでの読込・互換性・変換は別途承認したfixtureで確認する。
 下記の一般操作例は、この単一URL入口を迂回する許可ではない。
 
+### 正式な画像file選択
+
+`note_editor_guarded_input.mjs` の同じfactoryが持つ `chooseImageFile` を使う。
+現在の能力文書と `references/note-image-upload-automation-boundary.md` を先に確認する。
+本文画像は採用済みP末尾にcollapsed Rangeを置き、画像メニューを開いた状態で入口を呼ぶ。
+扉画像は「画像をアップロード」が表示された状態を使う。メニューの「画像」を先に押してから
+chooser待機を始めない。入口へfresh AX control index、採用fileの絶対pathとSHA256、本文ならanchor IDを渡す。
+
+```javascript
+const selected = await input.chooseImageFile({
+  kind: 'body', anchorId: approvedAnchorId,
+  imagePath: approvedAbsoluteImagePath, imageSha256: approvedImageSha256,
+  controlIndex: currentUploadButtonIndex,
+});
+```
+
+この入口が順序固定するのは正式chooserでの1 file選択まで。`state=selected`でも
+`render_verified/saved_verified/published` はfalse。crop・本文前後・画像寸法・保存後読戻しは
+既存の画像QAで別に確認する。unknown/blockedを別factoryや別routeから再入力しない。
+埋め込みdialogのwait失敗は、先に検証できたstagingを保持してread-only reconcileへ渡す。
+stagingを観測できなかった場合や、余分なP・本文変更は安全と推定しない。
+例外の段階はdiagnostic.phaseに残すが、本文・file path・例外messageは診断へ転記しない。
+
 ### 0. PDCA orchestration
 
 - Note editor 操作は一括実行せず、Goal / Plan / Do / Check / Act の cycle に分ける。

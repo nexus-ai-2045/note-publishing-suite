@@ -66,6 +66,39 @@ function dialogBackend() {
   tab.playwright.locator = () => ({ async waitFor() { if (tab.timeout) throw Error('timeout'); } });
   return { tab, caption, sync };
 }
+test('native dialog: dialog待機失敗でも検証済みstagingを保持しread-onlyでpending', async () => {
+  const { tab, caption } = dialogBackend(), input = guard(tab);
+  tab.playwright.getByPlaceholder = () => ({ async waitFor() { throw Error('private exception'); } });
+  const result = await input.embedViaNativeDialog({ payload, caption });
+  assert.equal(result.state, 'pending');
+  assert.equal(result.diagnostic.phase, 'native_embed_dialog_wait');
+  const writes = tab.writes.length;
+  assert.equal((await input.reconcile()).state, 'pending');
+  assert.equal((await guard(tab).embedViaNativeDialog({ payload, caption })).state, 'pending');
+  assert.equal(tab.writes.length, writes);
+  assert(!tab.writes.some(w => ['fill', '適用', 'Backspace'].includes(w[0])));
+  assert(!JSON.stringify(result).includes('private exception'));
+});
+test('native dialog: 初回DOMが未反映ならwait後の実stagingを検証する', async () => {
+  const { tab, caption } = dialogBackend(), role = tab.playwright.getByRole;
+  tab.playwright.getByRole = (...args) => args[1].name === '埋め込み'
+    ? {async click() { tab.deferredOpen = () => role(...args).click(); }} : role(...args);
+  const placeholder = tab.playwright.getByPlaceholder;
+  tab.playwright.getByPlaceholder = (...args) => ({
+    async waitFor(options) { await tab.deferredOpen(); return placeholder(...args).waitFor(options); },
+    async fill(value) { return placeholder(...args).fill(value); },
+  });
+  assert.equal((await guard(tab).embedViaNativeDialog({payload,caption})).state,'completed');
+});
+test('native dialog: 待機失敗後の保護本文driftはstaging保持で容認しない', async () => {
+  const { tab, caption, sync } = dialogBackend(), input = guard(tab);
+  tab.playwright.getByPlaceholder = () => ({ async waitFor() { throw Error('timeout'); } });
+  await input.embedViaNativeDialog({ payload, caption });
+  tab.current.blocks[0] = p('unrelated change'); sync();
+  const writes = tab.writes.length;
+  assert.equal((await input.reconcile()).state, 'blocked');
+  assert.equal(tab.writes.length, writes);
+});
 test('native dialog: caption/raw URLの間へカードを作り同一inline linkと既存画像・TOCを保持', async () => {
   const { tab, caption } = dialogBackend();
   const original = structuredClone(tab.current.blocks);
@@ -142,6 +175,12 @@ async function pendingNativeCard() {
   assert.equal((await input.embedViaNativeDialog({ payload, caption: fixture.caption })).state, 'pending');
   return { ...fixture, input };
 }
+test('native dialog: cleanupのtransport例外をplacement待機と取り違えない', async () => {
+  const {tab,caption}=dialogBackend();
+  tab.ax.pressKey=async()=>{throw Error('private cleanup error');};
+  const result=await guard(tab).embedViaNativeDialog({payload,caption});
+  assert.equal(result.state,'pending');assert.equal(result.diagnostic.phase,'native_embed_cleanup');
+});
 test('verified cleanup: pendingの正しいcard+rawだけを削除し再Applyしない', async () => {
   const { tab, input } = await pendingNativeCard(), original = structuredClone(tab.current.blocks);
   const applies = tab.writes.filter(w => w[0] === '適用').length;
