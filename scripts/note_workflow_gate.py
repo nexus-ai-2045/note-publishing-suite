@@ -599,10 +599,12 @@ def check_packet(packet: Any, stage: str, conversation_id: str, base_dir: Path =
 
     if stage == "publish":
         footer_policy = expected.get("footer_readback_policy")
+        footer_plan = packet.get("edit_plan")
+        footer_target = footer_plan.get("target_url") if isinstance(footer_plan, dict) else None
         readback = _load_sibling_module("note_footer_selection").check_readback(
             footer_policy, packet.get("footer_readback"), article_id=packet["article_id"],
             article_sha256=hashes.get("draft"), layout=packet.get("layout"),
-            expected_url=packet.get("edit_plan", {}).get("target_url"))
+            expected_url=footer_target)
         result["footer_readback"] = readback
         if readback["status"] == "blocked":
             reasons.extend(readback["errors"])

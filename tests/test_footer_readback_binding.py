@@ -86,6 +86,21 @@ def test_missing_target_cannot_accept_another_articles_footer(packet, tmp_path):
     assert checked['footer_readback']['status'] == 'blocked'
 
 
+@pytest.mark.parametrize('edit_plan', [None, [], '', False])
+def test_legacy_publish_without_footer_policy_accepts_optional_edit_plan(packet, edit_plan):
+    packet['edit_plan'] = edit_plan
+    assert approve(packet, 'publish')['status'] == 'approved'
+
+
+@pytest.mark.parametrize('edit_plan', [None, [], '', False])
+def test_required_footer_blocks_invalid_target_plan_without_crashing(packet, tmp_path, edit_plan):
+    configure(packet, tmp_path)
+    packet['edit_plan'] = edit_plan
+    result = approve(packet, 'publish')
+    assert result['status'] == 'blocked'
+    assert result['footer_readback']['status'] == 'blocked'
+
+
 def test_reserved_card_is_not_public_readback():
     data = observation('a' * 64)
     assert footer.check_readback(POLICY, data, article_id='article', article_sha256='a' * 64,
