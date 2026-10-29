@@ -199,6 +199,7 @@ existing_scripts:
   - scripts/image_reference_gate.py
   - scripts/note_research_quality.py
   - scripts/note_footer_selection.py
+  - scripts/note_publication_drafts.py
   - scripts/note_authorship_gate.py
   - scripts/nps_script_loader.py
   - scripts/note_author_vocabulary.py
