@@ -625,7 +625,22 @@ policyはworkspace全体、または`style.article_profiles[article_id]`に宣�
 packetの`footer_readback`は既存の`article_id`・`series`・`footer.nodes`に加え、
 `production_plan`へ選定計画オブジェクト、`article_draft_sha256`へ現在原稿hash、
 `url`・timezone付き`captured_at`・`surface`を持つ。
-`surface`は`reader_saved`・`reserved`・`public`のいずれかで、編集画面の観測は代用しない。
+既定の`surface`は`reader_saved`・`reserved`・`public`で、未保存の編集画面は代用しない。
+予約済み記事のプレビューが更新前の本文を表示する場合、利用側は同じpolicyへ
+`allow_saved_editor: true`を明示して、公開前だけ`surface: editor_saved`を選べる。
+この場合は`body_html`に保存後に開き直した実HTMLを渡し、`save_readback`へ次を記録する。
+`before_html_sha256`は保存前、`reloaded_html_sha256`は保存後の再読込みで取得した
+HTML文字列のUTF-8 SHA-256で、両方が`body_html`の実hashと一致する必要がある。
+
+```json
+{"schema":"nps-editor-save-readback/v1","saved":true,"reloaded":true,
+ "before_html_sha256":"ACTUAL_BEFORE_HTML_SHA256",
+ "reloaded_html_sha256":"ACTUAL_RELOADED_HTML_SHA256"}
+```
+
+未保存、再読込み未実施、証拠欠落・不一致は通さない。呼出元は実際の保存操作を確認し、
+同じ保存済みHTMLから`footer.nodes`を取得する。hash宣言だけで実操作の真正性は証明しない。
+既定の受理面は変えず、一般公開後はこのopt-inがあっても`public`面を必須とする。
 `require_rendered`を指定したカードは実際のタイトルとリンク先も読み取る。
 生URL・空widget・未読込み・対象違い・原稿版の違いは停止する。
 

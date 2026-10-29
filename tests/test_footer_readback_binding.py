@@ -193,3 +193,74 @@ def test_postpublish_entry_checks_cards_before_editorial_completion(tmp_path):
     checked = note_postpublish_review.check_postpublish_review(observed, footer_context=context)
     assert checked['footer_readback']['status'] == 'ok'
     assert checked['postpublication_complete'] is False
+
+
+def saved_editor_observation():
+    data = observation('a' * 64, 'editor_saved')
+    data['url'] = 'https://editor.note.com/notes/n123/edit/'
+    data['body_html'] = '<figure data-src="' + URL + '"><a href="' + URL + '">Series</a></figure>'
+    digest = hashlib.sha256(data['body_html'].encode()).hexdigest()
+    data['save_readback'] = dict(schema='nps-editor-save-readback/v1', saved=True, reloaded=True,
+                                 before_html_sha256=digest, reloaded_html_sha256=digest)
+    return data
+
+
+def test_saved_editor_requires_explicit_policy_and_actual_html_hashes():
+    data = saved_editor_observation()
+    context = dict(article_id='article', article_sha256='a' * 64, expected_url=data['url'])
+    assert footer.check_readback(POLICY, data, **context)['status'] == 'blocked'
+    policy = dict(POLICY, allow_saved_editor=True)
+    assert footer.check_readback(policy, data, **context)['status'] == 'ok'
+    assert footer.check_readback(policy, data, public_only=True, **context)['status'] == 'blocked'
+
+
+@pytest.mark.parametrize('change', ['missing', 'not_saved', 'not_reloaded', 'schema',
+                                  'before_hash', 'reload_hash', 'body_changed', 'body_missing'])
+def test_incomplete_saved_editor_readback_blocks(change):
+    data = saved_editor_observation()
+    proof = data['save_readback']
+    if change == 'missing': data.pop('save_readback')
+    elif change == 'not_saved': proof['saved'] = False
+    elif change == 'not_reloaded': proof['reloaded'] = False
+    elif change == 'schema': proof['schema'] = 'unknown'
+    elif change == 'before_hash': proof['before_html_sha256'] = '0' * 64
+    elif change == 'reload_hash': proof['reloaded_html_sha256'] = '0' * 64
+    elif change == 'body_changed': data['body_html'] += '<p>Unsaved change</p>'
+    else: data.pop('body_html')
+    policy = dict(POLICY, allow_saved_editor=True)
+    result = footer.check_readback(policy, data, article_id='article', article_sha256='a' * 64,
+                                   expected_url='https://editor.note.com/notes/n123/edit/')
+    assert result['status'] == 'blocked'
+
+
+def test_saved_editor_permission_must_be_boolean():
+    with pytest.raises(ValueError):
+        footer.validate_policy(dict(POLICY, allow_saved_editor='true'))
+
+
+def test_publish_can_check_saved_editor_without_granting_publication(packet, tmp_path):
+    path = configure(packet, tmp_path)
+    config = json.loads(path.read_text())
+    config['style']['article_profiles']['article']['footer_readback_policy']['allow_saved_editor'] = True
+    path.write_text(json.dumps(config))
+    packet['ssot_readback'], _ = gate.read_workspace_settings(path, 'article')
+    data = saved_editor_observation()
+    data['article_draft_sha256'] = hashlib.sha256(open(packet['draft'], 'rb').read()).hexdigest()
+    packet['footer_readback'] = data
+    result = approve(packet, 'publish')
+    assert result['status'] == 'approved', result['reasons']
+    assert result['automation_allowed'] is False
+    data['save_readback']['reloaded'] = False
+    assert approve(packet, 'publish')['status'] == 'blocked'
+
+
+def test_saved_editor_cannot_complete_public_postpublication_review():
+    module = gate._load_sibling_module('note_postpublish_review')
+    observed = dict(schema='note-public-observation/v1', note_id='n123',
+                    url='https://note.com/example/n/n123', body='Public article',
+                    footer_readback=saved_editor_observation())
+    context = dict(policy=dict(POLICY, allow_saved_editor=True), article_id='article',
+                   article_sha256='a' * 64)
+    result = module.check_postpublish_review(observed, footer_context=context)
+    assert result['footer_readback']['status'] == 'blocked'
+    assert result['postpublication_complete'] is False

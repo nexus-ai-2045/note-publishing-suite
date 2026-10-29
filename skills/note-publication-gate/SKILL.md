@@ -47,6 +47,10 @@ description: "note-publishing-suiteで、Noteの公開または予約投稿の�
 予約確定後もcanonical記事画面で読み戻し、一般公開後は`public`面で再照合する。
 生URLや予約中の本人向け表示だけで、公開後確認を完了にしない。
 
+予約済み記事のpreviewが旧本文を表示する場合、明示した`allow_saved_editor`を使える。
+保存前と保存後の再読込みでHTML hashが一致し、同じ保存済みDOMからカードの表示を取得した
+`editor_saved`観測だけを公開前に受け付ける。一般公開後は引き続き`public`面で確認する。
+
 外部settingsの`publication_drafts_policy.required: true`を採用している場合は、
 既存packetの`publication_drafts_manifest`へ草稿と確認証拠の実体を結び、
 `note_workflow_gate.py --stage publish`で必須スロット・現在の記事版・草稿/確認証拠のhash一致を確認する。
