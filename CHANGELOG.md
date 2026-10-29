@@ -1,5 +1,20 @@
 # 変更履歴
 
+## 0.3.23
+
+日付: 2026-10-29
+
+変更:
+- 予約済み記事の更新前検査に、明示opt-inの保存・再読込み済み編集画面を使えるようにする。一般公開後はpublic面の検査を維持する。
+
+検証:
+- `python -m pytest tests/test_footer_readback_binding.py tests/test_note_postpublish_review.py -q`
+- footer/readbackと公開後入口77件が成功。保存・再読込み・HTML hashの不足や不一致、一般公開後への代用は拒否。
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.3.22
 
 日付: 2026-10-29

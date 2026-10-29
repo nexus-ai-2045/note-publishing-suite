@@ -295,9 +295,10 @@ def validate_footer_selection(data: dict[str, Any], plan: Any) -> list[dict[str,
 def validate_policy(value: Any) -> dict:
     """読戻し必須の適用だけを利用側が記事ごとに宣言する。"""
     if (not isinstance(value, dict)
-            or set(value) - {'schema', 'required', 'reason'}
+            or set(value) - {'schema', 'required', 'reason', 'allow_saved_editor'}
             or value.get('schema') != 'nps-footer-readback-policy/v1'
             or type(value.get('required')) is not bool
+            or 'allow_saved_editor' in value and type(value['allow_saved_editor']) is not bool
             or not value['required'] and not _nonempty(value.get('reason'))):
         raise ValueError('footer_readback_policy_invalid')
     return dict(value)
@@ -336,8 +337,22 @@ def check_readback(policy: Any, data: Any, *, article_id: str, article_sha256: s
                 or not _url(data.get('url'))):
             raise ValueError('footer_readback_article_or_version_invalid')
         surface = data.get('surface')
-        if surface not in ({'public'} if public_only else {'reader_saved', 'reserved', 'public'}):
+        surfaces = {'public'} if public_only else {'reader_saved', 'reserved', 'public'}
+        if not public_only and policy.get('allow_saved_editor') is True:
+            surfaces.add('editor_saved')
+        if surface not in surfaces:
             raise ValueError('footer_readback_surface_invalid')
+        if surface == 'editor_saved':
+            proof, body = data.get('save_readback'), data.get('body_html')
+            if (not isinstance(proof, dict)
+                    or set(proof) != {'schema', 'saved', 'reloaded', 'before_html_sha256', 'reloaded_html_sha256'}
+                    or proof.get('schema') != 'nps-editor-save-readback/v1'
+                    or proof.get('saved') is not True or proof.get('reloaded') is not True
+                    or not isinstance(body, str) or not body.strip()):
+                raise ValueError('footer_saved_editor_proof_missing')
+            body_hash = hashlib.sha256(body.encode('utf-8')).hexdigest()
+            if proof.get('before_html_sha256') != body_hash or proof.get('reloaded_html_sha256') != body_hash:
+                raise ValueError('footer_saved_editor_body_changed')
         if expected_url is None:
             raise ValueError('footer_readback_target_missing')
         if expected_url is not None and _target_identity(data['url']) != _target_identity(expected_url):
