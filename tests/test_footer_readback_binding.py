@@ -77,9 +77,19 @@ def test_new_readback_invalidates_old_publish_receipt(packet, tmp_path):
     assert gate.check_packet(packet, 'publish', 'current')['status'] == 'blocked'
 
 
+def test_missing_target_cannot_accept_another_articles_footer(packet, tmp_path):
+    configure(packet, tmp_path)
+    packet['edit_plan'].pop('target_url')
+    packet['footer_readback']['url'] = 'https://note.com/other/n/n999'
+    checked = approve(packet, 'publish')
+    assert checked['status'] == 'blocked'
+    assert checked['footer_readback']['status'] == 'blocked'
+
+
 def test_reserved_card_is_not_public_readback():
     data = observation('a' * 64)
-    assert footer.check_readback(POLICY, data, article_id='article', article_sha256='a' * 64)['status'] == 'ok'
+    assert footer.check_readback(POLICY, data, article_id='article', article_sha256='a' * 64,
+                                 expected_url=data['url'])['status'] == 'ok'
     assert footer.check_readback(POLICY, data, article_id='article', article_sha256='a' * 64,
                                  public_only=True)['status'] == 'blocked'
 
@@ -115,7 +125,8 @@ def test_omit_has_explicit_reason_and_empty_observation():
     plan.update(decision='omit', reason='No relevant navigation for this article', links=[])
     plan['review']['plan_sha256'] = footer.plan_sha256(plan)
     data['footer']['nodes'] = []
-    assert footer.check_readback(POLICY, data, article_id='article', article_sha256='a' * 64)['status'] == 'ok'
+    assert footer.check_readback(POLICY, data, article_id='article', article_sha256='a' * 64,
+                                 expected_url=data['url'])['status'] == 'ok'
     data.pop('footer')
     assert footer.check_readback(POLICY, data, article_id='article', article_sha256='a' * 64)['status'] == 'blocked'
 

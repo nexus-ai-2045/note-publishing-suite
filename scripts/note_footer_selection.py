@@ -337,7 +337,7 @@ def check_readback(policy: Any, data: Any, *, article_id: str, article_sha256: s
         surface = data.get('surface')
         if surface not in ({'public'} if public_only else {'reader_saved', 'reserved', 'public'}):
             raise ValueError('footer_readback_surface_invalid')
-        if public_only and expected_url is None:
+        if expected_url is None:
             raise ValueError('footer_readback_target_missing')
         if expected_url is not None and _target_identity(data['url']) != _target_identity(expected_url):
             raise ValueError('footer_readback_target_mismatch')
