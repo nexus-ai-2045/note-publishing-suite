@@ -631,6 +631,7 @@ packetの`footer_readback`は既存の`article_id`・`series`・`footer.nodes`�
 
 `publish`は既存layout計画とカードの実表示を照合する。
 読戻し必須時は`edit_plan.target_url`も必須とし、観測自身のURLだけで照合先を代用しない。
+文字リンクだけを採用する場合は、末尾全体の採用とカード非採用を区別して照合する。
 公開後は`post_publish.py`から同じ検査へ渡し、`public`面と対象記事URLの一致を要求する。
 予約中の本人向け表示を、一般公開後の確認に数えない。
 検査成功は供給snapshotの整合性であり、実観測の真正性や本人承認は呼出元が確認する。

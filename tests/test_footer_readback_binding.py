@@ -49,6 +49,20 @@ def test_article_policy_does_not_force_other_articles(packet, tmp_path):
     assert approve(packet, 'publish')['status'] == 'approved'
 
 
+def test_text_links_only_footer_does_not_require_a_card(packet, tmp_path):
+    configure(packet, tmp_path)
+    data = packet['footer_readback']
+    plan = data['production_plan']
+    plan['decision'] = 'include'
+    plan['links'][0].update(presentation='text_link', require_rendered=False)
+    plan['review']['plan_sha256'] = footer.plan_sha256(plan)
+    data['footer']['nodes'] = [dict(tag='A', href=URL, text='Series')]
+    packet['layout']['footer_cards'].update(decision='omit', urls=[],
+                                             reason='Text navigation is appropriate for this article')
+    result = approve(packet, 'publish')
+    assert result['status'] == 'approved', result
+
+
 @pytest.mark.parametrize('change', ['missing', 'wrong_version', 'wrong_article', 'editor', 'raw_url',
                                   'not_rendered', 'empty_title', 'wrong_href', 'extra', 'plan_changed'])
 def test_incomplete_card_readback_blocks_publish(packet, tmp_path, change):

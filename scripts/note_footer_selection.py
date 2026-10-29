@@ -350,7 +350,7 @@ def check_readback(policy: Any, data: Any, *, article_id: str, article_sha256: s
             cards = layout.get('footer_cards', {})
             planned = [link['url'] for link in plan.get('links', [])
                        if isinstance(link, dict) and link.get('presentation') == 'card']
-            if (cards.get('decision') != plan.get('decision', 'include')
+            if (cards.get('decision') != ('include' if planned else 'omit')
                     or cards.get('urls') != planned):
                 issues.append({'severity': 'error', 'code': 'footer_layout_plan_mismatch',
                                'message': 'フッター選定と採用layoutのカードが一致しません'})
