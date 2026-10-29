@@ -63,6 +63,18 @@ def test_text_links_only_footer_does_not_require_a_card(packet, tmp_path):
     assert result['status'] == 'approved', (result['reasons'], result['footer_readback'])
 
 
+def test_wrapped_plan_uses_the_same_selected_cards_for_layout(packet, tmp_path):
+    configure(packet, tmp_path)
+    data = packet['footer_readback']
+    data['production_plan'] = {'footer_selection': data['production_plan']}
+    assert approve(packet, 'publish')['status'] == 'approved'
+    packet['layout']['footer_cards'].update(decision='omit', urls=[],
+                                             reason='Conflicting card omission in fixture')
+    result = approve(packet, 'publish')
+    assert result['status'] == 'blocked'
+    assert 'footer_layout_plan_mismatch' in result['footer_readback']['errors']
+
+
 @pytest.mark.parametrize('change', ['missing', 'wrong_version', 'wrong_article', 'editor', 'raw_url',
                                   'not_rendered', 'empty_title', 'wrong_href', 'extra', 'plan_changed'])
 def test_incomplete_card_readback_blocks_publish(packet, tmp_path, change):

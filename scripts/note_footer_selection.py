@@ -62,13 +62,15 @@ def _selection_block(text: str) -> str:
     return blocks[0]
 
 
+def _selection_plan(value: Any) -> Any:
+    return value.get("footer_selection", value) if isinstance(value, dict) else value
+
+
 def load_production_plan(path: Path) -> dict[str, Any]:
     text = path.read_text(encoding="utf-8-sig")
     if path.suffix.lower() == ".md":
         text = _selection_block(text)
-    value = parse_json(text)
-    if isinstance(value, dict) and "footer_selection" in value:
-        value = value["footer_selection"]
+    value = _selection_plan(parse_json(text))
     if not isinstance(value, dict):
         raise ValueError("選定計画はJSONオブジェクトが必要です")
     return value
@@ -117,8 +119,7 @@ def validate_footer_selection(data: dict[str, Any], plan: Any) -> list[dict[str,
     def fail(code: str, message: str) -> None:
         errors.append({"severity": "error", "code": code, "message": message})
 
-    if isinstance(plan, dict) and "footer_selection" in plan:
-        plan = plan["footer_selection"]
+    plan = _selection_plan(plan)
     if not isinstance(plan, dict) or not plan:
         fail("footer_plan_missing", "記事別の選定計画がありません")
         return errors
@@ -344,7 +345,7 @@ def check_readback(policy: Any, data: Any, *, article_id: str, article_sha256: s
         stamp = datetime.fromisoformat(data['captured_at'].replace('Z', '+00:00'))
         if stamp.utcoffset() is None or stamp > datetime.now(timezone.utc):
             raise ValueError('footer_readback_time_invalid')
-        plan = data.get('production_plan')
+        plan = _selection_plan(data.get('production_plan'))
         issues = validate_footer_selection(data, plan)
         if layout is not None and isinstance(plan, dict):
             cards = layout.get('footer_cards', {})
