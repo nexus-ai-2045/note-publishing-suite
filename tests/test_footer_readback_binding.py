@@ -53,14 +53,14 @@ def test_text_links_only_footer_does_not_require_a_card(packet, tmp_path):
     configure(packet, tmp_path)
     data = packet['footer_readback']
     plan = data['production_plan']
-    plan['decision'] = 'include'
+    plan.update(decision='include', reason='Retain navigation through a text link')
     plan['links'][0].update(presentation='text_link', require_rendered=False)
     plan['review']['plan_sha256'] = footer.plan_sha256(plan)
     data['footer']['nodes'] = [dict(tag='A', href=URL, text='Series')]
     packet['layout']['footer_cards'].update(decision='omit', urls=[],
                                              reason='Text navigation is appropriate for this article')
     result = approve(packet, 'publish')
-    assert result['status'] == 'approved', result
+    assert result['status'] == 'approved', (result['reasons'], result['footer_readback'])
 
 
 @pytest.mark.parametrize('change', ['missing', 'wrong_version', 'wrong_article', 'editor', 'raw_url',
