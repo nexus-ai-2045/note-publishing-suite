@@ -62,13 +62,15 @@ def _selection_block(text: str) -> str:
     return blocks[0]
 
 
+def _selection_plan(value: Any) -> Any:
+    return value.get("footer_selection", value) if isinstance(value, dict) else value
+
+
 def load_production_plan(path: Path) -> dict[str, Any]:
     text = path.read_text(encoding="utf-8-sig")
     if path.suffix.lower() == ".md":
         text = _selection_block(text)
-    value = parse_json(text)
-    if isinstance(value, dict) and "footer_selection" in value:
-        value = value["footer_selection"]
+    value = _selection_plan(parse_json(text))
     if not isinstance(value, dict):
         raise ValueError("選定計画はJSONオブジェクトが必要です")
     return value
@@ -117,8 +119,7 @@ def validate_footer_selection(data: dict[str, Any], plan: Any) -> list[dict[str,
     def fail(code: str, message: str) -> None:
         errors.append({"severity": "error", "code": code, "message": message})
 
-    if isinstance(plan, dict) and "footer_selection" in plan:
-        plan = plan["footer_selection"]
+    plan = _selection_plan(plan)
     if not isinstance(plan, dict) or not plan:
         fail("footer_plan_missing", "記事別の選定計画がありません")
         return errors
@@ -289,3 +290,78 @@ def validate_footer_selection(data: dict[str, Any], plan: Any) -> list[dict[str,
     if any(required and url not in seen for url, (_, _, required, _) in expected.items()):
         fail("footer_required_missing", "必須の選定リンクが観測されていません")
     return errors
+
+
+def validate_policy(value: Any) -> dict:
+    """読戻し必須の適用だけを利用側が記事ごとに宣言する。"""
+    if (not isinstance(value, dict)
+            or set(value) - {'schema', 'required', 'reason'}
+            or value.get('schema') != 'nps-footer-readback-policy/v1'
+            or type(value.get('required')) is not bool
+            or not value['required'] and not _nonempty(value.get('reason'))):
+        raise ValueError('footer_readback_policy_invalid')
+    return dict(value)
+
+
+def _target_identity(value: Any) -> tuple[str, str]:
+    if not _url(value):
+        raise ValueError('footer_target_url_invalid')
+    parsed = urlsplit(value)
+    editor = re.fullmatch(r'/notes/(n[a-zA-Z0-9]+)/edit/?', parsed.path)
+    reader = re.fullmatch(r'/[^/]+/n/(n[a-zA-Z0-9]+)/?', parsed.path)
+    if parsed.hostname == 'editor.note.com' and editor:
+        return ('note.com', editor[1])
+    if parsed.hostname == 'note.com' and reader:
+        return ('note.com', reader[1])
+    return (parsed.netloc, parsed.path)
+
+
+def check_readback(policy: Any, data: Any, *, article_id: str, article_sha256: str,
+                   layout: dict | None = None, public_only: bool = False,
+                   expected_url: str | None = None) -> dict:
+    """既存フッター検査を対象版と読取り面に束縛する。観測の真正性は認証しない。"""
+    result = {'status': 'not_required', 'errors': [], 'hashes': {},
+              'verification_scope': 'supplied_snapshot_only', 'live_dom_verified': False,
+              'ready_for_publish': False}
+    if policy is None:
+        return result
+    try:
+        policy = validate_policy(policy)
+        if not policy['required']:
+            return result
+        if (not isinstance(data, dict) or data.get('article_id') != article_id
+                or not isinstance(article_sha256, str)
+                or not re.fullmatch(r'[0-9a-f]{64}', article_sha256)
+                or data.get('article_draft_sha256') != article_sha256
+                or not _url(data.get('url'))):
+            raise ValueError('footer_readback_article_or_version_invalid')
+        surface = data.get('surface')
+        if surface not in ({'public'} if public_only else {'reader_saved', 'reserved', 'public'}):
+            raise ValueError('footer_readback_surface_invalid')
+        if expected_url is None:
+            raise ValueError('footer_readback_target_missing')
+        if expected_url is not None and _target_identity(data['url']) != _target_identity(expected_url):
+            raise ValueError('footer_readback_target_mismatch')
+        stamp = datetime.fromisoformat(data['captured_at'].replace('Z', '+00:00'))
+        if stamp.utcoffset() is None or stamp > datetime.now(timezone.utc):
+            raise ValueError('footer_readback_time_invalid')
+        plan = _selection_plan(data.get('production_plan'))
+        issues = validate_footer_selection(data, plan)
+        if layout is not None and isinstance(plan, dict):
+            cards = layout.get('footer_cards', {})
+            planned = [link['url'] for link in plan.get('links', [])
+                       if isinstance(link, dict) and link.get('presentation') == 'card']
+            if (cards.get('decision') != ('include' if planned else 'omit')
+                    or cards.get('urls') != planned):
+                issues.append({'severity': 'error', 'code': 'footer_layout_plan_mismatch',
+                               'message': 'フッター選定と採用layoutのカードが一致しません'})
+        if issues:
+            result.update(status='blocked', errors=[issue['code'] for issue in issues])
+        else:
+            raw = json.dumps(data, sort_keys=True, ensure_ascii=False, allow_nan=False).encode('utf-8')
+            result.update(status='ok', surface=surface,
+                          hashes={'readback': hashlib.sha256(raw).hexdigest(),
+                                  'article_draft': article_sha256})
+    except (ValueError, KeyError, TypeError, AttributeError, RecursionError):
+        result.update(status='blocked', errors=['footer_readback_missing_invalid_or_stale'])
+    return result

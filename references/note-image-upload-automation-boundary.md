@@ -66,25 +66,34 @@ chooserの `setFiles` が公開されていることを確認する。`File uplo
 5. `img.complete`、`naturalWidth > 0`、CDN参照、下書き保存後の再読込みで確認する。
    crop・描画・保存・公開はそれぞれ別結果として記録する。
 
-### 待機失敗で接続を失わない
+### 正式な選択入口で順序を固定する
 
-chooser待機Promiseには作成と同時に失敗handlerを付ける。clickの処理中に待機が失敗し、
-未処理rejectionで実行環境が終了すると、接続・変数・停止状態を失い、不要な再接続が増える。
-下例の`currentUploadButtonIndex`はfresh AXで今回の画像アップロードボタンに特定した値だけを使う。
+`note_editor_guarded_input.mjs` の `chooseImageFile` を使う。本文の挿入先とメニューを
+先に画面で特定する。本文メニューの「画像」はそのクリック自体がchooserを開くので、
+クリックした後から待機を始めない。扉画像は「画像をアップロード」を対象にする。
 
 ```javascript
-const chooserOutcome = tab.playwright.waitForEvent('filechooser', { timeoutMs: 10000 })
-  .then(chooser => ({ chooser }), () => ({ error: 'filechooser_wait_failed' }));
-let clickFailed = false;
-try { await tab.ax.click(currentUploadButtonIndex); }
-catch { clickFailed = true; }
-const opened = await chooserOutcome;
-if (clickFailed || opened.error) {
-  // 実エラーと現在画面を記録して停止。非対応と断定せず、click/uploadを再送しない。
-  throw new Error(clickFailed ? 'upload_click_unknown' : opened.error);
-}
-await opened.chooser.setFiles([approvedAbsoluteImagePath]);
+const imageInput = createNoteInputGuard(tab, { tabId: tab.id, noteUrl: approvedEditorUrl });
+const selected = await imageInput.chooseImageFile({
+  kind: 'body', anchorId: approvedAnchorId,
+  imagePath: approvedAbsoluteImagePath, imageSha256: approvedImageSha256,
+  controlIndex: currentUploadButtonIndex,
+});
 ```
+
+扉画像では `kind: 'cover'` とし `anchorId` を渡さない。`controlIndex` は今回のfresh AXで
+特定した画像用controlだけ。入口は対象tab/editor、本文とRange、control一意性、画像fileの
+実在・raster magic・hashを照合し、`waitForEvent('filechooser')` と失敗handlerの登録を
+必ずnative clickより前に行う。chooser到着後に対象本文とfile hashを再確認し、正式な
+`chooser.setFiles` へ1件だけ渡す。caller指定callback、OS clipboard、Cookie、直接Note APIは使わない。
+
+`selected` はfile選択だけを意味し、crop・画像の描画・保存・公開は未確認のまま返す。
+その読戻しが済むまで次の入力へ進めない。待機・click・setFilesの失敗は同じtabの共有channelを
+停止し、別factoryで再送できない。対応APIの存在は現在hostでの成功を保証しない。
+画像の本人採用と送信許可はtrusted callerが現会話で確認し、receiptのbooleanを本人承認の証明にしない。
+fileの再確認と実転送の間の同時変更まで原子的に遮断するものではない。
+画像fileは読込み前と分割読込み中に20 MiBを超えた時点で停止する。この値は
+ローカル処理のメモリ保護値であり、Noteの製品上限を示すものではない。
 
 同じbrowser bindingのまま既に読んだ能力文書を、各ボタン操作のたびに再取得しない。
 新しい接続、切断、能力不一致があれば読み直す。対象タブ・画像・fresh UIの確認は毎回維持する。

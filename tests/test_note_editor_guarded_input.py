@@ -9,12 +9,13 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_guarded_tab_backend():
+@pytest.mark.parametrize("suite", ["note_editor_guarded_input.test.mjs", "note_editor_image_upload.test.mjs"])
+def test_guarded_tab_backend(suite):
     node = shutil.which("node")
     if not node:
         pytest.skip("単一URL入力の隔離試験にはNode.js 22以降が必要")
     result = subprocess.run(
-        [node, "--test", "tests/note_editor_guarded_input.test.mjs"],
+        [node, "--test", f"tests/{suite}"],
         cwd=ROOT, capture_output=True, encoding="utf-8", timeout=30,
     )
     assert result.returncode == 0, result.stdout + result.stderr

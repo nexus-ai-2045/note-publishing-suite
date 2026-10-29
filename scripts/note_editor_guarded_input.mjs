@@ -1,4 +1,7 @@
 import { createHash } from 'node:crypto';
+import { createReadStream } from 'node:fs';
+import { stat } from 'node:fs/promises';
+import { extname, isAbsolute } from 'node:path';
 
 // CUAのread-only evaluateに渡す。closure、DOMParser、ページ内部stateを使わない。
 export function readNoteDom() {
@@ -248,6 +251,7 @@ const loading = node => {
 };
 const channels = new Map(); // 同一module・tabでpending/blockedを別factoryからも再入力できない。
 const MAX_RECONCILE_ATTEMPTS = 6;
+const MAX_IMAGE_FILE_BYTES = 20 * 1024 * 1024;
 
 // 例外のmessage/stackは記事やURLを含み得るためreceiptへ渡さない。
 class ObservationError extends Error {
@@ -678,6 +682,118 @@ export function createNoteInputGuard(tab, { tabId, noteUrl }) {
     }
     return current;
   }
+  async function chooseImageFile(request = {}) {
+    const imageReceipt = (state, reason, image = null, diagnostic = null) => Object.freeze({
+      schema: 'note-image-file-selection/v1', state, reason, diagnostic,
+      image_sha256: image?.sha256 ?? null, mime_type: image?.mime ?? null,
+      selected_bytes: state === 'selected' ? image.bytes : null,
+      render_verified: false, saved_verified: false, published: false,
+      approval_authenticity_verified: false, runtime_enforcement_verified: false,
+    });
+    if (channel.state !== 'idle') return imageReceipt(channel.state, 'input_stopped');
+    channel.state = 'busy';
+    let phase = 'image_request', image = null;
+    const stop = (reason, diagnostic = null) => {
+      channel.state = 'blocked'; channel.pending = null;
+      return imageReceipt('blocked', reason, image, diagnostic);
+    };
+    try {
+      const { kind, imagePath, imageSha256, controlIndex, anchorId } = request ?? {};
+      if (!request || typeof request !== 'object' || Array.isArray(request)
+        || Reflect.ownKeys(request).some(key => !['kind', 'imagePath', 'imageSha256', 'controlIndex', 'anchorId'].includes(key))
+        || !['cover', 'body'].includes(kind) || typeof imagePath !== 'string' || !isAbsolute(imagePath)
+        || typeof imageSha256 !== 'string' || !/^[a-f0-9]{64}$/.test(imageSha256)
+        || !Number.isSafeInteger(controlIndex) || controlIndex < 0
+        || (kind === 'body' ? typeof anchorId !== 'string' || !anchorId : anchorId !== undefined)
+        || typeof tab.ax?.get !== 'function' || typeof tab.ax?.click !== 'function'
+        || typeof tab.playwright?.waitForEvent !== 'function') return stop('invalid_image_selection_request');
+      async function approvedFile() {
+        const info = await stat(imagePath);
+        if (!info.isFile() || info.size === 0) throw new ObservationError('image_file_invalid', 'image_file');
+        if (info.size > MAX_IMAGE_FILE_BYTES) throw new ObservationError('image_file_too_large', 'image_file');
+        const header = Buffer.alloc(12), hash = createHash('sha256');
+        let bytes = 0;
+        for await (const chunk of createReadStream(imagePath, { highWaterMark: 64 * 1024 })) {
+          const offset = bytes;
+          bytes += chunk.length;
+          if (bytes > MAX_IMAGE_FILE_BYTES) throw new ObservationError('image_file_too_large', 'image_file');
+          if (offset < header.length) chunk.copy(header, offset, 0, header.length - offset);
+          hash.update(chunk);
+        }
+        const extension = extname(imagePath).toLowerCase();
+        const mime = header.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) && extension === '.png' ? 'image/png'
+          : header[0] === 255 && header[1] === 216 && header[2] === 255 && ['.jpg', '.jpeg'].includes(extension) ? 'image/jpeg'
+          : ['GIF87a', 'GIF89a'].includes(header.subarray(0, 6).toString('ascii')) && extension === '.gif' ? 'image/gif'
+          : header.subarray(0, 4).toString('ascii') === 'RIFF' && header.subarray(8, 12).toString('ascii') === 'WEBP' && extension === '.webp' ? 'image/webp' : null;
+        if (!mime) throw new ObservationError('image_file_type_invalid', 'image_file');
+        const sha256 = hash.digest('hex');
+        if (sha256 !== imageSha256) throw new ObservationError('image_file_hash_mismatch', 'image_file');
+        return { sha256, mime, bytes };
+      }
+      phase = 'image_file'; image = await approvedFile();
+      phase = 'image_target'; const before = await read(false);
+      if (before.visible !== true || before.embedInput?.count > 0) return stop('image_editor_not_ready');
+      if (kind === 'body') {
+        const anchors = before.blocks.flatMap((block, index) => block.tag === 'P'
+          && attr(block, 'id') === anchorId ? [index] : []);
+        const index = anchors[0], range = before.selection?.ranges?.[0];
+        if (anchors.length !== 1 || !selectionWithinBlock(before, index) || !before.selection.collapsed
+          || !before.selection.inside || !equal(range.start, range.end)) return stop('image_anchor_unverified');
+        let node = before.blocks[index];
+        for (const part of range.end.nodePath) node = node?.children?.[part];
+        const atEnd = node && range.end.offset === (node.tag === '#text' ? node.text.length : node.children.length)
+          && range.end.nodePath.every((part, depth, path) => {
+            let ancestor = before.blocks[index];
+            for (const previous of path.slice(0, depth)) ancestor = ancestor.children[previous];
+            return part === ancestor.children.length - 1;
+          });
+        if (!atEnd) return stop('image_anchor_not_at_end');
+      }
+      phase = 'image_control';
+      const axState = await tab.ax.get('state', { disableDiffing: true });
+      if (nativeBodyRoot(axState, lock, before) === null) return stop('image_ax_target_unverified');
+      const rows = [...axState.matchAll(/^[ \t]*(\d+) (button|checkbox) ([^\r\n]*)$/gm)];
+      const targetRows = rows.filter(row => kind === 'body' ? /^画像(?:, Value: 0)?$/.test(row[3])
+        : /^画像をアップロード(?:[ ,]|$)/.test(row[3]));
+      // Literal AX-like article text cannot impersonate an existing actionable ID.
+      const idRows = [...axState.matchAll(/^[ \t]*(\d+) [^\r\n]*$/gm)].filter(row => Number(row[1]) === controlIndex);
+      if (targetRows.length !== 1 || Number(targetRows[0][1]) !== controlIndex || idRows.length !== 1) return stop('image_control_unverified');
+      const current = await read(false);
+      if (current.title !== before.title || semantic(current) !== semantic(before)
+        || kind === 'body' && !equal(current.selection, before.selection)) return stop('image_document_changed_before_action');
+      phase = 'image_filechooser_wait';
+      // Register and handle rejection before the only native click. No callback or fallback route.
+      const waiting = tab.playwright.waitForEvent('filechooser', { timeoutMs: 10000 });
+      if (typeof waiting?.then !== 'function') return stop('image_filechooser_capability_unverified');
+      let settledBeforeClick = false;
+      const outcome = waiting.then(chooser => {
+        settledBeforeClick = true; return { chooser };
+      }, () => {
+        settledBeforeClick = true; return { failed: true };
+      });
+      await Promise.resolve();
+      if (settledBeforeClick) return stop('image_filechooser_settled_before_click');
+      let clickFailed = false;
+      try { await tab.ax.click(controlIndex); } catch { clickFailed = true; }
+      const opened = await outcome;
+      if (clickFailed || opened.failed || typeof opened.chooser?.setFiles !== 'function') {
+        return stop(clickFailed ? 'image_control_click_outcome_unknown' : 'image_filechooser_not_observed',
+          { code: 'image_selection_unavailable', phase: clickFailed ? 'image_control_click' : phase, recoverable: false });
+      }
+      phase = 'image_pre_selection_readback';
+      const ready = await read(false);
+      if (ready.title !== before.title || semantic(ready) !== semantic(before)
+        || kind === 'body' && !equal(ready.selection, before.selection)) return stop('image_document_changed_before_selection');
+      phase = 'image_file_recheck'; await approvedFile();
+      phase = 'image_set_files'; await opened.chooser.setFiles([imagePath]);
+      if (tab.id !== lock.tabId || await tab.url() !== lock.noteUrl) return stop('image_target_changed_after_selection');
+      // The receipt covers one chooser selection; crop/render/save require separate readbacks.
+      channel.state = 'idle';
+      return imageReceipt('selected', 'image_file_selected', image);
+    } catch (error) {
+      return stop('image_selection_stopped', diagnosticOf(error, phase));
+    }
+  }
   async function embedViaNativeDialog(request = {}) {
     if (channel.state !== 'idle') return receipt(channel.state, 'input_stopped');
     channel.state = 'busy';
@@ -689,6 +805,7 @@ export function createNoteInputGuard(tab, { tabId, noteUrl }) {
       || typeof tab.ax?.pressKey !== 'function' || typeof tab.ax?.get !== 'function'
       || typeof tab.ax?.click !== 'function') return block('invalid_native_embed_request');
     let before, index, nativeStage = null, nativeCardId = null, started = false, cleanupStarted = false;
+    let phase = 'native_embed_target';
     try {
       before = await read(false);
       const rawParagraph = node => node?.tag === 'P' && attr(node, 'contenteditable') !== 'false'
@@ -715,6 +832,7 @@ export function createNoteInputGuard(tab, { tabId, noteUrl }) {
       }
       const root = await rootFor(before);
       started = true;
+      phase = 'native_embed_cursor';
       await tab.ax.selectText(root, caption, { selectionType: 'cursor_after' });
       const cursor = await locked(before, true), q = cursor.selection, range = q?.ranges?.[0];
       const end = range?.end;
@@ -738,24 +856,43 @@ export function createNoteInputGuard(tab, { tabId, noteUrl }) {
         return current;
       }
       if (!equal((await locked(before, true)).selection, cursor.selection)) return block('native_embed_cursor_changed', before, null, payload);
+      phase = 'native_embed_menu';
       await tab.playwright.getByRole('button', { name: 'メニューを開く', exact: true }).click();
       await lockedCaptionRange();
+      phase = 'native_embed_dialog_open';
       await tab.playwright.getByRole('button', { name: '埋め込み', exact: true }).click();
-      await tab.playwright.getByPlaceholder('https://example.com', { exact: true }).waitFor({ state: 'visible', timeoutMs: 10000 });
-      const staged = await read(false), stagingP = staged.blocks[index];
-      const stagingChecks = {
-        title: staged.title === before.title, rootAttrs: equal(staged.rootAttrs, before.rootAttrs),
-        newEmptyP: empty(stagingP) && stagingP.attrs.every(([name]) => ['id', 'name'].includes(name)),
-        prefix: equal(staged.blocks.slice(0, index), before.blocks.slice(0, index)),
-        suffix: equal(staged.blocks.slice(index + 1), before.blocks.slice(index)),
-      };
-      if (Object.values(stagingChecks).some(passed => !passed)) {
-        const expected = { rootAttrs: before.rootAttrs, blocks: [...before.blocks.slice(0, index), stagingP, ...before.blocks.slice(index)] };
-        return block('native_embed_staging_changed', before, staged, payload,
-          { code: 'native_embed_staging_changed', phase: 'native_embed_staging', recoverable: false,
-            checks: stagingChecks, mismatch_path: mismatchPath(expected, { rootAttrs: staged.rootAttrs, blocks: staged.blocks }) });
+      async function captureNativeStage() {
+        const staged = await read(false);
+        if (semantic(staged) === semantic(before)) return null;
+        const stagingP = staged.blocks[index];
+        const stagingChecks = {
+          title: staged.title === before.title, rootAttrs: equal(staged.rootAttrs, before.rootAttrs),
+          newEmptyP: empty(stagingP) && stagingP.attrs.every(([name]) => ['id', 'name'].includes(name)),
+          prefix: equal(staged.blocks.slice(0, index), before.blocks.slice(0, index)),
+          suffix: equal(staged.blocks.slice(index + 1), before.blocks.slice(index)),
+        };
+        if (Object.values(stagingChecks).some(passed => !passed)) {
+          const expected = { rootAttrs: before.rootAttrs, blocks: [...before.blocks.slice(0, index), stagingP, ...before.blocks.slice(index)] };
+          return block('native_embed_staging_changed', before, staged, payload,
+            { code: 'native_embed_staging_changed', phase: 'native_embed_staging', recoverable: false,
+              checks: stagingChecks, mismatch_path: mismatchPath(expected, { rootAttrs: staged.rootAttrs, blocks: staged.blocks }) });
+        }
+        nativeStage = staged;
+        return null;
       }
-      nativeStage = staged;
+      phase = 'native_embed_staging_read';
+      const stagingFailure = await captureNativeStage();
+      if (stagingFailure) return stagingFailure;
+      // Capture a verified empty staging P before the fallible locator wait.
+      // An unchanged first observation is allowed while the native UI settles.
+      phase = 'native_embed_dialog_wait';
+      await tab.playwright.getByPlaceholder('https://example.com', { exact: true }).waitFor({ state: 'visible', timeoutMs: 10000 });
+      if (!nativeStage) {
+        phase = 'native_embed_staging_read';
+        const delayedFailure = await captureNativeStage();
+        if (delayedFailure) return delayedFailure;
+        if (!nativeStage) throw new ObservationError('native_embed_staging_not_observed', phase, true);
+      }
       async function lockedDialog(expectedValue) {
         const current = await locked(nativeStage), input = current.embedInput, selection = current.selection;
         if (input?.count !== 1 || input.active !== true || input.visible !== true || input.value !== expectedValue) {
@@ -783,8 +920,10 @@ export function createNoteInputGuard(tab, { tabId, noteUrl }) {
         return current;
       }
       await lockedDialog('');
+      phase = 'native_embed_dialog_fill';
       await tab.playwright.getByPlaceholder('https://example.com', { exact: true }).fill(payload);
       const dialog = await lockedDialog(payload);
+      phase = 'native_embed_apply_state';
       const applyState = await tab.ax.get('state', { disableDiffing: true });
       const applyButtons = typeof applyState === 'string' ? [...applyState.matchAll(/^[ \t]*(\d+) button 適用(?:, ID: [^\s,]+)?[ \t]*$/gm)] : [];
       if (nativeBodyRoot(applyState, lock, dialog) === null || applyButtons.length !== 1) {
@@ -793,7 +932,9 @@ export function createNoteInputGuard(tab, { tabId, noteUrl }) {
       const applyId = Number(applyButtons[0][1]);
       if (!Number.isSafeInteger(applyId)) return block('native_embed_apply_unverified', before, dialog, payload);
       await lockedDialog(payload);
+      phase = 'native_embed_apply';
       await tab.ax.click(applyId);
+      phase = 'native_embed_placement_wait';
       await tab.playwright.locator(`figure[data-src="${payload.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`).waitFor({ state: 'attached', timeoutMs: 10000 });
       const placed = await read(false);
       if (nativeEmbedCompare(before, placed, index, payload) !== 'pending'
@@ -803,6 +944,7 @@ export function createNoteInputGuard(tab, { tabId, noteUrl }) {
         nativeCardId = null;
         return nativeEmbedPending(before, index, payload, 'native_embed_card_id_loading', null, nativeStage, false, null);
       }
+      phase = 'native_embed_cleanup';
       const cleanupPlacement = inputFocus => nativeCleanupPlacement(before, index, payload, nativeCardId, inputFocus);
       const rawRoot = await nativeBodyRootFor(() => cleanupPlacement(false), payload);
       cleanupStarted = true;
@@ -814,7 +956,7 @@ export function createNoteInputGuard(tab, { tabId, noteUrl }) {
       await tab.ax.pressKey(null, 'Backspace');
       return await nativeEmbedFinish(before, index, payload, nativeStage, cleanupStarted, nativeCardId);
     } catch (error) {
-      const diagnostic = diagnosticOf(error, 'native_embed');
+      const diagnostic = diagnosticOf(error, phase);
       if (!started || !diagnostic.recoverable) return block('native_embed_failed', before, null, payload, diagnostic);
       return nativeEmbedPending(before, index, payload, 'native_embed_outcome_unknown', diagnostic, nativeStage, cleanupStarted, nativeCardId);
     }
@@ -858,6 +1000,7 @@ export function createNoteInputGuard(tab, { tabId, noteUrl }) {
   }
   return Object.freeze({
     scrollToEdge,
+    chooseImageFile,
     embedViaNativeDialog,
     completeNativeEmbed,
     async observe() {

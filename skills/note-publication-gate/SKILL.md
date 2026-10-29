@@ -39,6 +39,23 @@ description: "note-publishing-suiteで、Noteの公開または予約投稿の�
 - 予約投稿日時が `note` 公式メンテナンス告知の停止予定期間に重なる場合は、メンテナンス後に順次投稿される可能性を確認し、ユーザーへ明示する。
 - 現在の会話で対象記事と操作を特定した明示承認があるか。
 
+## 利用側が公開前草稿を必須にした場合
+
+必要な草稿は記事別policyで選ぶ。全記事に同じ数を要求しない。
+`footer_readback_policy`を採用した記事は、保存後のreader画面の実観測と
+既存`footer-selection`を`footer_readback`へ渡す。
+予約確定後もcanonical記事画面で読み戻し、一般公開後は`public`面で再照合する。
+生URLや予約中の本人向け表示だけで、公開後確認を完了にしない。
+
+外部settingsの`publication_drafts_policy.required: true`を採用している場合は、
+既存packetの`publication_drafts_manifest`へ草稿と確認証拠の実体を結び、
+`note_workflow_gate.py --stage publish`で必須スロット・現在の記事版・草稿/確認証拠のhash一致を確認する。
+欠落・未確認・旧版なら、即時公開と予約確定のどちらも停止する。
+媒体の種類や本文のルールは利用側が所有し、packageへ固有名や私的草稿を移さない。
+未設定の利用者へ必須化せず、制作途中の段階にも先取りしない。
+契約は`../../references/note-workflow-review-contract.md`の「公開前草稿の任意契約」を参照する。
+草稿QAのassistant確認は許容するが、公開の本人承認や外部告知の送信許可とは別であり、実送信は行わない。
+
 ## 構成要素の確認抜けを防ぐ
 
 `--list-gates` の `layout.review_items` と `settings.tag_review` を読み、ハイパーリンク、埋め込み、末尾カード、タグ選定を個別に棚卸しする。ハイパーリンクは `layout.hyperlinks` に表示文・URL・目的・配置を記録する。すでに挿入済みでも到達先・文脈・保存後の保持を確認し、確認済みと未確認を分ける。タグ候補数や文字リンクの存在だけで選定・埋め込みの確認を済ませない。サービス紹介は本人の実在する公開先から候補を選び、末尾カードの形式・順序は既存 `footer-selection` と実表示を照合する。
