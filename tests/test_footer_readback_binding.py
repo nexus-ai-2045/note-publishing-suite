@@ -106,6 +106,15 @@ def test_legacy_publish_without_footer_policy_accepts_optional_edit_plan(packet,
     assert approve(packet, 'publish')['status'] == 'approved'
 
 
+@pytest.mark.parametrize('article_id', ['missing', None, [], '', False])
+def test_invalid_article_identity_returns_a_blocked_publish_result(packet, article_id):
+    if article_id == 'missing':
+        packet.pop('article_id')
+    else:
+        packet['article_id'] = article_id
+    assert gate.check_packet(packet, 'publish', 'current')['status'] == 'blocked'
+
+
 @pytest.mark.parametrize('edit_plan', [None, [], '', False])
 def test_required_footer_blocks_invalid_target_plan_without_crashing(packet, tmp_path, edit_plan):
     configure(packet, tmp_path)
