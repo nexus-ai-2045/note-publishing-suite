@@ -1,5 +1,5 @@
 name: note-publishing-suite
-version: 0.3.24
+version: 0.3.25
 license: MIT
 scope: repo-local
 repo_root: .
@@ -187,6 +187,7 @@ existing_scripts:
   - scripts/note_editor_guarded_input.mjs
   - scripts/draft_topic_coverage_check.py
   - scripts/note_work_packet_check.py
+  - scripts/note_publication_lifecycle.py
   - scripts/fetch_note_official_specs.py
   - scripts/note_article_version.py
   - scripts/note_draft_durability.py

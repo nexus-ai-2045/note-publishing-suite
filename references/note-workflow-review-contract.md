@@ -672,3 +672,25 @@ HTML文字列のUTF-8 SHA-256で、両方が`body_html`の実hashと一致する
 過去の本人発言が長文・文脈依存のとき、限定文法へ通すために原文を書き換えない。利用側が `allow_recorded_decisions: true` を明示した場合のみ、`recorded_decision_log` 形式で同じ判断ログの見出し区間全体を参照できる。根拠の区間・論点・採否・引用ハッシュを、既存の同一版検証記録の `decision_reviews` と結ぶ。区間の途中切取り、別論点の部分一致、別版の証拠は停止する。これは既に記録された本人判断と独立照合の構造検査であり、本人認証や新たな本人採用を発行しない。既定の厳格な発言検査は維持する。
 
 元の修正対象が既存の採用変更によって失効している場合も、単語の消失だけで意味の欠落や本人の却下を推定しない。原資料にある対象表現、現在本文での消失、既存の採用済み論点、同一版の検証記録の独立した対応判断を全て結んだ場合に限り、`applicability` を `superseded` として扱う。本人採否の値は未検討のまま保持し、旧対象の再質問を要求しない。対応の一部が不明なら停止する。
+## 制作から配送までの進行と完了
+
+既存の`note-work-packet/v1`の`lifecycle`に、記事の工程をまとめる。別の採否台帳を作らない。必須工程は外部設定の`publication_lifecycle_policy`で選ぶ。媒体名・件数・アカウントを共通コードへ固定しない。
+
+設定の`required: true`は、記事profile、現在稿の実体とhash、工程一覧を必須にする。`required_kinds`で必要な工程種別を固定し、`announcement_selection_required`で媒体の選定または不要理由を要求する。選定した告知には草稿と送信の両工程を持たせる。草稿確認と本人の送信許可は別に扱う。
+
+`asset_selection_required`を使う場合は、記事profileの`artifacts`へ選定実体のpathとhashを持たせる。本文版と選定実体から`release_sha256`を計算し、各元観測・承認まで同じ値へ結ぶ。同じファイル名で扉絵のbytesだけが変わった場合も旧版の証拠は使えない。画像なしは空配列と`asset_omission_reason`で明示する。公開入口は設定された扉絵が実体選定に含まれることも検査する。
+
+工程は`note_save`、`note_publication`、`announcement_draft`、`announcement_send`、`postpublish_review`、`ledger_update`、`git_delivery`を使う。公開には保存後の読戻しと選定草稿、送信には公開と対応草稿が必要で、設定の依存一覧を削除してもこの前提は消えない。公開後点検と台帳の記録も公開の確認を前提にする。
+
+証拠は`note-lifecycle-evidence/v1`から、元観測`note-lifecycle-observation/v1`をpathとhashで参照する。記事ID・本文版・対象を元観測まで照合する。元観測の`result`を事実の正本とし、別フィールドの成功値や別artifactへ差し替えない。送信には、同じpayload・記事・宛先に結び付いた本人承認も必要とする。
+
+現在稿のMarkdownは既存Note変換器で読者本文へ変換し、元観測本文と読戻し実体を照合する。制作metadata・描画用の診断・カード内の生成metadataは比較から分け、図のcaptionは保持する。画像やカードの描画は既存の配置検査で確認する。本文hashのラベルを更新しただけで旧公開本文を受け入れない。
+
+```sh
+python scripts/note_work_packet_check.py work-packet.json --settings workspace-settings.json --article-id article --workspace-root WORKSPACE --stage publish --json
+python scripts/note_work_packet_check.py work-packet.json --settings workspace-settings.json --article-id article --workspace-root WORKSPACE --json
+```
+
+`publish`はこれから公開するための前提を検査し、公開後の未実施作業は残務として返す。既定の`closeout`、および`accepted`・`closed`は全必須工程を検査し、不足があれば終了コード1にする。`current`・`next`・`remaining`は同じpacketから導出する。`ok: true`だけで残務なしと扱わず、`residual_work_zero`も確認する。
+
+`note_workflow_gate.py`の公開入口も、必須設定時に`work_packet_ref`を要求し、公開前提と現在稿を承認hashへ結ぶ。ローカルJSONの整合性は、実操作や本人判断の真正性を暗号学的に証明しない。捕捉できなかった操作・未対応の旧観測・本人操作待ちは未確認のまま止め、外部操作を自動実行しない。

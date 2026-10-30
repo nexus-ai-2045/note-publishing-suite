@@ -119,6 +119,12 @@ def read_workspace_settings(settings_path: Path | None, article_id: str, *,
             raise ValueError("文体参照が空です")
         reference_hashes[str(path)] = hashlib.sha256(data).hexdigest()
     expected = {"settings_sha256": hashlib.sha256(raw).hexdigest(), "reference_hashes": reference_hashes}
+    if "publication_lifecycle_policy" in config:
+        lifecycle_policy = config["publication_lifecycle_policy"]
+        if not isinstance(lifecycle_policy, dict) or type(lifecycle_policy.get("required")) is not bool:
+            raise ValueError("ライフサイクル方針のrequiredが不正です")
+        expected["publication_lifecycle_policy"] = lifecycle_policy
+        expected["publication_lifecycle_workspace"] = str(workspace)
     if "tag_reference_policy" in config:
         expected["tag_reference_policy"] = tag_reference_policy
     if "tag_count_policy" in config:
@@ -652,6 +658,41 @@ def check_packet(packet: Any, stage: str, conversation_id: str, base_dir: Path =
             reasons.extend(publication_drafts["errors"])
         elif publication_drafts["status"] == "ok":
             hashes["publication_drafts"] = canonical_sha256(publication_drafts["hashes"])
+        lifecycle_policy = expected.get("publication_lifecycle_policy")
+        if isinstance(lifecycle_policy, dict) and lifecycle_policy.get("required") is True:
+            lifecycle_module = _load_sibling_module("note_publication_lifecycle")
+            try:
+                lifecycle_root = Path(expected["publication_lifecycle_workspace"])
+                packet_bytes, packet_path = lifecycle_module.read_artifact(lifecycle_root, packet.get("work_packet_ref"))
+                work_packet = lifecycle_module.strict_json(packet_bytes)
+                work_module = _load_sibling_module("note_work_packet_check")
+                lifecycle_errors = work_module.validate_packet(work_packet)
+                lifecycle_result = lifecycle_module.check_lifecycle(work_packet,
+                    {"publication_lifecycle_policy": lifecycle_policy}, lifecycle_root,
+                    article_id=packet.get("article_id"), stage="publish")
+                lifecycle_errors.extend(lifecycle_result["stop_causes"])
+                lifecycle_profiles = lifecycle_policy.get("profiles")
+                profile = lifecycle_profiles.get(packet.get("article_id")) if isinstance(lifecycle_profiles, dict) else None
+                lifecycle_body = profile.get("body") if isinstance(profile, dict) else None
+                if not isinstance(lifecycle_body, dict) or lifecycle_body.get("sha256") != hashes.get("draft"):
+                    lifecycle_errors.append("公開対象と工程記録の本文版が一致しません")
+                cover_value = packet.get("settings", {}).get("cover_image") if isinstance(packet.get("settings"), dict) else None
+                if lifecycle_policy.get("asset_selection_required") is True and isinstance(cover_value, str):
+                    cover_path = Path(cover_value)
+                    if not cover_path.is_absolute():
+                        cover_path = base_dir / cover_path
+                    declared = profile.get("artifacts", []) if isinstance(profile, dict) else []
+                    asset_paths = [lifecycle_module.read_artifact(lifecycle_root, ref)[1] for ref in declared]
+                    if cover_path.resolve() not in asset_paths:
+                        lifecycle_errors.append("扉絵が配送対象の実体選定から抜けています")
+                result["publication_lifecycle"] = lifecycle_result
+                if lifecycle_errors:
+                    reasons.extend(lifecycle_errors)
+                else:
+                    hashes["publication_lifecycle"] = canonical_sha256({
+                        "packet": hashlib.sha256(packet_bytes).hexdigest(), "result": lifecycle_result})
+            except (OSError, ValueError, TypeError, KeyError):
+                reasons.append("必須工程のwork_packet_refまたは実証拠を確認できません")
 
     check_image_settings = _load_sibling_module("image_reference_gate").check_settings
     cover_value = packet.get("settings", {}).get("cover_image") if isinstance(packet.get("settings"), dict) else None
@@ -713,6 +754,8 @@ def check_packet(packet: Any, stage: str, conversation_id: str, base_dir: Path =
             keys += ("tag_design",)
         if item == "publish":
             keys += ("tag_selection",)
+            if expected.get("publication_lifecycle_policy", {}).get("required") is True:
+                keys += ("publication_lifecycle",)
             if publication_drafts_policy and publication_drafts_policy["required"]:
                 keys += ("publication_drafts",)
             if expected and expected.get("footer_readback_policy", {}).get("required"):
