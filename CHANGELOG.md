@@ -13,6 +13,21 @@
 - `python -m pytest tests/test_note_publication_lifecycle.py tests/test_note_work_packet_check.py tests/test_publication_lifecycle_workflow.py tests/test_note_workflow_gate.py -q`
 - 実観測の真正性、外部操作の成功、他端末での稼働はローカルJSONの検査だけでは保証しない。公開・配布は別承認。
 
+## 0.3.25
+
+日付: 2026-10-31
+
+変更:
+- 保存・公開・告知・配送の必須工程を同一版の実証拠へ結び、媒体取り違えとプレビュー診断・二重エスケープの誤照合を防ぐ
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `工程・公開入口・パッケージ宣言の対象477件成功。追加の特殊文字回帰を実行する`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.3.24
 
 日付: 2026-10-30

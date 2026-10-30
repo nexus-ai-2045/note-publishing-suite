@@ -89,6 +89,10 @@ def check(root, packet, settings, stage='closeout'):
 
 @pytest.mark.parametrize('draft,public_html', [
     ('Use `CLI` here.', '<p>Use CLI here.</p>'),
+    ('Use `a < b & c` here.', '<p>Use a &lt; b &amp; c here.</p>'),
+    ('Use `&lt;` here.', '<p>Use &amp;lt; here.</p>'),
+    ('【A & B】', '<p>【A &amp; B】</p>'),
+    ('【&lt;】', '<p>【&amp;lt;】</p>'),
     ('（図：Caption）', '<figure><img src="image.png"><figcaption>Caption</figcaption></figure>'),
 ])
 def test_reader_projection_excludes_preview_diagnostics(draft, public_html):

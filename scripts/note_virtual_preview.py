@@ -403,13 +403,13 @@ def convert_todo_markers(text: str) -> str:
     """【…】・「本人の判定を〜」等の本人記入プレースホルダを黄色マーカーに変換する。"""
 
     def _sub(m: "re.Match[str]") -> str:
-        inner = html.escape(m.group(1))
+        inner = html.escape(html.unescape(m.group(1)))
         return f'<span class="todo-marker" style="display:inline;">【{inner}】</span>'
 
     text = TODO_MARKER_RE.sub(_sub, text)
 
     def _sub_paren(m: "re.Match[str]") -> str:
-        return f'<span class="todo-marker" style="display:inline;">{html.escape(m.group(0))}</span>'
+        return f'<span class="todo-marker" style="display:inline;">{html.escape(html.unescape(m.group(0)))}</span>'
 
     text = PLACEHOLDER_PAREN_RE.sub(_sub_paren, text)
     return text
@@ -423,7 +423,7 @@ def convert_inline_warnings(text: str) -> str:
 
     def _sub(m: "re.Match[str]") -> str:
         WARNINGS["inline_code"] += 1
-        inner = html.escape(m.group(1))
+        inner = html.escape(html.unescape(m.group(1)))
         return (
             f'<code class="warn-inline-code">{inner}</code>'
             '<span class="warn-note">note では消えます</span>'
