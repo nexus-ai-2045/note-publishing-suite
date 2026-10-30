@@ -203,6 +203,11 @@ def test_valueless_html_attribute_does_not_crash_parser():
     assert mod.prose_sha256('<p class>Valid text</p>', html=True) == mod.prose_sha256('Valid text')
 
 
+def test_excessive_html_nesting_is_rejected():
+    with pytest.raises(ValueError, match='nesting'):
+        mod.prose_sha256('<div>' * 257 + 'text' + '</div>' * 257, html=True)
+
+
 @pytest.mark.skipif(not hasattr(os, 'mkfifo'), reason='FIFO is not available')
 def test_selected_packet_input_fifo_is_rejected_without_wait(tmp_path):
     path = tmp_path / 'packet.json'

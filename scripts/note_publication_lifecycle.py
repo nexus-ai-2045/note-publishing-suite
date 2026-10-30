@@ -30,6 +30,8 @@ class _ProseText(HTMLParser):
         classes = set((attrs.get('class') or '').split())
         hidden = tag in {'figure', 'iframe', 'script', 'style', 'table-of-contents'} or bool(classes & {'embed-card', 'heading-warn'})
         if tag not in {'br', 'img', 'hr', 'input', 'meta', 'link', 'source', 'wbr'}:
+            if len(self.stack) >= 256:
+                raise ValueError('HTML nesting exceeds safe limit')
             self.stack.append((tag, hidden))
 
     def handle_endtag(self, tag):
