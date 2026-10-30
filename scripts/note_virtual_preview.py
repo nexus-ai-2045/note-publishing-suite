@@ -683,6 +683,14 @@ def extract_title(md_text: str, meta: dict) -> str:
     return "note プレビュー"
 
 
+def render_body_html(body_md: str, figure_details: Dict[int, dict]) -> str:
+    """Shared body conversion for the reader preview and version comparisons."""
+    body_html = md_body_to_note_html(body_md, figure_details)
+    body_html = bold_markdown(body_html)
+    body_html = convert_italic_warnings(body_html)
+    return render_toc_if_present(body_html)
+
+
 def render(
     md_text: str,
     input_path: Path,
@@ -712,10 +720,7 @@ def render(
     if diagnostics and pack_path:
         top_image_cards = parse_top_image_cards(pack_path.read_text(encoding="utf-8"))
 
-    body_html = md_body_to_note_html(body_md, figure_details)
-    body_html = bold_markdown(body_html)
-    body_html = convert_italic_warnings(body_html)
-    body_html = render_toc_if_present(body_html)
+    body_html = render_body_html(body_md, figure_details)
 
     series_header = build_series_header(meta, series_registry_path)
     outline_html = render_outline_html(build_outline(body_md))

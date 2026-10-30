@@ -29,7 +29,7 @@ class _ProseText(HTMLParser):
         attrs = dict(attrs)
         classes = set((attrs.get('class') or '').split())
         hidden = tag in {'figure', 'iframe', 'script', 'style', 'table-of-contents'} or bool(classes & {
-            'embed-card', 'heading-warn', 'warn-note', 'figure-placeholder__label',
+            'embed-card', 'toc-block', 'heading-warn', 'warn-note', 'figure-placeholder__label',
             'figure-placeholder__missing', 'figure-placeholder__detail'})
         if tag not in {'br', 'img', 'hr', 'input', 'meta', 'link', 'source', 'wbr'}:
             if len(self.stack) >= 256:
@@ -61,7 +61,7 @@ def draft_reader_sha256(data: bytes) -> str:
     preview = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(preview)
     body = preview.strip_frontmatter(data.decode('utf-8'))
-    rendered = preview.bold_markdown(preview.md_body_to_note_html(body, {}))
+    rendered = preview.render_body_html(body, {})
     rendered = rendered.replace('\\_', '_')
     return prose_sha256(rendered, html=True)
 

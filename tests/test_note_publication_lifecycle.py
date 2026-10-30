@@ -89,6 +89,9 @@ def check(root, packet, settings, stage='closeout'):
 
 @pytest.mark.parametrize('draft,public_html', [
     ('Use `CLI` here.', '<p>Use CLI here.</p>'),
+    ('Use *CLI* here.', '<p>Use CLI here.</p>'),
+    ('Use **CLI** and *SDK* here.', '<p>Use CLI and SDK here.</p>'),
+    ('## First\n\nText\n\n## Second\n\nMore', '<h2>First</h2><p>Text</p><h2>Second</h2><p>More</p>'),
     ('Use `a < b & c` here.', '<p>Use a &lt; b &amp; c here.</p>'),
     ('Use `&lt;` here.', '<p>Use &amp;lt; here.</p>'),
     ('【A & B】', '<p>【A &amp; B】</p>'),
