@@ -41,6 +41,24 @@ def test_publish_entry_requires_work_packet_even_after_human_approval(packet, tm
     assert '必須工程のwork_packet_refまたは実証拠を確認できません' in result['reasons']
 
 
+def test_publish_detects_cover_omitted_from_selected_release_artifacts(packet, tmp_path):
+    policy = enable(tmp_path, packet)
+    policy['asset_selection_required'] = True
+    policy['profiles']['article']['artifacts'] = [put(tmp_path, 'other-asset.bin', b'other asset')]
+    cover = tmp_path / 'cover.png'
+    cover.write_bytes(b'cover bytes')
+    packet['settings']['cover_image'] = str(cover)
+    settings_path = tmp_path / 'workspace-settings.json'
+    settings = json.loads(settings_path.read_text())
+    settings['publication_lifecycle_policy'] = policy
+    settings_path.write_text(json.dumps(settings))
+    packet['ssot_readback'], _ = gate.read_workspace_settings(settings_path, 'article')
+    packet['work_packet_ref'] = put(tmp_path, 'work.json', valid_packet())
+    result = approve(packet, 'publish')
+    assert result['status'] == 'blocked'
+    assert '扉絵が配送対象の実体選定から抜けています' in result['reasons']
+
+
 def test_publish_checks_saved_prerequisite_without_requiring_future_publication(packet, tmp_path):
     policy = enable(tmp_path, packet)
     body_hash = policy['profiles']['article']['body']['sha256']
