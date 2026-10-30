@@ -650,3 +650,25 @@ HTML文字列のUTF-8 SHA-256で、両方が`body_html`の実hashと一致する
 公開後は`post_publish.py`から同じ検査へ渡し、`public`面と対象記事URLの一致を要求する。
 予約中の本人向け表示を、一般公開後の確認に数えない。
 検査成功は供給snapshotの整合性であり、実観測の真正性や本人承認は呼出元が確認する。
+
+## 外部レビューの論点を次稿へ持ち越す
+
+任意の `review_coverage_policy` を外部`settings`または記事`profile`へ採用すると、既存`workflow`の`edit`・`layout`・`publish`と公開前`QA`が論点の網羅性を検査する。記事`profile`で全体の`required`を無効化しない。`research`は未検討を表示しながら続けられる。`feedback`の読戻しと`workflow`一覧は、現在論点・次の操作・残りと原回答別の確認状態を返す。本文提示・`Note`転送・完了宣言へ進む入口の検査であり、新しい本人採否台帳や公開承認ではない。
+
+設定は `{ "schema": "note-review-coverage-policy/v1", "required": true, "decision_log": "decision-log.md", "catalog": "publication-review.json", "catalog_sha256": "<64桁SHA-256>" }`。パスは外部`workspace`基準。`catalog`は既存レビュー取得記録または`publication` `receipt`を使い、別の採否データベースを作らない。固定`hash`の更新は既存設定のレビュー対象になる。追加レビューでは既存`sources`を残し、`review_coverage.history`へ以前の`sources`を保持する。元一覧と履歴を同時に改ざんする主体や設定を意図的に無効化する操作まで、このローカル検査だけでは防げない。
+
+`catalog`の `review_coverage.sources` は `{id,path,sha256,units:[{id,quote,issue_id}],coverage:{status,evidence}}` の配列。履歴は `history:[{sources:[...]}]`。原回答の`path`と証拠`path`は`catalog`の親基準。引用は実原回答と一致し、原回答ごとの意味確認が `confirmed` の場合だけ、その`source` `ID`を含む確認根拠 `{path,sha256,quote}` を照合する。未確認は `unknown` のまま停止する。論点なしは理由と専用の確認証拠を要する。件数、`hash`、全文の保存だけで意味の抽出を保証しない。
+
+本人採否は既存`decision-log`内の一つの `review-coverage` `fenced` `block`で機械読取りする。形式は `{schema:"note-review-decisions/v1",issues:[{id,topic,decision,reason,...}]}`。状態は `pending/adopted/rejected/held`。採用以外も理由と本人判断の根拠を要する。任意提案の理由つき却下・保留は成功条件を満たし、強制採用しない。
+
+`decision_evidence`は `{path,sha256,quote,actor:"author",kind:"author_statement",decision,statement}`。`path`は同じ`decision-``log`、`sha256`は自己参照を避けるため引用`quote`の`UTF-8` `hash`。`quote`は機械`block`外に存在し、論点`ID`と本人原文・本人指定等の明示帰属を含む。`statement`はその本人帰属の直後の原文全体に一致し、採否と矛盾しない限定した明示文の全文一致を要する。否定・条件・後続留保を部分一致で採用へ昇格させない。対応する文法以外は不明として停止し、通すために本人原文を書き換えない。判断ログ内の本人帰属行から次の見出しまたは次の本人帰属記録までを記録の境界として照合し、引用自体から後続の留保を切り落とせないようにする。判断ログの `CRLF` 改行でも同じ検査を行い、保存バイトのハッシュは正規化しない。曖昧な自然言語や`AI`推奨は未知として停止し、本人採用へ推定しない。機械検査は本人性・意味の正確性を証明せず、実会話の本人原文との照合は担当`runtime`と人間レビューの責務である。
+
+採用時は `application:{status:"applied",draft_sha256,quotes:[...]}` と `verification:{path,sha256}` が必要。検証`file`は `{schema:"note-review-verification/v1",status:"verified",draft_sha256,issue_ids:[...]}`。採否証拠・検証`file`の相対`path`は`decision-log`の親基準。引用は現稿本文に必要で、`frontmatter`・コメントだけの出現は数えない。削除の照合には任意の `absent_quotes` を使う。言い換えで引用が消えた場合は `application_mapping_unknown` とし、削除・却下と断定しない。本人採用を保持し、対応の改訂と意味照合を求める。別版の`receipt`は流用しない。
+
+同一論点を複数出典からまとめる時は、`issue`の `merges:[{source_id,unit_id,reason}]` に全出典を残す。異なる論点をまとめてよいという認定をコードは行わない。未検討の追加レビューが元の`pending`を消せず、入力変更・論点削除・偽引用・採否矛盾・未反映・別版検証で停止する。`edit`は旧稿ではなく提案された全文を検査し、`JSON`の局所編集案は既存 `edit_plan.history_application_target` で対象全文を指定する。
+
+### 過去の採用記録へ接続する任意の構造検査
+
+過去の本人発言が長文・文脈依存のとき、限定文法へ通すために原文を書き換えない。利用側が `allow_recorded_decisions: true` を明示した場合のみ、`recorded_decision_log` 形式で同じ判断ログの見出し区間全体を参照できる。根拠の区間・論点・採否・引用ハッシュを、既存の同一版検証記録の `decision_reviews` と結ぶ。区間の途中切取り、別論点の部分一致、別版の証拠は停止する。これは既に記録された本人判断と独立照合の構造検査であり、本人認証や新たな本人採用を発行しない。既定の厳格な発言検査は維持する。
+
+元の修正対象が既存の採用変更によって失効している場合も、単語の消失だけで意味の欠落や本人の却下を推定しない。原資料にある対象表現、現在本文での消失、既存の採用済み論点、同一版の検証記録の独立した対応判断を全て結んだ場合に限り、`applicability` を `superseded` として扱う。本人採否の値は未検討のまま保持し、旧対象の再質問を要求しない。対応の一部が不明なら停止する。

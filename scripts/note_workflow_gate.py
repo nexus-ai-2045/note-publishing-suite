@@ -174,6 +174,21 @@ def read_workspace_settings(settings_path: Path | None, article_id: str, *,
         selected = profile.get(policy_key) if isinstance(profile, dict) and policy_key in profile else config.get(policy_key)
         if selected is not None or policy_key in config or isinstance(profile, dict) and policy_key in profile:
             expected[policy_key] = _load_sibling_module(module).validate_policy(selected)
+    selected_coverage = profile.get("review_coverage_policy") if isinstance(profile, dict) else None
+    global_coverage = config.get("review_coverage_policy")
+    if selected_coverage is None:
+        selected_coverage = global_coverage
+    elif global_coverage is not None:
+        if not isinstance(global_coverage, dict) or not isinstance(selected_coverage, dict):
+            raise ValueError("レビュー網羅性policyが不正です")
+        selected_coverage = {**global_coverage, **selected_coverage,
+                             "required": global_coverage.get("required") is True or selected_coverage.get("required") is True}
+    if selected_coverage is not None or "review_coverage_policy" in config or isinstance(profile, dict) and "review_coverage_policy" in profile:
+        coverage = _load_sibling_module("note_review_coverage").validate_policy(selected_coverage)
+        if coverage["required"]:
+            for key in ("decision_log", "catalog"):
+                coverage[key] = str(resolve_path(coverage[key], workspace))
+        expected["review_coverage_policy"] = coverage
     if "research_quality_policy" in config:
         validate_policy = _load_sibling_module("note_research_quality").validate_policy
         expected["research_quality_policy"] = validate_policy(config["research_quality_policy"])
@@ -422,6 +437,21 @@ def check_packet(packet: Any, stage: str, conversation_id: str, base_dir: Path =
             except (TypeError, ValueError):
                 reasons.append("edit_planが不正です")
     target_key = "proposed_draft" if stage == "edit" else "draft"
+    if expected.get("review_coverage_policy") is not None:
+        try:
+            coverage_target = (history_application_target(packet, stage, base_dir, storage_dirs["drafts"])
+                               if expected["review_coverage_policy"]["required"] else None)
+            coverage = _load_sibling_module("note_review_coverage").evaluate(
+                coverage_target, expected["review_coverage_policy"], base_dir=base_dir)
+            result["review_coverage"] = coverage
+            hashes["review_coverage"] = canonical_sha256(coverage)
+            if stage in {"edit", "layout", "publish"}:
+                reasons.extend("レビュー網羅性: " + error for error in coverage["errors"])
+            if coverage_target is not None and coverage.get("hashes", {}).get("draft") not in (None, hashlib.sha256(coverage_target.read_bytes()).hexdigest()):
+                reasons.append("レビュー網羅性とworkflowの本文版が一致しません")
+        except (OSError, ValueError, TypeError, KeyError, UnicodeError, ImportError):
+            if stage in {"edit", "layout", "publish"}:
+                reasons.append("レビュー網羅性を検査できません")
     if target_key in file_bytes:
         try:
             linebreak = _load_sibling_module("note_linebreak_gate").validate_draft(
@@ -689,6 +719,8 @@ def check_packet(packet: Any, stage: str, conversation_id: str, base_dir: Path =
                 keys += ("footer_readback",)
         if image_result["status"] == "ok" and item in {"edit", "settings", "publish"}:
             keys += ("image_reference_evidence",)
+        if item in {"edit", "layout", "publish"} and "review_coverage" in hashes:
+            keys += ("review_coverage",)
         if "prepublish_review_receipt" in packet:
             keys += ("prepublish_review_receipt",)
         if item in {"research", "publish"} and quality_policy and quality_policy["required"]:
@@ -715,6 +747,8 @@ def check_packet(packet: Any, stage: str, conversation_id: str, base_dir: Path =
         matches = [r for r in receipts if r.get("stage") == item]
         if not matches or not all(not receipt_mismatches(r, packet, conversation_id, subject) for r in matches):
             reasons.append(f"{item}の現在内容に一致する人間承認が必要です")
+    if result.get("review_coverage") is not None and stage in {"edit", "layout", "publish"}:
+        reasons.extend(_load_sibling_module("note_review_coverage").recheck(result["review_coverage"]))
     if not reasons:
         result["status"] = "approved"
         if stage == "publish" and update_permission.get("automation_allowed"):
@@ -769,7 +803,8 @@ def list_gates(packet: Any, conversation_id: str, base_dir: Path = Path("."), *,
                          conversation_id=conversation_id, subject_sha256=subject,
                          approval_status=approval, status=checked["status"],
                          evidence_refs=[r.get("evidence_ref") for r in matches if isinstance(r.get("evidence_ref"), str)],
-                         invalidation_reasons=invalidation, reasons=checked["reasons"], next_action=action))
+                         invalidation_reasons=invalidation, reasons=checked["reasons"], next_action=action,
+                         review_coverage=checked.get("review_coverage")))
     if isinstance(packet, dict):
         layout_row = next(row for row in rows if row["stage"] == "layout")
         layout = packet.get("layout")
