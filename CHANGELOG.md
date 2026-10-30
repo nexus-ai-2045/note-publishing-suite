@@ -1,5 +1,18 @@
 # 変更履歴
 
+## 未リリース
+
+日付: 2026-10-30
+
+変更:
+- 既存の作業記録へ、保存・公開・必要な告知・公開後点検・台帳・Git配送の条件付き完了検査を追加。
+- 必須設定時は公開入口にも同じ工程記録を要求。旧版・別対象・未送信・未承認・元観測との差替えを停止。
+- 読者本文を現在稿の既存変換器から導出し、成功値・実体・依存条件の付替えを拒否。
+
+検証:
+- `python -m pytest tests/test_note_publication_lifecycle.py tests/test_note_work_packet_check.py tests/test_publication_lifecycle_workflow.py tests/test_note_workflow_gate.py -q`
+- 実観測の真正性、外部操作の成功、他端末での稼働はローカルJSONの検査だけでは保証しない。公開・配布は別承認。
+
 ## 0.3.24
 
 日付: 2026-10-30

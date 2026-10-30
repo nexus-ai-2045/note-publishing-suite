@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import importlib.util
 from pathlib import Path
 from typing import Any
 
@@ -41,8 +42,16 @@ ALLOWED_STATUS = {
 }
 
 
-def load_packet(path: Path) -> dict[str, Any]:
-    data = json.loads(path.read_text(encoding="utf-8"))
+def _lifecycle_module():
+    spec = importlib.util.spec_from_file_location("note_publication_lifecycle", Path(__file__).with_name("note_publication_lifecycle.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_packet(path: Path, *, safe: bool = False) -> dict[str, Any]:
+    data = (_lifecycle_module().load_input_json(path) if safe
+            else _lifecycle_module().strict_json(path.read_text(encoding="utf-8")))
     if not isinstance(data, dict):
         raise ValueError("packet root must be an object")
     return data
@@ -126,18 +135,28 @@ def validate_packet(packet: dict[str, Any]) -> list[str]:
     return errors
 
 
-def build_result(packet_path: Path) -> dict[str, Any]:
+def build_result(packet_path: Path, settings: dict | Path | None = None, *,
+                 article_id: str | None = None, stage: str = "closeout",
+                 workspace_root: Path | None = None) -> dict[str, Any]:
+    lifecycle = None
     try:
-        packet = load_packet(packet_path)
+        packet = load_packet(packet_path, safe=settings is not None)
         stop_causes = validate_packet(packet)
+        if isinstance(settings, Path):
+            settings = _lifecycle_module().load_input_json(settings)
+        lifecycle = _lifecycle_module().check_lifecycle(
+            packet, settings if settings is not None else {}, workspace_root or packet_path.parent,
+            article_id=article_id, stage=stage)
+        stop_causes.extend(lifecycle["stop_causes"])
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         packet = {}
         stop_causes = [str(exc)]
     return {
         "ok": not stop_causes,
-        "residual_work_zero": not stop_causes and not packet.get("residual"),
+        "residual_work_zero": not stop_causes and not packet.get("residual") and not (lifecycle or {}).get("remaining"),
         "packet": str(packet_path),
         "status": packet.get("status", "unknown"),
+        "lifecycle": lifecycle,
         "stop_causes": stop_causes,
         "external_actions_performed": [],
         "publication_actions_performed": [],
@@ -149,8 +168,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Validate a Note work packet contract.")
     parser.add_argument("packet", type=Path)
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--settings", type=Path)
+    parser.add_argument("--article-id")
+    parser.add_argument("--stage", default="closeout")
+    parser.add_argument("--workspace-root", type=Path)
     args = parser.parse_args()
-    result = build_result(args.packet)
+    result = build_result(args.packet, args.settings, article_id=args.article_id, stage=args.stage, workspace_root=args.workspace_root)
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
     elif result["ok"]:
