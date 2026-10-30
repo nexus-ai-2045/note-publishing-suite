@@ -177,6 +177,35 @@ def test_selected_announcement_cannot_drop_send_action(tmp_path):
     assert 'unselected announcement action' in result['stop_causes']
 
 
+def test_cover_bytes_participate_in_every_release_binding(tmp_path):
+    packet, settings = fixture(tmp_path)
+    policy = settings['publication_lifecycle_policy']
+    policy['asset_selection_required'] = True
+    profile = policy['profiles']['a8']
+    cover = put(tmp_path, 'cover.bin', b'cover bytes')
+    profile['artifacts'] = [cover]
+    release = hashlib.sha256(json.dumps({'body_sha256': profile['body']['sha256'],
+        'artifacts': {'cover.bin': cover['sha256']}}, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+    packet['lifecycle']['release_sha256'] = release
+    for action in packet['lifecycle']['actions']:
+        evidence = json.loads((tmp_path / action['evidence']['path']).read_text())
+        source = json.loads((tmp_path / evidence['source']['path']).read_text())
+        original = json.loads((tmp_path / source['original_observation']['path']).read_text())
+        original['release_sha256'] = source['release_sha256'] = evidence['release_sha256'] = release
+        source['original_observation'] = put(tmp_path, source['original_observation']['path'], original)
+        if 'approval_ref' in source:
+            approval = json.loads((tmp_path / source['approval_ref']['path']).read_text())
+            approval['release_sha256'] = release
+            source['approval_ref'] = put(tmp_path, source['approval_ref']['path'], approval)
+        evidence['source'] = put(tmp_path, evidence['source']['path'], source)
+        action['evidence'] = put(tmp_path, action['evidence']['path'], evidence)
+    assert check(tmp_path, packet, settings)['ok']
+    (tmp_path / 'cover.bin').write_bytes(b'different cover')
+    result = check(tmp_path, packet, settings)
+    assert not result['ok']
+    assert any('artifact hash mismatch' in s for s in result['stop_causes'])
+
+
 def test_cannot_replace_failed_original_ledger_artifact_with_good_source(tmp_path):
     packet, settings = fixture(tmp_path)
     def change(source):

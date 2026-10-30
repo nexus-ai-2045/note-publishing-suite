@@ -234,6 +234,20 @@ def check_lifecycle(packet: dict, settings: dict, workspace_root: Path, *,
         profile = profiles[article_id]
         body, _ = read_artifact(Path(workspace_root), profile.get('body'))
         body_hash = hashlib.sha256(body).hexdigest()
+        release_hash = None
+        if policy.get('asset_selection_required') is True or 'artifacts' in profile:
+            artifacts = profile.get('artifacts')
+            _require(isinstance(artifacts, list) and len(artifacts) <= 64, 'release artifact selection is required')
+            _require(bool(artifacts) or _text(profile.get('asset_omission_reason')), 'asset omission requires a reason')
+            manifest = {}
+            for ref in artifacts:
+                asset_bytes, asset_path = read_artifact(Path(workspace_root), ref)
+                name = asset_path.relative_to(Path(workspace_root).resolve()).as_posix()
+                _require(name not in manifest, 'duplicate release artifact')
+                manifest[name] = hashlib.sha256(asset_bytes).hexdigest()
+            release_hash = hashlib.sha256(json.dumps({'body_sha256': body_hash, 'artifacts': manifest},
+                sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+            outcome['release_sha256'] = release_hash
         reader_hash = draft_reader_sha256(body)
         declared_reader_hash = profile['body'].get('reader_text_sha256')
         _require(declared_reader_hash is None or declared_reader_hash == reader_hash,
@@ -307,6 +321,8 @@ def check_lifecycle(packet: dict, settings: dict, workspace_root: Path, *,
         _require(lifecycle.get('schema_version') == 'note-publication-lifecycle/v1'
                  and lifecycle.get('article_id') == article_id
                  and lifecycle.get('body_sha256') == body_hash, 'lifecycle version/article/body mismatch')
+        if release_hash is not None:
+            _require(lifecycle.get('release_sha256') == release_hash, 'lifecycle release artifacts are stale')
         actions = lifecycle.get('actions')
         _require(isinstance(actions, list), 'lifecycle actions must be a list')
         state = {}
@@ -345,6 +361,8 @@ def check_lifecycle(packet: dict, settings: dict, workspace_root: Path, *,
                     _require(evidence.get('schema_version') == 'note-lifecycle-evidence/v1', 'invalid evidence schema')
                     binding = {'action_id': aid, 'kind': kind, 'article_id': article_id,
                                'body_sha256': body_hash, 'target': spec['target']}
+                    if release_hash is not None:
+                        binding['release_sha256'] = release_hash
                     _require(all(evidence.get(k) == v for k, v in binding.items()), 'evidence binding mismatch')
                     source_data, source_path = read_artifact(Path(workspace_root), evidence.get('source'))
                     _require(source_path != path and source_path not in used_sources, 'source observation reused')
@@ -382,6 +400,8 @@ def check_lifecycle(packet: dict, settings: dict, workspace_root: Path, *,
                                  and approval.get('payload_sha256') == result['payload_sha256']
                                  and all(approval.get(k) == binding[k] for k in ('article_id', 'body_sha256', 'target')),
                                  'human approval binding mismatch')
+                        if release_hash is not None:
+                            _require(approval.get('release_sha256') == release_hash, 'human approval release mismatch')
                     _result_check(kind, result, spec['target'], body_hash, article_id, Path(workspace_root), reader_hash)
                     verified.add(aid)
                     verified_results[aid] = result

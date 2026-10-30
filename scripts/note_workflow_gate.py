@@ -676,6 +676,15 @@ def check_packet(packet: Any, stage: str, conversation_id: str, base_dir: Path =
                 lifecycle_body = profile.get("body") if isinstance(profile, dict) else None
                 if not isinstance(lifecycle_body, dict) or lifecycle_body.get("sha256") != hashes.get("draft"):
                     lifecycle_errors.append("公開対象と工程記録の本文版が一致しません")
+                cover_value = packet.get("settings", {}).get("cover_image") if isinstance(packet.get("settings"), dict) else None
+                if lifecycle_policy.get("asset_selection_required") is True and isinstance(cover_value, str):
+                    cover_path = Path(cover_value)
+                    if not cover_path.is_absolute():
+                        cover_path = base_dir / cover_path
+                    declared = profile.get("artifacts", []) if isinstance(profile, dict) else []
+                    asset_paths = [lifecycle_module.read_artifact(lifecycle_root, ref)[1] for ref in declared]
+                    if cover_path.resolve() not in asset_paths:
+                        lifecycle_errors.append("扉絵が配送対象の実体選定から抜けています")
                 result["publication_lifecycle"] = lifecycle_result
                 if lifecycle_errors:
                     reasons.extend(lifecycle_errors)

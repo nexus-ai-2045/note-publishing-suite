@@ -678,6 +678,8 @@ HTML文字列のUTF-8 SHA-256で、両方が`body_html`の実hashと一致する
 
 設定の`required: true`は、記事profile、現在稿の実体とhash、工程一覧を必須にする。`required_kinds`で必要な工程種別を固定し、`announcement_selection_required`で媒体の選定または不要理由を要求する。選定した告知には草稿と送信の両工程を持たせる。草稿確認と本人の送信許可は別に扱う。
 
+`asset_selection_required`を使う場合は、記事profileの`artifacts`へ選定実体のpathとhashを持たせる。本文版と選定実体から`release_sha256`を計算し、各元観測・承認まで同じ値へ結ぶ。同じファイル名で扉絵のbytesだけが変わった場合も旧版の証拠は使えない。画像なしは空配列と`asset_omission_reason`で明示する。公開入口は設定された扉絵が実体選定に含まれることも検査する。
+
 工程は`note_save`、`note_publication`、`announcement_draft`、`announcement_send`、`postpublish_review`、`ledger_update`、`git_delivery`を使う。公開には保存後の読戻しと選定草稿、送信には公開と対応草稿が必要で、設定の依存一覧を削除してもこの前提は消えない。公開後点検と台帳の記録も公開の確認を前提にする。
 
 証拠は`note-lifecycle-evidence/v1`から、元観測`note-lifecycle-observation/v1`をpathとhashで参照する。記事ID・本文版・対象を元観測まで照合する。元観測の`result`を事実の正本とし、別フィールドの成功値や別artifactへ差し替えない。送信には、同じpayload・記事・宛先に結び付いた本人承認も必要とする。
