@@ -1,5 +1,5 @@
 name: note-publishing-suite
-version: 0.3.23
+version: 0.3.24
 license: MIT
 scope: repo-local
 repo_root: .
@@ -196,6 +196,7 @@ existing_scripts:
   - scripts/test_skill_integration.py
   - scripts/note_feedback.py
   - scripts/note_workflow_gate.py
+  - scripts/note_review_coverage.py
   - scripts/image_reference_gate.py
   - scripts/note_research_quality.py
   - scripts/note_footer_selection.py

@@ -1,5 +1,20 @@
 # 変更履歴
 
+## 0.3.24
+
+日付: 2026-10-30
+
+変更:
+- 原回答の論点と既存`decision-log`の採否・反映・同一版検証を照合し、次稿提示・転送前の取り落としを停止する。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `python -m pytest tests/test_note_review_coverage.py tests/test_review_coverage_workflow.py -q`
+
+公開境界:
+- `Note` 投稿、予約投稿、`SNS` 共有、外部告知は未実行。
+- `GitHub` リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.3.23
 
 日付: 2026-10-29

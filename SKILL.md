@@ -402,3 +402,7 @@ Python連携は実ファイルから `scripts/nps_script_loader.py` を読み、
 
 
 骨組みの由来確認は references/note-provenance-review.md の共通HTML生成・照合・保存原文検査を使う。ラベルの表示を本人の認証・採用へ昇格させない。
+
+## 外部レビューの取り落としを検査する
+
+採用`settings`に `review_coverage_policy` がある場合は、[既存のレビュー契約](references/note-workflow-review-contract.md#外部レビューの論点を次稿へ持ち越す)を使う。原回答から論点を拾い、既存`decision-log`の本人採否、現稿反映、同一版検証へ結ぶ。追加レビューで旧`pending`を消さない。`feedback`読戻しと`workflow`一覧で現在・次・残りを再開し、未検討や原回答ごとの網羅性不明を残したまま次稿提示・転送・完了宣言へ進まない。文字引用の不一致から意味の削除を推定せず、対応不明として再照合する。新たな本人採用・公開許可は発行しない。

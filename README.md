@@ -18,7 +18,7 @@ publication_gate: human_review_required
 **NPS（Note Publishing Suite）** です。Codex / Claude Code から使えます。
 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。
 
-パッケージ版: `0.3.23`
+パッケージ版: `0.3.24`
 
 キャラクター画像の参照・生成添付・出力・目視観察を同じ版へ束縛する検査は `scripts/image_reference_gate.py` を使います。画像設定は利用者側の既存記事profileへ置き、packageに個人の画像や名前を保存しません。
 
@@ -292,3 +292,7 @@ CIの `repo-preflight` は v0.10.0 の `5b7c774deb8e9abcf0fce0c5f39ec1c1f3a894f3
 ## ライセンス
 
 [MIT License](LICENSE)です。商用利用・改変・再配布を許可し、著作権表示と許諾表示を残します。利用者のworkspaceに保存する原稿・画像・採否履歴の権利を変更するものではありません。
+
+### 外部レビューの論点を保持する任意検査
+
+外部`settings`の `review_coverage_policy` により、原回答・論点・既存`decision-log`の本人採否・現稿反映・同一版検証を結べます。追加レビューで旧`pending`が消えた場合や、引用・`hash`・採否・反映先・検証版が不一致の場合、`workflow`の編集と提示・公開前`QA`を停止します。`research`と`feedback`の読戻しでは現在・次・残りを確認できます。意味の網羅性と本人性を自動で証明する機能ではありません。詳細は[レビュー契約](references/note-workflow-review-contract.md#外部レビューの論点を次稿へ持ち越す)です。

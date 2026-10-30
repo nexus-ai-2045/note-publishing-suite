@@ -402,6 +402,7 @@ def check_draft(
     text = raw.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
     target_sha = hashlib.sha256(raw).hexdigest()
     history_evidence_sha = None
+    coverage = None
     issues = apply_editorial_review(
         collect_issues(text), prepublish_review_receipt, text,
         article_id=article_id, conversation_id=conversation_id,
@@ -419,6 +420,13 @@ def check_draft(
         issues.append({"severity": "error", "code": "history_learning_settings_required",
                        "message": "制作本文には採用settingsとarticle_idを明示してください"})
     if settings_path is not None:
+        coverage = _load_sibling_module("note_review_coverage").check_from_settings(
+            draft, settings_path, article_id)
+        issues.extend({"severity": "error", "code": "review_coverage_blocked", "message": error}
+                      for error in coverage["errors"])
+        if coverage.get("hashes", {}).get("draft") not in (None, target_sha):
+            issues.append({"severity": "error", "code": "review_coverage_version_mismatch",
+                           "message": "レビュー網羅性とQA本文の版が不一致です"})
         try:
             check_history_learning_from_settings = _load_sibling_module("note_authorship_gate").check_history_learning_from_settings
             history = check_history_learning_from_settings(draft, settings_path, article_id, authorship_evidence)
@@ -484,11 +492,14 @@ def check_draft(
         if hashlib.sha256(evidence.read_bytes()).hexdigest() != history_evidence_sha:
             issues.append({"severity": "error", "code": "history_evidence_changed_during_check",
                            "message": "本文QAと履歴適用の根拠版が変更されました"})
+    if coverage is not None:
+        issues.extend({"severity": "error", "code": "review_coverage_input_changed", "message": error}
+                      for error in _load_sibling_module("note_review_coverage").recheck(coverage))
     overall = "error" if any(i["severity"] == "error" for i in issues) else (
         "review_required" if any(i["severity"] == "review_required" for i in issues)
         else ("warning" if issues else "ok")
     )
-    return {"draft": str(draft), "overall": overall, "issues": issues}
+    return {"draft": str(draft), "overall": overall, "issues": issues, "review_coverage": coverage}
 
 
 def main() -> int:

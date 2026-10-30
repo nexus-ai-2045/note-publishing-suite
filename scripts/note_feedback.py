@@ -472,10 +472,17 @@ def readback(settings: Path, article_id: str, source: Path, draft: Path) -> dict
     if any(str(Path(selected).resolve(strict=True)) != resolved for selected, resolved in feedback_paths.items()):
         raise ValueError("feedbackの選択経路が読取り中に変更されました")
     check_input_capture(initial_capture)
+    coverage = _load_sibling_module("note_review_coverage").evaluate(
+        draft_actual, expected.get("review_coverage_policy"), base_dir=settings_actual.parent)
+    late_errors = _load_sibling_module("note_review_coverage").recheck(coverage)
+    if late_errors:
+        coverage["errors"].extend(late_errors)
+        coverage["status"] = "blocked"
+    check_input_capture(initial_capture)
     return {"status": "readback", "article_id": article_id,
             "workspace_settings": settings_content, "settings_readback": expected,
             "style_references": references, "source": source_content, "draft": draft_content,
-            "feedback_readback": feedback,
+            "feedback_readback": feedback, "review_coverage": coverage,
             "feedback": {"record": json.loads(record_content["content"]),
                          "record_file": record_content, "diff": difference},
             "semantic_understanding_verified": False, "human_adoption_verified": False,
