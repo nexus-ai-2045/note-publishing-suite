@@ -87,6 +87,18 @@ def check(root, packet, settings, stage='closeout'):
     return mod.check_lifecycle(packet, settings, root, article_id='a8', stage=stage)
 
 
+@pytest.mark.parametrize('draft,public_html', [
+    ('Use `CLI` here.', '<p>Use CLI here.</p>'),
+    ('（図：Caption）', '<figure><img src="image.png"><figcaption>Caption</figcaption></figure>'),
+])
+def test_reader_projection_excludes_preview_diagnostics(draft, public_html):
+    assert mod.draft_reader_sha256(draft.encode()) == mod.prose_sha256(public_html, html=True)
+
+
+def test_caption_preserves_text_but_not_nested_preview_warning():
+    assert mod.prose_sha256('<figure>asset metadata<figcaption>Caption<span class="warn-note">warning</span></figcaption></figure>', html=True) == mod.prose_sha256('Caption')
+
+
 def mutate_source(root, packet, aid, mutate):
     action = next(a for a in packet['lifecycle']['actions'] if a['id'] == aid)
     ev = json.loads((root / action['evidence']['path']).read_text())
