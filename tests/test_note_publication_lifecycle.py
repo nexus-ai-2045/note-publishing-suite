@@ -384,3 +384,33 @@ def test_send_must_match_verified_draft_and_approval(tmp_path):
     result = check(tmp_path, packet, settings)
     assert not result['ok']
     assert any('sent payload differs' in issue for issue in result['stop_causes'])
+
+
+def test_other_medium_draft_cannot_authorize_sent_payload(tmp_path):
+    packet, settings = fixture(tmp_path)
+    profile = settings['publication_lifecycle_policy']['profiles']['a8']
+    draft_spec = next(s for s in profile['actions'] if s['kind'] == 'announcement_draft')
+    send_spec = next(s for s in profile['actions'] if s['kind'] == 'announcement_send')
+    draft_spec['slot'] = 'a'
+    send_spec['slot'] = 'b'
+    other = copy.deepcopy(draft_spec)
+    other.update(id='other-draft', slot='b')
+    other['target'] = copy.deepcopy(send_spec['target'])
+    body = profile['body']['sha256']
+    artifact = put(tmp_path, 'other-payload.txt', b'A different reviewed payload')
+    binding = {'action_id': other['id'], 'kind': 'announcement_draft', 'article_id': 'a8',
+               'body_sha256': body, 'target': other['target']}
+    original = {**binding, 'schema_version': 'note-lifecycle-observation/v1', 'result': {
+        'draft_sha256': artifact['sha256'], 'card_url': 'https://note.com/u/n/n123',
+        'card_title': 'Title', 'card_description': 'Description', 'reviewed': True, 'artifact': artifact}}
+    source = {**binding, 'result': original['result'],
+              'result_paths': {key: '/result/' + key for key in original['result']},
+              'original_observation': put(tmp_path, 'other-original.json', original)}
+    evidence = {**binding, 'schema_version': 'note-lifecycle-evidence/v1',
+                'source': put(tmp_path, 'other-source.json', source)}
+    profile['actions'].insert(2, other)
+    packet['lifecycle']['actions'].insert(2, {'id': other['id'], 'status': 'verified',
+        'evidence': put(tmp_path, 'other-evidence.json', evidence)})
+    result = check(tmp_path, packet, settings)
+    assert not result['ok']
+    assert any('sent payload differs' in issue for issue in result['stop_causes'])

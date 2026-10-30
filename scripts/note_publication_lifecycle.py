@@ -421,7 +421,9 @@ def check_lifecycle(packet: dict, settings: dict, workspace_root: Path, *,
                         ancestors.add(dep)
                         collect_deps(dep)
             collect_deps(aid)
-            drafts = [key for key in ancestors if by_id[key]['kind'] == 'announcement_draft']
+            drafts = [key for key in ancestors if by_id[key]['kind'] == 'announcement_draft'
+                      and by_id[key].get('slot') == by_id[aid].get('slot')
+                      and by_id[key]['target'] == by_id[aid]['target']]
             if not any(key in verified and verified_results[key].get('draft_sha256') ==
                        verified_results[aid].get('payload_sha256') for key in drafts):
                 verified.remove(aid)
