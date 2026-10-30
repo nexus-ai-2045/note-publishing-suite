@@ -439,14 +439,15 @@ def check_packet(packet: Any, stage: str, conversation_id: str, base_dir: Path =
     target_key = "proposed_draft" if stage == "edit" else "draft"
     if expected.get("review_coverage_policy") is not None:
         try:
-            coverage_target = history_application_target(packet, stage, base_dir, storage_dirs["drafts"])
+            coverage_target = (history_application_target(packet, stage, base_dir, storage_dirs["drafts"])
+                               if expected["review_coverage_policy"]["required"] else None)
             coverage = _load_sibling_module("note_review_coverage").evaluate(
                 coverage_target, expected["review_coverage_policy"], base_dir=base_dir)
             result["review_coverage"] = coverage
             hashes["review_coverage"] = canonical_sha256(coverage)
             if stage in {"edit", "layout", "publish"}:
                 reasons.extend("レビュー網羅性: " + error for error in coverage["errors"])
-            if coverage.get("hashes", {}).get("draft") not in (None, hashlib.sha256(coverage_target.read_bytes()).hexdigest()):
+            if coverage_target is not None and coverage.get("hashes", {}).get("draft") not in (None, hashlib.sha256(coverage_target.read_bytes()).hexdigest()):
                 reasons.append("レビュー網羅性とworkflowの本文版が一致しません")
         except (OSError, ValueError, TypeError, KeyError, UnicodeError, ImportError):
             if stage in {"edit", "layout", "publish"}:

@@ -666,3 +666,9 @@ HTML文字列のUTF-8 SHA-256で、両方が`body_html`の実hashと一致する
 採用時は `application:{status:"applied",draft_sha256,quotes:[...]}` と `verification:{path,sha256}` が必要。検証`file`は `{schema:"note-review-verification/v1",status:"verified",draft_sha256,issue_ids:[...]}`。採否証拠・検証`file`の相対`path`は`decision-log`の親基準。引用は現稿本文に必要で、`frontmatter`・コメントだけの出現は数えない。削除の照合には任意の `absent_quotes` を使う。言い換えで引用が消えた場合は `application_mapping_unknown` とし、削除・却下と断定しない。本人採用を保持し、対応の改訂と意味照合を求める。別版の`receipt`は流用しない。
 
 同一論点を複数出典からまとめる時は、`issue`の `merges:[{source_id,unit_id,reason}]` に全出典を残す。異なる論点をまとめてよいという認定をコードは行わない。未検討の追加レビューが元の`pending`を消せず、入力変更・論点削除・偽引用・採否矛盾・未反映・別版検証で停止する。`edit`は旧稿ではなく提案された全文を検査し、`JSON`の局所編集案は既存 `edit_plan.history_application_target` で対象全文を指定する。
+
+### 過去の採用記録へ接続する任意の構造検査
+
+過去の本人発言が長文・文脈依存のとき、限定文法へ通すために原文を書き換えない。利用側が `allow_recorded_decisions: true` を明示した場合のみ、`recorded_decision_log` 形式で同じ判断ログの見出し区間全体を参照できる。根拠の区間・論点・採否・引用ハッシュを、既存の同一版検証記録の `decision_reviews` と結ぶ。区間の途中切取り、別論点の部分一致、別版の証拠は停止する。これは既に記録された本人判断と独立照合の構造検査であり、本人認証や新たな本人採用を発行しない。既定の厳格な発言検査は維持する。
+
+元の修正対象が既存の採用変更によって失効している場合も、単語の消失だけで意味の欠落や本人の却下を推定しない。原資料にある対象表現、現在本文での消失、既存の採用済み論点、同一版の検証記録の独立した対応判断を全て結んだ場合に限り、`applicability` を `superseded` として扱う。本人採否の値は未検討のまま保持し、旧対象の再質問を要求しない。対応の一部が不明なら停止する。

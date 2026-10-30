@@ -125,3 +125,29 @@ def test_negative_cases_stop_actual_workflow_cli(case, packet, mutation, expecte
     assert result.returncode == 1, result.stdout + result.stderr
     checked = json.loads(result.stdout)
     assert any(expected in error for error in checked['review_coverage']['errors']), checked['review_coverage']
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_json_edit_plan_only_requires_coverage_full_target_when_enabled(case, packet, enabled):
+    if not enabled:
+        case["policy"] = {"schema": "note-review-coverage-policy/v1", "required": False}
+    settings = configure(case, packet)
+    proposal = case["root"] / "local-edit.json"
+    proposal.write_text(json.dumps({"replace": [{"before": "draft", "after": "revised"}]}))
+    packet["proposed_draft"] = str(proposal)
+    assert "history_application_target" not in packet["edit_plan"]
+    result = approve(packet, "edit")
+    path = case["root"] / "packet.json"
+    path.write_text(json.dumps(packet))
+    checked = subprocess.run([sys.executable, str(Path(gate.__file__)), "--packet", str(path),
+        "--settings", str(settings), "--stage", "edit", "--conversation-id", "current"], capture_output=True, text=True)
+    if enabled:
+        assert result["status"] == "blocked"
+        assert any("レビュー網羅性を検査できません" in reason for reason in result["reasons"])
+        assert checked.returncode == 1, checked.stdout + checked.stderr
+    else:
+        assert result["status"] == "approved", result["reasons"]
+        assert result["review_coverage"]["status"] == "not_required"
+        assert result["review_coverage"]["input_hashes"] == {}
+        assert checked.returncode == 0, checked.stdout + checked.stderr
+        assert json.loads(checked.stdout)["review_coverage"]["status"] == "not_required"

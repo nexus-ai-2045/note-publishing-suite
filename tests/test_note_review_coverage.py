@@ -463,3 +463,324 @@ def test_crlf_decision_block_and_raw_input_hashes_are_preserved(case):
     assert result["input_hashes"][str(case["root"] / "publication-review.json")] == case["policy"]["catalog_sha256"]
     assert path.read_bytes() == raw
     assert recheck(result) == []
+
+
+@pytest.mark.parametrize("other_id", ["R010", "XR01", "R01X", "R01-extra", "extra-R01", "R01.1", "R01_suffix"])
+@pytest.mark.parametrize("location", ["attribution", "heading"])
+def test_author_decision_is_bound_to_exact_issue_identifier(case, other_id, location):
+    issue = decide(case, 0, "adopted")
+    decide(case, 1, "held")
+    if location == "attribution":
+        quote = f"{other_id} 本人原文: 採用する。"
+    else:
+        quote = f"## {other_id}\n\n本人原文: 採用する。"
+    other_quote = case["decisions"]["issues"][1]["decision_evidence"]["quote"]
+    case["prose"] = "# 判断履歴\n" + quote + "\n## R02\n" + other_quote + "\n"
+    issue["decision_evidence"].update(quote=quote, statement="採用する。", sha256=sha(quote.encode()))
+    result = run(case)
+    assert result["status"] == "blocked"
+    assert "R01:author_decision_evidence_invalid" in result["errors"]
+
+
+@pytest.mark.parametrize("quote", ["R01 本人原文: 採用する。", "## R01\n\n本人原文: 採用する。", "## 2026-10-30 R01 の採否\n本人原文: 採用する。"])
+def test_exact_issue_identifier_supports_full_author_record(case, quote):
+    issue = decide(case, 0, "adopted")
+    decide(case, 1, "held")
+    other_quote = case["decisions"]["issues"][1]["decision_evidence"]["quote"]
+    case["prose"] = "# 判断履歴\n" + quote + "\n## R02\n" + other_quote + "\n"
+    issue["decision_evidence"].update(quote=quote, statement="採用する。", sha256=sha(quote.encode()))
+    assert run(case)["status"] == "coverage_verified"
+
+
+def test_exact_heading_cannot_override_different_attribution_identifier(case):
+    issue = decide(case, 0, "adopted")
+    decide(case, 1, "held")
+    quote = "## R01\nR010 本人原文: 採用する。"
+    other_quote = case["decisions"]["issues"][1]["decision_evidence"]["quote"]
+    case["prose"] = "# 判断履歴\n" + quote + "\n## R02\n" + other_quote + "\n"
+    issue["decision_evidence"].update(quote=quote, statement="採用する。", sha256=sha(quote.encode()))
+    assert "R01:author_decision_evidence_invalid" in run(case)["errors"]
+
+
+def test_disabled_policy_does_not_resolve_any_draft(case):
+    result = evaluate(None, {"schema": "note-review-coverage-policy/v1", "required": False}, base_dir=case["root"] / "absent")
+    assert result["status"] == "not_required"
+    assert result["input_hashes"] == {}
+
+
+def recorded_decision(case, index=0, decision="adopted"):
+    issue = decide(case, index, decision)
+    other = case["decisions"]["issues"][1 - index]
+    if other["decision"] == "pending":
+        decide(case, 1 - index, "held")
+    section = (f"## {issue['id']} 以前の本人採否\n"
+               "本人原文: この部分は、前に話していたことの意味を保ったままでお願いします。\n\n"
+               "続く本人回答: はい、次。\n"
+               "採用範囲: 元の長い発言と応答に基づく記録。新しい本人発言へ書き換えない。\n\n")
+    other_quote = other["decision_evidence"]["quote"]
+    case["prose"] = "# 判断履歴\n" + section + "## 別の採否\n" + other_quote + "\n"
+    case["policy"]["allow_recorded_decisions"] = True
+    receipt_path = case["root"] / f"verification-{issue['id']}.json"
+    receipt = {"schema": "note-review-verification/v1", "status": "verified",
+        "draft_sha256": sha(case["draft"].read_bytes()), "issue_ids": [issue["id"]],
+        "decision_reviews": [{"issue_id": issue["id"], "decision": decision,
+            "record_sha256": sha(section.encode()), "evidence_level": "recorded",
+            "status": "verified", "reason": "独立確認で本人の文脈と既存採否・反映範囲を照合した"}]}
+    proof = {"path": receipt_path.name, "sha256": write_json(receipt_path, receipt)}
+    if decision == "adopted":
+        issue["verification"] = dict(proof)
+    issue["decision_evidence"] = {"path": "decision-log.md", "kind": "recorded_decision_log",
+        "actor": "author", "decision": decision, "evidence_level": "recorded",
+        "quote": section, "sha256": sha(section.encode()), "verification": dict(proof)}
+    return issue, receipt_path, receipt, section
+
+
+@pytest.mark.parametrize("decision", ["adopted", "rejected", "held"])
+def test_opted_in_recorded_decision_preserves_long_original_context(case, decision):
+    issue, _, _, section = recorded_decision(case, decision=decision)
+    result = run(case)
+    assert result["status"] == "coverage_verified", result
+    assert result["human_authenticity_verified"] is False
+    assert result["semantic_coverage_verified"] is False
+    assert result["issues"][0]["evidence_level"] == "recorded"
+    assert issue["decision_evidence"]["quote"] == section
+    assert "はい、次。" in (case["root"] / "decision-log.md").read_text()
+
+
+@pytest.mark.parametrize("optin", [None, False, "true", 1, {}, []])
+def test_recorded_mode_requires_explicit_valid_optin(case, optin):
+    recorded_decision(case)
+    if optin is None:
+        case["policy"].pop("allow_recorded_decisions")
+    else:
+        case["policy"]["allow_recorded_decisions"] = optin
+    assert run(case)["status"] == "blocked"
+
+
+@pytest.mark.parametrize("mutation", ["trim_tail", "trim_heading", "fake_section", "wrong_issue", "wrong_quote_hash",
+    "missing_review", "wrong_outcome", "wrong_review_issue", "wrong_record_hash", "wrong_level", "empty_reason",
+    "stale_receipt", "missing_member", "forged_file_hash", "duplicate_review", "different_application_receipt"])
+def test_recorded_decision_forged_or_partial_bindings_stop(case, mutation):
+    issue, path, receipt, section = recorded_decision(case)
+    evidence = issue["decision_evidence"]
+    if mutation == "trim_tail":
+        evidence["quote"] = section.split("続く本人回答:", 1)[0]
+    elif mutation == "trim_heading":
+        evidence["quote"] = section.split("\n", 1)[1]
+    elif mutation == "fake_section":
+        evidence["quote"] = section.replace("はい、次。", "存在しない回答。")
+    elif mutation == "wrong_issue":
+        case["prose"] = case["prose"].replace("## R01 ", "## R010 ")
+        evidence["quote"] = section.replace("## R01 ", "## R010 ")
+    elif mutation == "wrong_quote_hash":
+        evidence["sha256"] = "0" * 64
+    elif mutation == "missing_review":
+        receipt.pop("decision_reviews")
+    elif mutation == "wrong_outcome":
+        receipt["decision_reviews"][0]["decision"] = "rejected"
+    elif mutation == "wrong_review_issue":
+        receipt["decision_reviews"][0]["issue_id"] = "R010"
+    elif mutation == "wrong_record_hash":
+        receipt["decision_reviews"][0]["record_sha256"] = "0" * 64
+    elif mutation == "wrong_level":
+        receipt["decision_reviews"][0]["evidence_level"] = "verified"
+    elif mutation == "empty_reason":
+        receipt["decision_reviews"][0]["reason"] = ""
+    elif mutation == "stale_receipt":
+        receipt["draft_sha256"] = "0" * 64
+    elif mutation == "missing_member":
+        receipt["issue_ids"] = ["R010"]
+    elif mutation == "forged_file_hash":
+        evidence["verification"]["sha256"] = "0" * 64
+    elif mutation == "duplicate_review":
+        receipt["decision_reviews"].append(dict(receipt["decision_reviews"][0]))
+    else:
+        alternate = case["root"] / "other-verification.json"
+        alternate_sha = write_json(alternate, receipt)
+        issue["verification"] = {"path": alternate.name, "sha256": alternate_sha}
+    if mutation not in ("wrong_quote_hash", "forged_file_hash", "different_application_receipt"):
+        evidence["sha256"] = sha(evidence["quote"].encode())
+        if "decision_reviews" in receipt and mutation not in ("wrong_record_hash", "wrong_review_issue"):
+            receipt["decision_reviews"][0]["record_sha256"] = evidence["sha256"]
+        digest = write_json(path, receipt)
+        evidence["verification"]["sha256"] = digest
+        issue["verification"]["sha256"] = digest
+    result = run(case)
+    assert result["status"] == "blocked", result
+    assert "R01:author_decision_evidence_invalid" in result["errors"]
+
+
+def test_recorded_section_includes_child_headings_and_stops_at_equal_heading(case):
+    issue, path, receipt, section = recorded_decision(case)
+    extended = section + "### 判断の文脈\n本人の文脈を保全する。\n\n"
+    case["prose"] = case["prose"].replace(section, extended)
+    issue["decision_evidence"].update(quote=extended, sha256=sha(extended.encode()))
+    receipt["decision_reviews"][0]["record_sha256"] = issue["decision_evidence"]["sha256"]
+    digest = write_json(path, receipt)
+    issue["verification"]["sha256"] = digest
+    issue["decision_evidence"]["verification"]["sha256"] = digest
+    assert run(case)["status"] == "coverage_verified"
+
+
+def superseded_pending(case):
+    base, path, receipt, section = recorded_decision(case)
+    pending = {"id": "R02", "topic": "旧対象への任意提案", "decision": "pending",
+        "applicability": {"status": "superseded", "by_issue_id": "R01",
+            "reason": "既存採用の別表現が旧対象を置き換えていることを独立確認した",
+            "absent_quotes": ["論点2は説明追加。"]}}
+    case["decisions"]["issues"][1] = pending
+    receipt["issue_ids"].append("R02")
+    receipt["applicability_reviews"] = [{"issue_id": "R02", "by_issue_id": "R01", "status": "verified",
+        "reason": "元提案の対象と現在版の置換を独立照合した", "record_sha256": sha(section.encode())}]
+    digest = write_json(path, receipt)
+    base["verification"]["sha256"] = digest
+    base["decision_evidence"]["verification"]["sha256"] = digest
+    pending["applicability"]["verification"] = {"path": path.name, "sha256": digest}
+    return base, pending, path, receipt
+
+
+@pytest.mark.parametrize("forward_reference", [False, True])
+def test_source_bound_superseded_applicability_keeps_original_pending_decision(case, forward_reference):
+    base, pending, _, _ = superseded_pending(case)
+    if forward_reference:
+        case["decisions"]["issues"] = [pending, base]
+    result = run(case)
+    assert result["status"] == "coverage_verified", result
+    state = next(row for row in result["issues"] if row["id"] == "R02")
+    assert state["decision"] == "pending"
+    assert state["applicability"] == "superseded"
+    assert result["remaining"] == []
+    assert pending["decision"] == "pending"
+    assert result["human_authenticity_verified"] is False
+
+
+@pytest.mark.parametrize("mutation", ["self", "missing_base", "pending_base", "cycle", "missing_target", "target_present",
+    "missing_proof", "missing_review", "wrong_base_review", "wrong_record_hash", "stale_receipt", "different_receipt",
+    "only_absent", "source_changed", "invalid_adopted_applicability"])
+def test_superseded_applicability_requires_full_independent_current_proof(case, mutation):
+    base, pending, path, receipt = superseded_pending(case)
+    applicability = pending["applicability"]
+    if mutation == "self":
+        applicability["by_issue_id"] = "R02"
+    elif mutation == "missing_base":
+        applicability["by_issue_id"] = "UNKNOWN"
+    elif mutation == "pending_base":
+        base["decision"] = "pending"
+    elif mutation == "invalid_adopted_applicability":
+        base["applicability"] = {"status": "superseded", "by_issue_id": "R02"}
+        case["decisions"]["issues"] = [pending, base]
+    elif mutation == "cycle":
+        base["decision"] = "pending"
+        base["applicability"] = dict(applicability, by_issue_id="R02")
+    elif mutation == "missing_target":
+        applicability["absent_quotes"] = ["元の回答にも存在しない文字列"]
+    elif mutation == "target_present":
+        applicability["absent_quotes"] = ["採用した表現"]
+    elif mutation == "missing_proof":
+        applicability.pop("verification")
+    elif mutation == "missing_review":
+        receipt.pop("applicability_reviews")
+    elif mutation == "wrong_base_review":
+        receipt["applicability_reviews"][0]["by_issue_id"] = "R010"
+    elif mutation == "wrong_record_hash":
+        receipt["applicability_reviews"][0]["record_sha256"] = "0" * 64
+    elif mutation == "stale_receipt":
+        receipt["draft_sha256"] = "0" * 64
+    elif mutation == "different_receipt":
+        alternate = case["root"] / "alternate-applicability.json"
+        applicability["verification"] = {"path": alternate.name, "sha256": write_json(alternate, receipt)}
+    elif mutation == "only_absent":
+        pending["applicability"] = {"status": "superseded", "absent_quotes": ["論点2は説明追加。"]}
+    else:
+        (case["root"] / "review.txt").write_text("論点2は説明追加。でも原回答は改変されている。")
+    if mutation in ("missing_review", "wrong_base_review", "wrong_record_hash", "stale_receipt"):
+        digest = write_json(path, receipt)
+        base["verification"]["sha256"] = digest
+        base["decision_evidence"]["verification"]["sha256"] = digest
+        applicability["verification"]["sha256"] = digest
+    result = run(case)
+    assert result["status"] == "blocked", result
+    state = next(row for row in result["issues"] if row["id"] == "R02")
+    assert state["decision"] == "pending"
+    assert state["applicability"] == "unknown"
+    assert "R02" in result["remaining"]
+
+
+@pytest.mark.parametrize("body", [
+    "AI推奨: 採用する。\n",
+    "本人原文: \n採用範囲: この提案を採用します。\n",
+    "本人原文: 「」\n採用範囲: この提案を採用します。\n",
+    '本人原文: ""\n採用範囲: この提案を採用します。\n',
+    "本人原文: はい、次。\n採用範囲: \n",
+    "本人原文: AI推奨: 採用する。\n採用範囲: AI推奨: 採用する。\n",
+    "```text\n本人原文: はい、次。\n採用範囲: この提案を採用します。\n```\n",
+    "<!--\n本人原文: はい、次。\n採用範囲: この提案を採用します。\n-->\n",
+    "本人原文: はい、次。\n本人判断: 却下する。\n",
+])
+def test_recorded_mode_requires_original_author_text_and_decision_scope(case, body):
+    issue, path, receipt, section = recorded_decision(case)
+    forged = "## R01 以前の採否\n" + body + "\n"
+    case["prose"] = case["prose"].replace(section, forged)
+    issue["decision_evidence"].update(quote=forged, sha256=sha(forged.encode()))
+    receipt["decision_reviews"][0]["record_sha256"] = issue["decision_evidence"]["sha256"]
+    digest = write_json(path, receipt)
+    issue["verification"]["sha256"] = digest
+    issue["decision_evidence"]["verification"]["sha256"] = digest
+    result = run(case)
+    assert result["status"] == "blocked"
+    assert "R01:author_decision_evidence_invalid" in result["errors"]
+
+
+def test_recorded_mode_supports_original_inline_reply_and_recorded_scope(case):
+    issue, path, receipt, section = recorded_decision(case)
+    original = "## R01 以前の採否\n本人は「はい、次。」と応答した。\n採用範囲: 以前の意味と採否の範囲を保持する。\n\n"
+    case["prose"] = case["prose"].replace(section, original)
+    issue["decision_evidence"].update(quote=original, sha256=sha(original.encode()))
+    receipt["decision_reviews"][0]["record_sha256"] = issue["decision_evidence"]["sha256"]
+    digest = write_json(path, receipt)
+    issue["verification"]["sha256"] = digest
+    issue["decision_evidence"]["verification"]["sha256"] = digest
+    result = run(case)
+    assert result["status"] == "coverage_verified", result
+    assert result["human_authenticity_verified"] is False
+
+
+@pytest.mark.parametrize("heading, body", [
+    ("## R010 の本人採否", "R010 本人原文: 採用する。\n本人採用: 採用する。\n関連する未検討の別論点: R01\n"),
+    ("## R01 の本人採否", "R010 本人原文: 採用する。\n本人採用: 採用する。\n"),
+    ("## 本人採否の履歴", "本人原文: はい、次。\n採用範囲: 以前の意味を保持する。\n関連する論点: R01\n"),
+    ("## R01 / R010 の本人採否", "R010 本人原文: 採用する。\n本人採用: 採用する。\n"),
+])
+def test_recorded_heading_authority_cannot_come_from_incidental_body_or_foreign_author_id(case, heading, body):
+    issue, path, receipt, section = recorded_decision(case)
+    forged = heading + "\n" + body + "\n"
+    case["prose"] = case["prose"].replace(section, forged)
+    issue["decision_evidence"].update(quote=forged, sha256=sha(forged.encode()))
+    receipt["decision_reviews"][0]["record_sha256"] = issue["decision_evidence"]["sha256"]
+    digest = write_json(path, receipt)
+    issue["verification"]["sha256"] = digest
+    issue["decision_evidence"]["verification"]["sha256"] = digest
+    result = run(case)
+    assert result["status"] == "blocked"
+    assert "R01:author_decision_evidence_invalid" in result["errors"]
+
+
+def test_recorded_multi_issue_group_heading_preserves_each_review_without_explicit_author_ids(case):
+    issue, path, receipt, section = recorded_decision(case)
+    group = section.replace("## R01 以前の本人採否", "## R01 / R02 以前の本人採否")
+    case["prose"] = "# 判断履歴\n" + group + "## 次の記録\n"
+    issue["decision_evidence"].update(quote=group, sha256=sha(group.encode()))
+    other = case["decisions"]["issues"][1]
+    other["decision_evidence"] = dict(issue["decision_evidence"], decision="held")
+    other["decision_evidence"]["verification"] = dict(issue["decision_evidence"]["verification"])
+    receipt["issue_ids"].append("R02")
+    receipt["decision_reviews"][0]["record_sha256"] = sha(group.encode())
+    receipt["decision_reviews"].append({"issue_id": "R02", "decision": "held", "record_sha256": sha(group.encode()),
+        "evidence_level": "recorded", "status": "verified", "reason": "同じ保存節から別論点の保留範囲を独立照合した"})
+    digest = write_json(path, receipt)
+    issue["verification"]["sha256"] = digest
+    issue["decision_evidence"]["verification"]["sha256"] = digest
+    other["decision_evidence"]["verification"]["sha256"] = digest
+    result = run(case)
+    assert result["status"] == "coverage_verified", result
+    assert [row["evidence_level"] for row in result["issues"]] == ["recorded", "recorded"]

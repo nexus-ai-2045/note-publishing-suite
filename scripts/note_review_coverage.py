@@ -136,10 +136,99 @@ def _complete_author_record(source: str, quote: str) -> bool:
     return False
 
 
+def _quote_issue_matches(quote: str, issue_id: str) -> bool:
+    author_line = re.compile(
+        r"^[ \t]{0,3}(?:[-*][ \t]+)?(?:(?P<issue>[A-Za-z0-9][A-Za-z0-9_.-]*)[ \t]+)?"
+        r"(?:本人原文:|本人指定:|本人の構造化回答:|Author:)")
+    headings = []
+    for line in quote.splitlines():
+        if match := author_line.match(line):
+            if match["issue"] is not None:
+                return match["issue"] == issue_id
+            if not headings:
+                return False
+            return re.search(r"(?<![\w.-])" + re.escape(issue_id) + r"(?![\w.-])", headings[-1]) is not None
+        if re.match(r"^[ \t]{0,3}#{1,6}[ \t]+", line):
+            headings.append(line)
+    return False
+
+
+def _complete_heading_section(source: str, quote: str, issue_id: str) -> bool:
+    first_line = quote.splitlines()[0] if quote.splitlines() else ""
+    if (re.match(r"^[ \t]{0,3}#{1,6}[ \t]+", first_line) is None
+            or re.search(r"(?<![\w.-])" + re.escape(issue_id) + r"(?![\w.-])", first_line) is None):
+        return False
+    headings = []
+    fenced = None
+    in_comment = False
+    offset = 0
+    for line in source.splitlines(keepends=True):
+        fence = re.match(r"^[ \t]{0,3}(`{3,}|~{3,})", line)
+        if fenced is not None:
+            if (fence and fence[1][0] == fenced[0] and len(fence[1]) >= fenced[1]
+                    and not line[fence.end():].strip()):
+                fenced = None
+        elif in_comment:
+            if "-->" in line:
+                in_comment = False
+        elif fence:
+            fenced = (fence[1][0], len(fence[1]))
+        elif "<!--" in line:
+            in_comment = "-->" not in line.split("<!--", 1)[1]
+        elif heading := re.match(r"^[ \t]{0,3}(#{1,6})[ \t]+", line):
+            headings.append((offset, len(heading[1])))
+        offset += len(line)
+    for index, (start, level) in enumerate(headings):
+        end = next((position for position, next_level in headings[index + 1:] if next_level <= level), len(source))
+        if source[start:end] == quote:
+            return True
+    return False
+
+
+def _recorded_attributions(section: str, decision: str, issue_id: str) -> bool:
+    prose = []
+    fenced = None
+    in_comment = False
+    for line in section.splitlines():
+        fence = re.match(r"^[ \t]{0,3}(`{3,}|~{3,})", line)
+        if fenced is not None:
+            if (fence and fence[1][0] == fenced[0] and len(fence[1]) >= fenced[1]
+                    and not line[fence.end():].strip()):
+                fenced = None
+        elif in_comment:
+            if "-->" in line:
+                in_comment = False
+        elif fence:
+            fenced = (fence[1][0], len(fence[1]))
+        elif "<!--" in line:
+            in_comment = "-->" not in line.split("<!--", 1)[1]
+        else:
+            prose.append(line)
+    text = "\n".join(prose)
+    explicit_author = re.compile(
+        r"^[ \t]{0,3}(?:[-*][ \t]+)?([A-Za-z0-9][A-Za-z0-9_.-]*)[ \t]+"
+        r"(?:本人原文|本人指定|本人の構造化回答|本人回答|本人の回答|Author):", re.MULTILINE)
+    if any(match[1] != issue_id for match in explicit_author.finditer(text)):
+        return False
+    prefix = r"^[ \t]{0,3}(?:[-*][ \t]+)?(?:[A-Za-z0-9][A-Za-z0-9_.-]*[ \t]+)?"
+    author = re.compile(prefix + r"(?:本人原文|本人指定|本人の構造化回答|本人回答|本人の回答|Author):[ \t]*([^\r\n]*)", re.MULTILINE)
+    scope = re.compile(prefix + r"(?:本人採用|本人判断|採用範囲|採用|採否|Author decision):[ \t]*([^\r\n]*)", re.MULTILINE)
+    originals = [match[1].strip() for match in author.finditer(text) if match[1].strip()]
+    originals.extend(match[1].strip() for match in re.finditer(r"本人は[「『]([^」』\r\n]+)[」』]と(?:応答|回答)", text) if match[1].strip())
+    originals = [value for value in originals if value.strip(" \t「」『』“”\"") and not re.match(r"(?:AI推奨|AI recommendation|本人採用|本人判断|採用範囲|採用|採否):", value, re.IGNORECASE)]
+    scopes = [match[1].strip() for match in scope.finditer(text) if match[1].strip()]
+    scopes = [value for value in scopes if value.strip(" \t「」『』“”\"") and not re.match(r"(?:AI推奨|AI recommendation):", value, re.IGNORECASE)]
+    supported = {outcome for outcome in ("adopted", "rejected", "held")
+                 if any(_statement_supports(value, outcome) for value in scopes)}
+    return bool(originals and scopes) and (not supported or decision in supported)
+
+
 def validate_policy(value: Any) -> dict:
     if (not isinstance(value, dict) or value.get("schema") != "note-review-coverage-policy/v1"
             or type(value.get("required")) is not bool):
         raise ValueError("review_coverage_policy_invalid")
+    if "allow_recorded_decisions" in value and type(value["allow_recorded_decisions"]) is not bool:
+        raise ValueError("review_coverage_policy_recorded_optin_invalid")
     if value["required"] and (not _text(value.get("decision_log"))
             or not _text(value.get("catalog"))
             or not isinstance(value.get("catalog_sha256"), str)
@@ -148,7 +237,7 @@ def validate_policy(value: Any) -> dict:
     return dict(value)
 
 
-def evaluate(draft: Path, policy: dict | None, *, base_dir: Path) -> dict:
+def evaluate(draft: Path | None, policy: dict | None, *, base_dir: Path) -> dict:
     errors: list[str] = []
     remaining: list[str] = []
     states: list[dict] = []
@@ -198,6 +287,8 @@ def evaluate(draft: Path, policy: dict | None, *, base_dir: Path) -> dict:
         return path, raw, quote
 
     try:
+        if draft is None:
+            raise ValueError("draft:path_missing")
         draft_path, draft_raw = read(str(draft), Path.cwd(), "draft")
         draft_hash = _sha(draft_raw)
         result["draft_sha256"] = draft_hash
@@ -271,12 +362,17 @@ def evaluate(draft: Path, policy: dict | None, *, base_dir: Path) -> dict:
                     if now["units_by_id"].get(unit_id) != unit:
                         errors.append(f"{source_id}/{unit_id}:historical_unit_removed_or_changed")
         origins: dict[str, list[tuple[str, str]]] = {}
+        source_texts: dict[str, str] = {}
+        valid_source_hashes: set[str] = set()
         for source_id, source in current_sources.items():
             label = f"source/{source_id}"
             _, raw = read(source["path"], catalog_path.parent, label)
             if _sha(raw) != source["sha256"]:
                 errors.append(f"{label}:hash_mismatch")
             source_text = raw.decode("utf-8-sig")
+            source_texts[source_id] = source_text
+            if _sha(raw) == source["sha256"]:
+                valid_source_hashes.add(source_id)
             source_coverage = source.get("coverage")
             if not isinstance(source_coverage, dict) or source_coverage.get("status") != "confirmed":
                 errors.append(f"{label}:semantic_coverage_unknown")
@@ -312,6 +408,7 @@ def evaluate(draft: Path, policy: dict | None, *, base_dir: Path) -> dict:
                         remaining.append(issue_id)
         for issue_id, issue in indexed.items():
             issue_errors = []
+            evidence_level = None
             if issue_id not in origins:
                 issue_errors.append("source_origin_missing")
             issue_origins = origins.get(issue_id, [])
@@ -343,13 +440,51 @@ def evaluate(draft: Path, policy: dict | None, *, base_dir: Path) -> dict:
                     try:
                         evidence_path, _ = read(evidence.get("path"), log_path.parent, f"{issue_id}/decision_evidence")
                         quote = evidence.get("quote")
-                        if (evidence_path != log_path or evidence.get("actor") != "author"
-                                or evidence.get("kind") != "author_statement"
-                                or evidence.get("decision") != decision
-                                or not _text(quote) or quote not in outside or issue_id not in quote
-                                or not _complete_author_record(outside, quote)
-                                or not _author_statement(quote, evidence.get("statement"), decision)
-                                or _sha(quote.encode("utf-8")) != evidence.get("sha256")):
+                        valid = (evidence_path == log_path and evidence.get("actor") == "author"
+                                 and evidence.get("decision") == decision and _text(quote)
+                                 and _sha(quote.encode("utf-8")) == evidence.get("sha256"))
+                        if evidence.get("kind") == "author_statement":
+                            valid = (valid and quote in outside and _quote_issue_matches(quote, issue_id)
+                                     and _complete_author_record(outside, quote)
+                                     and _author_statement(quote, evidence.get("statement"), decision))
+                        elif evidence.get("kind") == "recorded_decision_log":
+                            valid = (valid and policy.get("allow_recorded_decisions") is True
+                                     and evidence.get("evidence_level") == "recorded"
+                                     and _complete_heading_section(log_text, quote, issue_id)
+                                     and _recorded_attributions(quote, decision, issue_id))
+                            review_proof = evidence.get("verification")
+                            if not valid or not isinstance(review_proof, dict):
+                                valid = False
+                            else:
+                                review_path, review_raw = read(review_proof.get("path"), log_path.parent, f"{issue_id}/decision_review")
+                                review = _json(review_raw)
+                                valid = (valid and _sha(review_raw) == review_proof.get("sha256")
+                                         and isinstance(review, dict) and review.get("schema") == "note-review-verification/v1"
+                                         and review.get("status") == "verified" and review.get("draft_sha256") == draft_hash
+                                         and isinstance(review.get("issue_ids"), list) and issue_id in review["issue_ids"]
+                                         and review_path not in (draft_path, log_path, catalog_path))
+                                reviews = review.get("decision_reviews") if isinstance(review, dict) else None
+                                if not isinstance(reviews, list) or any(not isinstance(row, dict) for row in reviews):
+                                    valid = False
+                                else:
+                                    matched = [row for row in reviews if row.get("issue_id") == issue_id]
+                                    valid = (valid and len(matched) == 1 and matched[0].get("decision") == decision
+                                             and matched[0].get("record_sha256") == evidence.get("sha256")
+                                             and matched[0].get("evidence_level") == "recorded"
+                                             and matched[0].get("status") == "verified" and _text(matched[0].get("reason")))
+                                if decision == "adopted":
+                                    applied_proof = issue.get("verification")
+                                    if not isinstance(applied_proof, dict):
+                                        valid = False
+                                    else:
+                                        applied_path, _ = read(applied_proof.get("path"), log_path.parent, f"{issue_id}/verification")
+                                        valid = (valid and applied_path == review_path
+                                                 and applied_proof.get("sha256") == review_proof.get("sha256"))
+                            if valid:
+                                evidence_level = "recorded"
+                        else:
+                            valid = False
+                        if not valid:
                             issue_errors.append("author_decision_evidence_invalid")
                     except (OSError, ValueError, TypeError):
                         issue_errors.append("author_decision_evidence_invalid")
@@ -388,10 +523,72 @@ def evaluate(draft: Path, policy: dict | None, *, base_dir: Path) -> dict:
             application_state = "unknown" if any(error in issue_errors for error in (
                 "application_mapping_unknown", "application_missing_or_stale", "application_removed_quote_still_present")) else claimed_application
             states.append({"id": issue_id, "topic": issue["topic"], "decision": decision,
+                           "evidence_level": evidence_level,
                            "application": application_state, "claimed_application": claimed_application,
                            "verification": "verified" if decision == "adopted" and not issue_errors else "not_verified",
                            "sources": [{"source_id": source_id, "unit_id": unit_id} for source_id, unit_id in issue_origins],
                            "errors": issue_errors})
+        states_by_id = {row["id"]: row for row in states}
+        for state in states:
+            issue_id = state["id"]
+            applicability = indexed[issue_id].get("applicability")
+            if applicability is None:
+                continue
+            state["applicability"] = "unknown"
+            try:
+                if (not isinstance(applicability, dict) or applicability.get("status") != "superseded"
+                        or state["decision"] != "pending" or state["errors"] != ["decision_pending"]
+                        or not _text(applicability.get("reason"))):
+                    raise ValueError("applicability_invalid")
+                by_id = applicability.get("by_issue_id")
+                if not isinstance(by_id, str) or by_id == issue_id or by_id not in indexed:
+                    raise ValueError("applicability_base_invalid")
+                base_issue = indexed[by_id]
+                base_state = states_by_id[by_id]
+                if (base_state["decision"] != "adopted" or base_state["errors"]
+                        or base_issue.get("applicability") is not None):
+                    raise ValueError("applicability_base_unverified")
+                base_evidence = base_issue.get("decision_evidence")
+                base_quote = base_evidence.get("quote") if isinstance(base_evidence, dict) else None
+                if not _text(base_quote) or not _complete_heading_section(log_text, base_quote, by_id):
+                    raise ValueError("applicability_base_section_unverified")
+                old_quotes = applicability.get("absent_quotes")
+                if (not isinstance(old_quotes, list) or not old_quotes
+                        or any(not _text(quote) or quote in draft_text
+                               or not any(source_id in valid_source_hashes and quote in source_texts[source_id]
+                                          for source_id, _ in origins.get(issue_id, [])) for quote in old_quotes)):
+                    raise ValueError("applicability_target_unverified")
+                proof_value = applicability.get("verification")
+                base_proof = base_issue.get("verification")
+                if not isinstance(proof_value, dict) or not isinstance(base_proof, dict):
+                    raise ValueError("applicability_proof_missing")
+                proof_path, proof_raw = read(proof_value.get("path"), log_path.parent, f"{issue_id}/applicability")
+                base_path, _ = read(base_proof.get("path"), log_path.parent, f"{by_id}/verification")
+                proof_value_hash = _sha(proof_raw)
+                receipt = _json(proof_raw)
+                if (proof_path != base_path or proof_value_hash != proof_value.get("sha256")
+                        or proof_value_hash != base_proof.get("sha256") or not isinstance(receipt, dict)
+                        or receipt.get("schema") != "note-review-verification/v1"
+                        or receipt.get("status") != "verified" or receipt.get("draft_sha256") != draft_hash
+                        or not isinstance(receipt.get("issue_ids"), list)
+                        or issue_id not in receipt["issue_ids"] or by_id not in receipt["issue_ids"]):
+                    raise ValueError("applicability_proof_invalid")
+                reviews = receipt.get("applicability_reviews")
+                if not isinstance(reviews, list) or any(not isinstance(row, dict) for row in reviews):
+                    raise ValueError("applicability_review_missing")
+                matched = [row for row in reviews if row.get("issue_id") == issue_id]
+                if (len(matched) != 1 or matched[0].get("by_issue_id") != by_id
+                        or matched[0].get("status") != "verified" or not _text(matched[0].get("reason"))
+                        or matched[0].get("record_sha256") != _sha(base_quote.encode("utf-8"))):
+                    raise ValueError("applicability_review_invalid")
+                state["errors"].remove("decision_pending")
+                errors.remove(f"{issue_id}:decision_pending")
+                remaining.remove(issue_id)
+                state["applicability"] = "superseded"
+                state["by_issue_id"] = by_id
+            except (OSError, ValueError, TypeError, KeyError, AttributeError):
+                state["errors"].append("applicability_unverified")
+                errors.append(f"{issue_id}:applicability_unverified")
         result["selected_paths"].update({str(selected): str(actual) for selected, (actual, _) in captured.items()})
         for selected, (actual, raw) in captured.items():
             if selected.resolve(strict=True) != actual or actual.read_bytes() != raw:
