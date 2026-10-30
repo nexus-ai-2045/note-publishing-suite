@@ -168,6 +168,12 @@ def _result_check(kind: str, result: dict, target: dict, body_hash: str,
                  and result.get('destination_id') == target['destination_id']
                  and result.get('body_sha256') == body_hash,
                  'announcement send/readback is absent or wrong destination/version')
+        template = target.get('message_url_template')
+        _require(_text(template) and template.startswith('https://') and template.count('{message_id}') == 1
+                 and not any(char in template.replace('{message_id}', '') for char in '{}')
+                 and re.fullmatch(r'[A-Za-z0-9_-]{1,128}', result['message_id']) is not None
+                 and result['url'] == template.replace('{message_id}', result['message_id']),
+                 'announcement message URL does not match its destination and message ID')
     elif kind == 'ledger_update':
         _require(result.get('entry_article_id') == article_id
                  and result.get('entry_body_sha256') == body_hash

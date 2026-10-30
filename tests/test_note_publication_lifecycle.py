@@ -61,7 +61,8 @@ def fixture(root):
     prev = []
     for kind, result in results.items():
         target = {'url': 'https://note.com/u/n/n123', 'destination_id': 'channel-1',
-                  'repository': 'example/articles', 'branch': 'main'}
+                  'repository': 'example/articles', 'branch': 'main',
+                  'message_url_template': 'https://example.test/messages/{message_id}'}
         profile['actions'].append({'id': kind, 'kind': kind, 'stage': kind,
                                    'depends_on': prev, 'target': target, 'authorized': True})
         binding = {'action_id': kind, 'kind': kind, 'article_id': 'a8',
@@ -225,6 +226,7 @@ def test_selected_packet_input_fifo_is_rejected_without_wait(tmp_path):
     ('announcement_draft', 'card_description', ''),
     ('announcement_send', 'destination_id', 'wrong-channel'),
     ('announcement_send', 'sent', False),
+    ('announcement_send', 'url', 'https://note.com/u/n/n123'),
     ('ledger_update', 'entry_body_sha256', '0' * 64),
     ('git_delivery', 'executed', False),
     ('git_delivery', 'remote_commit', 'b' * 40),
