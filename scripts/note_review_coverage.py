@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 
-DECISION_BLOCK = re.compile(r"^```review-coverage\s*\n(.*?)^```[ \t]*$", re.MULTILINE | re.DOTALL)
+DECISION_BLOCK = re.compile(r"^```review-coverage[ \t]*\r?\n(.*?)^```[ \t]*\r?$", re.MULTILINE | re.DOTALL)
 AUTHOR_MARKERS = ("本人原文:", "本人指定:", "本人の構造化回答:", "Author:")
 
 
@@ -80,6 +80,59 @@ def _author_statement(quote: str, statement: Any, decision: str) -> bool:
         if marker in quote:
             attributed = quote.split(marker, 1)[1].strip()
             return attributed == statement.strip()
+    return False
+
+
+def _complete_author_record(source: str, quote: str) -> bool:
+    author_line = re.compile(
+        r"^[ \t]{0,3}(?:[-*][ \t]+)?(?:[A-Za-z0-9][A-Za-z0-9_.-]*[ \t]+)?"
+        r"(?:本人原文:|本人指定:|本人の構造化回答:|Author:)")
+    heading = re.compile(r"^[ \t]{0,3}#{1,6}[ \t]+")
+    fenced = None
+    in_comment = False
+    record_start = None
+    records = []
+    offset = 0
+    for line in source.splitlines(keepends=True):
+        fence = re.match(r"^[ \t]{0,3}(`{3,}|~{3,})", line)
+        if fenced is not None:
+            if (fence and fence[1][0] == fenced[0] and len(fence[1]) >= fenced[1]
+                    and not line[fence.end():].strip()):
+                fenced = None
+        elif in_comment:
+            if "-->" in line:
+                in_comment = False
+        elif fence:
+            fenced = (fence[1][0], len(fence[1]))
+        elif "<!--" in line:
+            in_comment = "-->" not in line.split("<!--", 1)[1]
+        else:
+            is_author = author_line.match(line) is not None
+            if is_author or heading.match(line):
+                if record_start is not None:
+                    end = len(source[:offset].rstrip())
+                    records.append((record_start, end))
+                    record_start = None
+                if is_author:
+                    record_start = offset
+        offset += len(line)
+    if record_start is not None:
+        records.append((record_start, len(source.rstrip())))
+    selected = quote.rstrip()
+    if not selected:
+        return False
+    start = source.find(selected)
+    while start != -1:
+        end = start + len(selected)
+        line_start = start == 0 or source[start - 1] == "\n"
+        line_end = end == len(source) or source[end] in "\r\n"
+        if line_start and line_end:
+            for record_start, record_end in records:
+                if start <= record_start and end == record_end:
+                    prefix = source[start:record_start]
+                    if all(not line.strip() or heading.match(line) for line in prefix.splitlines()):
+                        return True
+        start = source.find(selected, start + 1)
     return False
 
 
@@ -294,6 +347,7 @@ def evaluate(draft: Path, policy: dict | None, *, base_dir: Path) -> dict:
                                 or evidence.get("kind") != "author_statement"
                                 or evidence.get("decision") != decision
                                 or not _text(quote) or quote not in outside or issue_id not in quote
+                                or not _complete_author_record(outside, quote)
                                 or not _author_statement(quote, evidence.get("statement"), decision)
                                 or _sha(quote.encode("utf-8")) != evidence.get("sha256")):
                             issue_errors.append("author_decision_evidence_invalid")

@@ -416,3 +416,50 @@ def test_optional_policy_allows_valid_future_storage_directories(case):
     assert result["errors"] == []
     assert recheck(result) == []
     assert not (root / "future-feedback").exists()
+
+
+@pytest.mark.parametrize("actual_record", [
+    "R01 本人原文: 採用する。ただし今回は採用しない。",
+    "R01 本人原文: 採用する。\nただし今回は採用しない。",
+    "R01 本人原文: 採用する。\n\nただし今回は採用しない。",
+    "説明中の例: R01 本人原文: 採用する。",
+    "```text\nR01 本人原文: 採用する。\n```",
+    "```text\n```not-a-closing-fence\nR01 本人原文: 採用する。\n```",
+    "<!--\nR01 本人原文: 採用する。\n-->",
+])
+def test_evidence_quote_cannot_truncate_or_fake_actual_author_record(case, actual_record):
+    issue = decide(case, 0, "adopted")
+    decide(case, 1, "held")
+    other_quote = case["decisions"]["issues"][1]["decision_evidence"]["quote"]
+    case["prose"] = "# 判断履歴\n" + actual_record + "\n## R02\n" + other_quote + "\n"
+    quote = "R01 本人原文: 採用する。"
+    issue["decision_evidence"].update(quote=quote, statement="採用する。", sha256=sha(quote.encode()))
+    result = run(case)
+    assert result["status"] == "blocked"
+    assert "R01:author_decision_evidence_invalid" in result["errors"]
+
+
+def test_complete_record_can_include_preceding_issue_heading(case):
+    issue = decide(case, 0, "adopted")
+    decide(case, 1, "held")
+    quote = "## R01\n\n本人原文: 採用する。"
+    other = "## R02\nR02 本人原文: この提案は今回はheldとする。\n"
+    case["prose"] = "# 判断履歴\n" + quote + "\n\n" + other
+    issue["decision_evidence"].update(quote=quote, statement="採用する。", sha256=sha(quote.encode()))
+    assert run(case)["status"] == "coverage_verified"
+
+
+def test_crlf_decision_block_and_raw_input_hashes_are_preserved(case):
+    decide(case, 0, "rejected")
+    decide(case, 1, "held")
+    save(case)
+    path = case["root"] / "decision-log.md"
+    raw = path.read_bytes().replace(b"\n", b"\r\n")
+    path.write_bytes(raw)
+    result = evaluate(case["draft"], case["policy"], base_dir=case["root"])
+    assert result["status"] == "coverage_verified", result
+    assert result["decision_log_sha256"] == sha(raw)
+    assert result["input_hashes"][str(path)] == sha(raw)
+    assert result["input_hashes"][str(case["root"] / "publication-review.json")] == case["policy"]["catalog_sha256"]
+    assert path.read_bytes() == raw
+    assert recheck(result) == []

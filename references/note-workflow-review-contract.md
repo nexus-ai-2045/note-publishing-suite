@@ -661,7 +661,7 @@ HTML文字列のUTF-8 SHA-256で、両方が`body_html`の実hashと一致する
 
 本人採否は既存`decision-log`内の一つの `review-coverage` `fenced` `block`で機械読取りする。形式は `{schema:"note-review-decisions/v1",issues:[{id,topic,decision,reason,...}]}`。状態は `pending/adopted/rejected/held`。採用以外も理由と本人判断の根拠を要する。任意提案の理由つき却下・保留は成功条件を満たし、強制採用しない。
 
-`decision_evidence`は `{path,sha256,quote,actor:"author",kind:"author_statement",decision,statement}`。`path`は同じ`decision-``log`、`sha256`は自己参照を避けるため引用`quote`の`UTF-8` `hash`。`quote`は機械`block`外に存在し、論点`ID`と本人原文・本人指定等の明示帰属を含む。`statement`はその本人帰属の直後の原文全体に一致し、採否と矛盾しない限定した明示文の全文一致を要する。否定・条件・後続留保を部分一致で採用へ昇格させない。対応する文法以外は不明として停止し、通すために本人原文を書き換えない。曖昧な自然言語や`AI`推奨は未知として停止し、本人採用へ推定しない。機械検査は本人性・意味の正確性を証明せず、実会話の本人原文との照合は担当`runtime`と人間レビューの責務である。
+`decision_evidence`は `{path,sha256,quote,actor:"author",kind:"author_statement",decision,statement}`。`path`は同じ`decision-``log`、`sha256`は自己参照を避けるため引用`quote`の`UTF-8` `hash`。`quote`は機械`block`外に存在し、論点`ID`と本人原文・本人指定等の明示帰属を含む。`statement`はその本人帰属の直後の原文全体に一致し、採否と矛盾しない限定した明示文の全文一致を要する。否定・条件・後続留保を部分一致で採用へ昇格させない。対応する文法以外は不明として停止し、通すために本人原文を書き換えない。判断ログ内の本人帰属行から次の見出しまたは次の本人帰属記録までを記録の境界として照合し、引用自体から後続の留保を切り落とせないようにする。判断ログの `CRLF` 改行でも同じ検査を行い、保存バイトのハッシュは正規化しない。曖昧な自然言語や`AI`推奨は未知として停止し、本人採用へ推定しない。機械検査は本人性・意味の正確性を証明せず、実会話の本人原文との照合は担当`runtime`と人間レビューの責務である。
 
 採用時は `application:{status:"applied",draft_sha256,quotes:[...]}` と `verification:{path,sha256}` が必要。検証`file`は `{schema:"note-review-verification/v1",status:"verified",draft_sha256,issue_ids:[...]}`。採否証拠・検証`file`の相対`path`は`decision-log`の親基準。引用は現稿本文に必要で、`frontmatter`・コメントだけの出現は数えない。削除の照合には任意の `absent_quotes` を使う。言い換えで引用が消えた場合は `application_mapping_unknown` とし、削除・却下と断定しない。本人採用を保持し、対応の改訂と意味照合を求める。別版の`receipt`は流用しない。
 
