@@ -47,6 +47,8 @@ description: "Use when the user wants repo-local, end-to-end Note publishing sup
 
 ローカル画面とチャットの共通保存は[共同執筆の操作](docs/collaborative-writing.md)を使う。`note_collaborative_session.py --help`と`--settings PATH preflight`で対象を確認し、変更は期待する版を明示する。既存の本人採用を再質問せず、AIの修正案は原文・理解した意図・提案を示して採否へ接続する。生成候補と現稿、保存と公開、局所の修正と共通口調の採用を区別する。
 
+本文保存の保全先を自動整理しない。初回作成の未復旧transactionも再作成前にrecoverする。外部editorとの厳密なCASや本文pathの原子的置換を保証せず、preflightが返す保証範囲と上記文書を確認する。生成本文の由来blocksを省略して採用へ進めない。
+
 句点後改行を採用した著者のworkspaceでは、外部settingsの `style.linebreak_policy`
 を毎回読戻す。原稿のfrontmatterや反映用JSONから指定が落ちても規則を外さない。
 workflowの編集前検査と、実HTMLを渡す保存前・保存後の `note_linebreak_gate.py`、

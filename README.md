@@ -282,6 +282,8 @@ CIの `repo-preflight` は v0.10.0 の `5b7c774deb8e9abcf0fce0c5f39ec1c1f3a894f3
 
 [対話を続けながら骨組みと全文を育てる](docs/collaborative-writing.md)では、テーマごとの対話、複数記事、ローカルの全文編集画面、AI候補の選択反映、保存・取消し・再開を扱います。既存の外部workspaceと採否履歴を使い、公開操作は行いません。
 
+共同執筆の保存では置換前の本文を保全し、再読込みでは本文を書き直しません。初回作成が中断した場合も同じ復旧入口を使います。保全先は自動削除しないため、保存方式の制約と整理方法は上記の操作文書を確認してください。生成本文の由来対応は空のblocksでも検査します。
+
 [ドキュメント同期・開発検証・制作と公開後の詳細](docs/advanced-usage.md)を参照してください。毎回の開発検査は[同じ文書](docs/advanced-usage.md#毎回の開発検査)に分けています。
 基本の開発検証は `python -m pytest scripts/test_skill_integration.py tests`、文書確認は `python scripts/docs_sync_check.py --base-ref origin/main` です。
 

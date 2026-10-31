@@ -85,23 +85,22 @@ class WritingServer(ThreadingHTTPServer):
                         body = result["draft"][generated_header.end():] if generated_header else result["draft"]
                         result["draft"] = header.group(0) + body
                     blocks = []
-                    if result.get("blocks"):
-                        paragraphs = PROVENANCE.fidelity_paragraphs(result["draft"])
-                        if paragraphs != [block["text"] for block in result["blocks"]]:
-                            raise AI.GenerationError("全文と段落の由来対応が一致しません。候補を保持して再確認します")
-                        messages = {message["id"]: message for message in snapshot["messages"]}
-                        sources = {source["id"] for source in snapshot["sources"]}
-                        for block in result["blocks"]:
-                            if block["kind"] == "hold":
-                                raise AI.GenerationError("未確認の段落があります。確認後に本文案を作り直してください")
-                            if any(ref not in messages for ref in block["message_ids"]) or any(ref not in sources for ref in block["source_ids"]):
-                                raise AI.GenerationError("段落の根拠が選択した対話・素材にありません")
-                            if block["kind"] == "user-said" and (not block["message_ids"] or any(messages[ref]["role"] != "user" for ref in block["message_ids"])):
-                                raise AI.GenerationError("AIの発言を本人の判断として扱う由来対応は採用できません")
-                            blocks.append({"id": "b-" + uuid.uuid4().hex[:12], "text": block["text"],
-                                           "provenance_kind": block["kind"], "correspondence_status": "proposed",
-                                           "source_refs": ["message:" + ref for ref in block["message_ids"]]
-                                                          + ["source:" + ref for ref in block["source_ids"]]})
+                    paragraphs = PROVENANCE.fidelity_paragraphs(result["draft"])
+                    if paragraphs != [block["text"] for block in result.get("blocks", [])]:
+                        raise AI.GenerationError("全文と段落の由来対応が一致しません。候補を保持して再確認します")
+                    messages = {message["id"]: message for message in snapshot["messages"]}
+                    sources = {source["id"] for source in snapshot["sources"]}
+                    for block in result.get("blocks", []):
+                        if block["kind"] == "hold":
+                            raise AI.GenerationError("未確認の段落があります。確認後に本文案を作り直してください")
+                        if any(ref not in messages for ref in block["message_ids"]) or any(ref not in sources for ref in block["source_ids"]):
+                            raise AI.GenerationError("段落の根拠が選択した対話・素材にありません")
+                        if block["kind"] == "user-said" and (not block["message_ids"] or any(messages[ref]["role"] != "user" for ref in block["message_ids"])):
+                            raise AI.GenerationError("AIの発言を本人の判断として扱う由来対応は採用できません")
+                        blocks.append({"id": "b-" + uuid.uuid4().hex[:12], "text": block["text"],
+                                       "provenance_kind": block["kind"], "correspondence_status": "proposed",
+                                       "source_refs": ["message:" + ref for ref in block["message_ids"]]
+                                                      + ["source:" + ref for ref in block["source_ids"]]})
                     candidates = [{"before": article["draft"], "after": result["draft"],
                                    "intent": result["reply"] or "骨組みと対話を全文へ構成", "blocks": blocks}]
                 elif mode == "revise":

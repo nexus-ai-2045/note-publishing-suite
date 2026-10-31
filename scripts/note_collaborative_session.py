@@ -58,6 +58,37 @@ def _atomic(path: Path, value: bytes) -> None:
             os.unlink(name)
 
 
+def _preserve_draft(path: Path, value: bytes | None) -> None:
+    """Retain the displaced inode, including writes by already-open editors.
+
+    Never delete these recovery copies automatically. Hard-link installation is
+    exclusive: an editor recreating the original path wins without being erased.
+    Unsupported filesystems fail closed with the displaced file retained.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    retained = path.parent / (".nps-preserved-" + uuid.uuid4().hex)
+    retained.mkdir()
+    old = retained / path.name
+    try:
+        path.rename(old)
+    except FileNotFoundError:
+        pass
+    if value is None:
+        return
+    candidate = retained / "candidate"
+    try:
+        _atomic(candidate, value)
+        os.link(candidate, path)
+    except OSError as exc:
+        # Restoration is also exclusive and must never mask the original error.
+        if old.exists():
+            try:
+                os.link(old, path)
+            except OSError:
+                pass
+        raise SessionError(f"原稿の設置に失敗しました。両版を保持しています: {retained}", "external_edit") from exc
+
+
 def _safe(value: Any, label: str) -> str:
     if not isinstance(value, str) or not _ID.fullmatch(value):
         raise SessionError(f"{label} is invalid", "invalid_id")
@@ -105,7 +136,9 @@ class SessionStore:
             raw = Path(config["storage"][key])
             _local_file(workspace, str(raw if raw.is_absolute() else workspace / raw))
         return {"ok": True, "storage": {k: str(v) for k, v in self._dirs.items()},
-                "capabilities": {"external_calls": False, "atomic_writes": True, "cas": True},
+                "capabilities": {"external_calls": False, "atomic_writes": False, "cas": False,
+                                 "metadata_atomic_writes": True, "cooperative_revision_cas": True,
+                                 "displaced_draft_inode_preserved": True},
                 "settings_sha256": expected["settings_sha256"]}
 
     def _ensure(self) -> None:
@@ -247,6 +280,8 @@ class SessionStore:
         state = {"schema_version": SCHEMA, "id": theme_id, "title": title.strip(), "revision": 0,
                  "messages": [], "sources": [], "articles": [], "proposals": [], "comments": [], "_feedback": [], "_created": True}
         with self._locked(write=not dry_run):
+            if self._theme_path(theme_id).with_name("transaction.json").exists():
+                raise SessionError("保存が中断されています。recover操作で復旧してください", "recovery_required")
             if self._theme_path(theme_id).exists():
                 raise SessionError("同じテーマが既にあります", "already_exists")
             if not dry_run:
@@ -303,6 +338,13 @@ class SessionStore:
         state_path = self._theme_path(state["id"])
         journal = state_path.with_name("transaction.json")
         planned = dict(writes)
+        def write(path, data):
+            if path.is_relative_to(self._dirs["drafts"]):
+                _preserve_draft(path, data)
+            elif data is None:
+                path.unlink(missing_ok=True)
+            else:
+                _atomic(path, data)
         for raw_path, expected in state.pop("_expected_disk_hashes", {}).items():
             path = _local_file(self._workspace, raw_path)
             if not path.is_file() or _sha(path.read_bytes()) != expected:
@@ -329,17 +371,15 @@ class SessionStore:
             for path, old in backups.items()]}))
         try:
             for path, data in all_writes:
-                _atomic(path, data)
+                write(path, data)
             for path in deletes:
-                if path.exists(): path.unlink()
+                write(path, None)
             for path, data in all_writes:
                 if path.read_bytes() != data:
                     raise SessionError("保存後の読戻しが一致しません", "save_readback_mismatch")
         except Exception:
             for path, old in backups.items():
-                if old is None:
-                    if path.exists(): path.unlink()
-                else: _atomic(path, old)
+                write(path, old)
             journal.unlink(missing_ok=True)
             raise
         journal.unlink()
@@ -352,7 +392,8 @@ class SessionStore:
         if not isinstance(record, dict) or not isinstance(record.get("backups"), list):
             raise SessionError("復旧記録の形式が不正です", "invalid_recovery")
         plan, seen = [], set()
-        current = json.loads(self._theme_path(theme_id).read_text(encoding="utf-8"))
+        state_path = self._theme_path(theme_id)
+        current = json.loads(state_path.read_text(encoding="utf-8")) if state_path.exists() else {}
         registered_drafts = {_inside(self._dirs["drafts"], self._dirs["drafts"] / a["draft_path"])
                              for a in current.get("articles", []) if a.get("draft_path")}
         for row in record["backups"]:
@@ -379,11 +420,13 @@ class SessionStore:
         previous = {path: path.read_bytes() if path.exists() else None for path, _ in plan}
         try:
             for path, data in plan:
-                if data is None: path.unlink(missing_ok=True)
+                if path.is_relative_to(self._dirs["drafts"]): _preserve_draft(path, data)
+                elif data is None: path.unlink(missing_ok=True)
                 else: _atomic(path, data)
         except Exception:
             for path, old in previous.items():
-                if old is None: path.unlink(missing_ok=True)
+                if path.is_relative_to(self._dirs["drafts"]): _preserve_draft(path, old)
+                elif old is None: path.unlink(missing_ok=True)
                 else: _atomic(path, old)
             raise
         journal = self._theme_path(theme_id).with_name("transaction.json")
@@ -435,6 +478,8 @@ class SessionStore:
                     return {"id": theme_id, "dry_run": True, "writes_performed": False,
                             "recovery_targets": [str(path.relative_to(self._workspace)) for path, _ in self._recovery_plan(theme_id)]}
                 self._recover(theme_id)
+                if not self._theme_path(theme_id).exists():
+                    return {"id": theme_id, "recovered": True, "created": False}
                 return self.get_theme(theme_id)
             state = self._read(theme_id)
             if type(expected_revision) is not int or expected_revision != state["revision"]:
@@ -685,7 +730,7 @@ class SessionStore:
         if changed:
             article["revision"] += 1
             article["_draft_sha256"] = _sha(article["draft"].encode())
-            if not dry:
+            if not dry and action != "reload_draft":
                 writes.append((self._draft_path(theme_id, aid), article["draft"].encode()))
             for comment in state["comments"]:
                 if comment["article_id"] == aid and comment["quote"]:
