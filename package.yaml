@@ -1,5 +1,5 @@
 name: note-publishing-suite
-version: 0.3.25
+version: 0.3.26
 license: MIT
 scope: repo-local
 repo_root: .
@@ -11,6 +11,7 @@ user_test: USER_TEST.md
 issue_draft: issue-drafts.md
 issue_packet: issue-packet.json
 references:
+  collaborative_writing: docs/collaborative-writing.md
   note_workflow_review_contract: references/note-workflow-review-contract.md
   note_draft_authority_and_layout_contract: references/note-draft-authority-and-layout-contract.md
   note_editor_capability_inventory: references/note-editor-capability-inventory.md

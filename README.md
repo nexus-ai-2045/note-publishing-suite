@@ -18,7 +18,7 @@ publication_gate: human_review_required
 **NPS（Note Publishing Suite）** です。Codex / Claude Code から使えます。
 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。
 
-パッケージ版: `0.3.25`
+パッケージ版: `0.3.26`
 
 キャラクター画像の参照・生成添付・出力・目視観察を同じ版へ束縛する検査は `scripts/image_reference_gate.py` を使います。画像設定は利用者側の既存記事profileへ置き、packageに個人の画像や名前を保存しません。
 
@@ -281,6 +281,8 @@ Noteログイン、常時接続、画像アップロードの完全自動化は�
 CIの `repo-preflight` は v0.10.0 の `5b7c774deb8e9abcf0fce0c5f39ec1c1f3a894f3` を固定参照します。保護された版のタグ（v*）から辿れる SHA です。
 
 [対話を続けながら骨組みと全文を育てる](docs/collaborative-writing.md)では、テーマごとの対話、複数記事、ローカルの全文編集画面、AI候補の選択反映、保存・取消し・再開を扱います。既存の外部workspaceと採否履歴を使い、公開操作は行いません。
+
+共同執筆の保存では置換前の本文を保全し、再読込みでは本文を書き直しません。初回作成が中断した場合も同じ復旧入口を使います。保全先は自動削除しないため、保存方式の制約と整理方法は上記の操作文書を確認してください。生成本文の由来対応は空のblocksでも検査します。
 
 [ドキュメント同期・開発検証・制作と公開後の詳細](docs/advanced-usage.md)を参照してください。毎回の開発検査は[同じ文書](docs/advanced-usage.md#毎回の開発検査)に分けています。
 基本の開発検証は `python -m pytest scripts/test_skill_integration.py tests`、文書確認は `python scripts/docs_sync_check.py --base-ref origin/main` です。

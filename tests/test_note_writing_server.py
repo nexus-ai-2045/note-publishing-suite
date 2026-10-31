@@ -28,6 +28,8 @@ def app(tmp_path):
     ui = tmp_path / "ui"; ui.mkdir(); (ui / "index.html").write_text("<h1>共同執筆</h1>")
     def provider(context, **options):
         return {"reply": "本人の問いを骨組みへつなげました。", "draft": "# 朝の時間\n\n静かに考える時間を大切にしたい。",
+                "blocks": [{"text": "# 朝の時間", "kind": "assistant-organized", "message_ids": [], "source_ids": []},
+                           {"text": "静かに考える時間を大切にしたい。", "kind": "user-said", "message_ids": ["m1"], "source_ids": []}],
                 "sections": [{"heading": "朝の時間", "paragraph_ids": ["m1"]}],
                 "changes": [{"before": "静かに", "after": "ゆっくり", "intent": "言い回しを確認"}]}
     store = server_module.CORE.SessionStore(settings)
@@ -205,3 +207,21 @@ def test_unconfirmed_generated_paragraph_never_becomes_adoptable(app):
     current = server.store.get_theme(theme["id"])
     assert current["proposals"] == [] and current["articles"][0]["draft"] == ""
     assert done["candidate"]["draft"] == "未確認の主張。"
+
+
+@pytest.mark.parametrize("omit_blocks", [False, True])
+def test_nonempty_draft_without_provenance_never_becomes_adoptable(app, omit_blocks):
+    server, _ = app
+    result = {"reply": "候補", "draft": "由来のない本文。", "sections": [], "changes": []}
+    if not omit_blocks:
+        result["blocks"] = []
+    server.provider = lambda *args, **kwargs: result
+    _, theme = call(server, "/api/themes", {"title": "確認"})
+    theme = mutate(server, theme, "create_article", {"title": "確認", "article_id": "a"})
+    _, job = call(server, f"/api/themes/{theme['id']}/generate", {
+        "article_id": "a", "mode": "draft", "instruction": "全文", "expected_revision": theme["revision"]})
+    done = await_job(server, job["job_id"])
+    assert done["status"] == "failed" and "由来対応" in done["error"]
+    current = server.store.get_theme(theme["id"])
+    assert current["proposals"] == [] and current["articles"][0]["draft"] == ""
+    assert done["candidate"]["draft"] == "由来のない本文。"

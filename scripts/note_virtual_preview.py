@@ -33,6 +33,7 @@ import re
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
@@ -698,6 +699,7 @@ def render(
     css_path: Path,
     series_registry_path: Optional[Path],
     diagnostics: bool = False,
+    output_path: Optional[Path] = None,
 ) -> Tuple[str, dict]:
     reset_warnings()
     meta, body_md = split_draft(md_text)
@@ -751,8 +753,18 @@ def render(
         body_html = re.sub(r'<span class="(?:heading-warn|warn-note)">.*?</span>', "", body_html, flags=re.S)
 
 
-    output_dir = input_path.parent
-    css_href = os.path.relpath(css_path, output_dir)
+    output_dir = (output_path or input_path).parent.resolve()
+    css_href = quote(os.path.relpath(css_path.resolve(), output_dir), safe="/")
+    if output_dir != input_path.parent.resolve():
+        def rebase_image(match):
+            src = urlsplit(html.unescape(match.group(1)))
+            if src.scheme or src.netloc or not src.path or src.path.startswith("/"):
+                return match.group(0)
+            asset = input_path.parent.resolve() / unquote(src.path)
+            relative = quote(os.path.relpath(asset, output_dir), safe="/")
+            rebased = urlunsplit(("", "", relative, src.query, src.fragment))
+            return '<img src="' + html.escape(rebased, quote=True) + '"'
+        body_html = re.sub(r'<img src="([^"]*)"', rebase_image, body_html)
     generated_at = datetime.datetime.now().strftime("生成: %Y-%m-%d %H:%M")
 
     output = (
@@ -819,8 +831,6 @@ def main() -> None:
     series_registry_path = Path(args.series_registry) if args.series_registry else None
 
     md_text = input_path.read_text(encoding="utf-8")
-    output_html, stats = render(md_text, input_path, template_path, css_path, series_registry_path, diagnostics=args.diagnostics)
-
     if args.output:
         output_path = Path(args.output)
     else:
@@ -828,6 +838,8 @@ def main() -> None:
         output_path = input_path.with_suffix("")
         output_path = output_path.with_suffix(".notepreview.html")
 
+    output_html, stats = render(md_text, input_path, template_path, css_path, series_registry_path,
+                                diagnostics=args.diagnostics, output_path=output_path)
     output_path.write_text(output_html, encoding="utf-8")
     print(f"[ok] {output_path}")
     print(f"     notes: {stats['notes_path']}")

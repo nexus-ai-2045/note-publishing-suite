@@ -118,7 +118,7 @@
 <p><img src="PUBLIC_READY.md" alt="素材からNote下書き保存までは自動化し、公開直前で停止して人が判断するワークフロー（参照資料: <code>assets/note-publishing-workflow.svg</code>）" loading="lazy"></p>
 <h2>概要</h2>
 <p>ローカル素材から Note の下書きを作り、検査し、エディタへ反映する <strong>NPS（Note Publishing Suite）</strong> です。Codex / Claude Code から使えます。 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。</p>
-<p>パッケージ版: <code>0.3.25</code></p>
+<p>パッケージ版: <code>0.3.26</code></p>
 <p>キャラクター画像の参照・生成添付・出力・目視観察を同じ版へ束縛する検査は <code>scripts/image_reference_gate.py</code> を使います。画像設定は利用者側の既存記事profileへ置き、packageに個人の画像や名前を保存しません。</p>
 <p>読書用プレビューは <code>note_virtual_preview.py</code>、編集診断は同コマンドの <code>--diagnostics</code>、由来レビューは <code>note_preview.py --review-provenance</code> を使います。原稿の本人確認・保留は検査で維持します。</p>
 <div class="table-wrap"><table>
@@ -289,6 +289,7 @@ python scripts/provenance_label_check.py &lt;draft.md&gt; --public-output &lt;pu
 <h2>詳しい制作・開発手順</h2>
 <p>CIの <code>repo-preflight</code> は v0.10.0 の <code>5b7c774deb8e9abcf0fce0c5f39ec1c1f3a894f3</code> を固定参照します。保護された版のタグ（v*）から辿れる SHA です。</p>
 <p><a href="docs/collaborative-writing.md">対話を続けながら骨組みと全文を育てる</a>では、テーマごとの対話、複数記事、ローカルの全文編集画面、AI候補の選択反映、保存・取消し・再開を扱います。既存の外部workspaceと採否履歴を使い、公開操作は行いません。</p>
+<p>共同執筆の保存では置換前の本文を保全し、再読込みでは本文を書き直しません。初回作成が中断した場合も同じ復旧入口を使います。保全先は自動削除しないため、保存方式の制約と整理方法は上記の操作文書を確認してください。生成本文の由来対応は空のblocksでも検査します。</p>
 <p><a href="docs/advanced-usage.md">ドキュメント同期・開発検証・制作と公開後の詳細</a>を参照してください。毎回の開発検査は<a href="docs/advanced-usage.md#毎回の開発検査">同じ文書</a>に分けています。 基本の開発検証は <code>python -m pytest scripts/test_skill_integration.py tests</code>、文書確認は <code>python scripts/docs_sync_check.py --base-ref origin/main</code> です。</p>
 <p>公開前観測は <code>python scripts/note_editor_prepublish_verify.py data/note_editor_prepublish_observation.fixture.json --json</code>、報告文は <code>python scripts/japanese_closeout_language_check.py --json</code> で検査します。 日本語報告の <code>ready for review</code> は下書き解除済み、<code>open PR</code> は未マージPR、<code>MERGED</code> はマージ済み、<code>mergeable</code> はマージ可能です。 これらを英語のまま報告した場合は構造バグとして出力ゲートを修正します。コマンド、ファイルパス、URL、SHA、識別子は原文のまま扱います。</p>
 <h2>ライセンス</h2>

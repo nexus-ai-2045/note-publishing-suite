@@ -2,6 +2,12 @@
 
 ## 未リリース
 
+- 共同執筆の保存・復旧時に置換される本文ファイルを保持し、保存確認後の外部編集や開いたままの旧ファイルへの書込みを失わない。再読込みは本文を書き直さない。
+- 初回テーマ作成中断の復旧と、未復旧の同じテーマへの作成拒否を追加。保全先と保存方式の制約は `docs/collaborative-writing.md` に記載。
+- 非空の生成本文は由来blocksが空・省略でも全文との対応を検査する。
+- 入力と異なる深さへ出力したpreviewのCSS・相対画像参照を出力先基準へ修正。
+- 合成回帰で保存競合・中断・由来欠落・資産参照を検査する。実Noteの操作、公開、認証変更は含まない。
+
 日付: 2026-10-30
 
 変更:
@@ -12,6 +18,22 @@
 検証:
 - `python -m pytest tests/test_note_publication_lifecycle.py tests/test_note_work_packet_check.py tests/test_publication_lifecycle_workflow.py tests/test_note_workflow_gate.py -q`
 - 実観測の真正性、外部操作の成功、他端末での稼働はローカルJSONの検査だけでは保証しない。公開・配布は別承認。
+
+## 0.3.26
+
+日付: 2026-10-31
+
+変更:
+- 共同執筆の原稿保全・中断復旧と、生成由来・previewの出力先参照を修復
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `統合版2775件成功、既存14件skip。Windows実機のopen-file移動と実ブラウザ描画は未確認`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
 
 ## 0.3.25
 
