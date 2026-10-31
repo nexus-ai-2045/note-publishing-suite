@@ -22,6 +22,7 @@ PROVENANCE_LABEL_CHECK = ROOT / "scripts" / "provenance_label_check.py"
 LINK_RE = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)")
 LINK_TARGET_RE = re.compile(r"\[([^\]]*)\]\([^)]*\)")
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+)$")
+BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
 PROVENANCE_RE = re.compile(
     r"<!--\s*(?:"
     r"provenance-label:\s*(?P<legacy_kind>[a-z-]+)"
@@ -64,10 +65,12 @@ def split_frontmatter(source: str) -> tuple[dict[str, object], str]:
 def inline_markdown(text: str) -> str:
     # escape 済みの文字列に当てるので、取り出した部分は再 escape しない。
     escaped = html.escape(text)
-    return LINK_RE.sub(
+    linked = LINK_RE.sub(
         lambda m: f'<a href="{m.group(2)}" target="_blank" rel="noopener">{m.group(1)}</a>',
         escaped,
     )
+    # note では **…** が太字になるので、プレビューでも太字で見せる。
+    return BOLD_RE.sub(r"<strong>\1</strong>", linked)
 
 
 def render_plain_markdown(source: str) -> str:
