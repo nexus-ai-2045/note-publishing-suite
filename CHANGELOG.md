@@ -19,6 +19,22 @@
 - `python -m pytest tests/test_note_publication_lifecycle.py tests/test_note_work_packet_check.py tests/test_publication_lifecycle_workflow.py tests/test_note_workflow_gate.py -q`
 - 実観測の真正性、外部操作の成功、他端末での稼働はローカルJSONの検査だけでは保証しない。公開・配布は別承認。
 
+## 0.3.27
+
+日付: 2026-10-31
+
+変更:
+- repo所有の差分・依存policyでCIとローカル検証を選択し、全件pytestを既定にしない
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `選択入口・空plan・未知変更・argv・receiptの関連回帰と合成Git検証`
+- `既存5修正の2775件の結果は維持し、CI増分だけを追加検証。nativeとhostedは別に確認`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.3.26
 
 日付: 2026-10-31

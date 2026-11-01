@@ -111,7 +111,8 @@ def test_verifier_keeps_hosted_checks_without_repeating_same_cli():
                    "japanese_closeout_language_check.py", "note_image_upload_boundary_check.py"):
         assert f"python3 scripts/{script}" in verifier
         assert f"run: python scripts/{script}" not in package
-    assert "python -m pytest scripts/test_skill_integration.py tests -q" in package
+    assert "python scripts/run_selected_tests.py --selector-script" in package
+    assert "python -m pytest scripts/test_skill_integration.py tests -q" not in package
     assert "needs: repository-guarantees" in package
     assert "scripts\\verify_public_package.ps1" in text
 
