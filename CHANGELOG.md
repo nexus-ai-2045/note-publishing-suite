@@ -21,10 +21,11 @@
 
 ## 0.3.27
 
-日付: 2026-10-31
+日付: 2026-11-02
 
 変更:
 - repo所有の差分・依存policyでCIとローカル検証を選択し、全件pytestを既定にしない
+- WindowsのGit checkoutでも実行対象の正本bytesを保つよう、属性ファイルとJavaScriptのLFを明示する
 
 検証:
 - `python -m pytest scripts/test_skill_integration.py tests -q`
