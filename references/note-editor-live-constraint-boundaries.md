@@ -77,6 +77,19 @@ ratchet:
   - `href` だけ、raw URL 残り、重複 URL は失敗扱い
 ```
 
+```text
+constraint: X（旧Twitter）の URL embed（追加観測）
+surface: Chrome / note 下書き編集画面
+date: 2026-10-17
+actual:
+  - ページを開き直した直後の10〜15秒は文字だけの形で表示され、その後カードに変わった
+  - 作り方は、URL 単独段落を選択 → BackSpace → URL を入力 → Return。末尾の embed の後に空段落が残ることがある
+  - クリック直後の最初のキー（Return・BackSpace）が効かないことがあった
+manual_boundary:
+  - カードの判定は開き直してから15秒以上待って行う
+  - キーを押すたびに DOM を見て、効いていなければもう1回押す
+```
+
 ## 3. Table of contents
 
 ```text
@@ -151,6 +164,18 @@ manual_boundary:
 ratchet:
   - 構造化本文の一括投入では text/html を必須にする
   - text/plain 単独 paste を構造保持 route として扱わない
+```
+
+```text
+constraint: text/html paste（追加観測）
+surface: Chrome / note 下書き編集画面（Claude in Chrome 経由）
+date: 2026-10-17
+actual:
+  - DataTransfer に text/plain も併せて入れると、文中リンクと改行が落ちた
+  - text/html だけを入れた paste では、リンクと段落が保たれた
+  - 段落の差し替えは selectNodeContents → selectionchange → 約700ms 待ってから paste すると安定した
+manual_boundary:
+  - surface によって text/plain 併記の結果が変わる。paste 後にリンク数と段落数を DOM で照合する
 ```
 
 ## 6. hidden WebView の入力境界
