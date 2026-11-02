@@ -123,3 +123,64 @@ def test_only_valid_fence_close_restores_body_markers() -> None:
     result = evaluate(ledger(), draft)
     assert result["coverage_complete"] is True, result
     assert result["marker_count"] == 1
+
+
+def ledger_v2() -> dict[str, object]:
+    data = ledger()
+    data["schema_version"] = "note-topic-coverage/v2"
+    data["topics"].append({
+        "id": "grok-adopted",
+        "topic": "Adopted AI framing",
+        "source_id": "grok",
+        "origin": "ai_suggestion",
+        "evidence": "reply 5",
+        "disposition": "include",
+        "destination": "A3 / middle",
+        "author_explanation": "要するに、仕事より収入の方が怖いってこと",
+    })
+    data["intent_readbacks"] = [
+        {"stage": "start", "ai_summary": "収入の不安を軸に書く", "author_reply": "そう", "confirmed": True},
+        {"stage": "transfer", "ai_summary": "収入の不安を軸に書いた", "author_reply": "OK", "confirmed": True},
+    ]
+    return data
+
+
+V2_DRAFT = "<!-- topic: a3-income -->\n収入。\n<!-- topic: grok-adopted -->\n枠組み。\n"
+
+
+def test_v2_passes_with_explanation_and_both_readbacks() -> None:
+    result = evaluate(ledger_v2(), V2_DRAFT)
+    assert result["ok"] is True
+    assert result["author_checks"] == "required"
+    assert result["confirmed_readback_stages"] == ["start", "transfer"]
+
+
+def test_v2_stops_adopted_ai_suggestion_without_author_explanation() -> None:
+    data = ledger_v2()
+    del data["topics"][2]["author_explanation"]
+    result = evaluate(data, V2_DRAFT)
+    assert result["ok"] is False
+    assert result["unexplained_ai_suggestions"] == ["grok-adopted"]
+
+
+def test_v2_stops_when_transfer_readback_missing_or_unconfirmed() -> None:
+    data = ledger_v2()
+    data["intent_readbacks"][1]["confirmed"] = False
+    result = evaluate(data, V2_DRAFT)
+    assert result["ok"] is False
+    assert "intent readback missing for stage: transfer" in result["stop_causes"]
+
+
+def test_v2_accepts_ai_connective_origin_but_v1_rejects_it() -> None:
+    data = ledger_v2()
+    data["topics"][0]["origin"] = "ai_connective"
+    assert evaluate(data, V2_DRAFT)["ok"] is True
+    v1 = ledger()
+    v1["topics"][0]["origin"] = "ai_connective"
+    assert evaluate(v1, "<!-- topic: a3-income -->\n")["ok"] is False
+
+
+def test_v1_ledger_is_unchanged_by_author_checks() -> None:
+    result = evaluate(ledger(), "<!-- topic: a3-income -->\n収入。\n")
+    assert result["ok"] is True
+    assert result["author_checks"] == "not_requested"

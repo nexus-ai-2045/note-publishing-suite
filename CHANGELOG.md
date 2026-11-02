@@ -19,6 +19,21 @@
 - `python -m pytest tests/test_note_publication_lifecycle.py tests/test_note_work_packet_check.py tests/test_publication_lifecycle_workflow.py tests/test_note_workflow_gate.py -q`
 - 実観測の真正性、外部操作の成功、他端末での稼働はローカルJSONの検査だけでは保証しない。公開・配布は別承認。
 
+## 0.3.28
+
+日付: 2026-11-02
+
+変更:
+- 論点台帳 v2: 採用したAI提案に本人の言い直しを、着手前・転送前に意図の復唱確認を必須にする（v1は従来どおり）
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `pytest 2761件合格、docs_sync・package_consistency・skill_pointer 合格`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.3.27
 
 日付: 2026-11-02
