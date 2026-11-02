@@ -27,7 +27,7 @@ permissions:
 env:
   PYTHONUTF8: "1"
   # テストの内容・環境はNPS policyが所有し、選択処理だけ固定版を参照する。
-  TEST_SELECTOR_REF: "aefe544581de55c045882f38fc1a5c00fa59a200"
+  TEST_SELECTOR_REF: "5f457810481fcf978f72f25d2c40234a40bd150b"
   TEST_SELECTION_BASE: ${{ github.event.pull_request.base.sha || github.event.before || inputs.base_ref }}
 
 jobs:
