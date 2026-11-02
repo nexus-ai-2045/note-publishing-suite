@@ -19,6 +19,21 @@
 - `python -m pytest tests/test_note_publication_lifecycle.py tests/test_note_work_packet_check.py tests/test_publication_lifecycle_workflow.py tests/test_note_workflow_gate.py -q`
 - 実観測の真正性、外部操作の成功、他端末での稼働はローカルJSONの検査だけでは保証しない。公開・配布は別承認。
 
+## 0.3.30
+
+日付: 2026-11-02
+
+変更:
+- `scripts/draft_source_trace.py` を追加。本文のうち本人の原文と重なりの少ない文を「原文にない文」として行番号つきで一覧にする。AI提案の言い回しは原文に数えない。
+
+検証:
+- `python -m pytest tests/test_draft_source_trace.py tests/test_draft_topic_coverage_check.py -q`
+- 一覧は文字の重なりだけで作るため、由来の証明ではない。残す・直す・消すは本人が決める。
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.3.29
 
 日付: 2026-11-02
