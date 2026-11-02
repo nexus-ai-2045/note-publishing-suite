@@ -31,9 +31,18 @@ Note Publishing Suite を公開 GitHub リポジトリにプッシュする前�
 
 ## 検証
 
+CIと手元は `.test-selection.json` と共通repo-preflight selectorの固定版を使う。
+変更テスト、逆依存、ファイル参照とpolicyで指定した周辺を選び、未知の変更は停止する。
+`--plan-only` は計画確認だけで、テスト成功を意味しない。空選択ではpytestを起動しない。
+selectorのcheckoutとreceiptは対象repoの外に置き、未追跡ファイルとして差分へ混ぜない。
+Windows installerが選ばれた場合は、native Windowsで同じコマンドに `--environment windows` を付けて実行し、
+pointer検査とPowerShell版public package verifierも実行する。Linuxの成功で代替しない。
+共同執筆画面は既存のwriting-impact、package/pointer/version、docs-sync、名義・秘密情報・ratchetの保証は別に維持する。
+
+
 ```powershell
 sh scripts/verify_public_package.sh
-python -m pytest scripts/test_skill_integration.py tests -q
+python scripts/run_selected_tests.py --selector-script <repo-preflight-checkout>/scripts/local_check.py --base-ref <base-ref> --receipt <workspace-output.json>
 python -m pytest tests/test_review_draft_cli.py -q
 python scripts/engagement_tracker.py report --ledger-dir data --json
 python scripts/note_image_upload_boundary_check.py --json

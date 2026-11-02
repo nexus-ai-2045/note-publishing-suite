@@ -1,0 +1,136 @@
+{
+  "source_roots": [
+    "scripts"
+  ],
+  "test_roots": [
+    "tests",
+    "scripts"
+  ],
+  "test_patterns": [
+    "test_*.py"
+  ],
+  "code_suffixes": [
+    ".py",
+    ".mjs",
+    ".js"
+  ],
+  "rules": [
+    {
+      "changes": [
+        ".github/**",
+        ".test-selection.json",
+        "scripts/run_selected_tests.py",
+        "pytest.ini",
+        "ruff.toml",
+        "requirements*.txt"
+      ],
+      "tests": [
+        "tests/test_run_selected_tests.py",
+        "tests/test_ci_execution_routing.py",
+        "tests/test_ci_private_readiness.py",
+        "tests/test_pytest_scope.py",
+        "scripts/test_skill_integration.py",
+        "tests/test_package_consistency_check.py",
+        "tests/test_skill_pointer_check.py",
+        "tests/test_windows_skill_installer.py"
+      ]
+    },
+    {
+      "changes": [
+        "adapters/**",
+        "scripts/skill_pointer_check.py",
+        "scripts/verify_public_package.ps1",
+        "scripts/verify_public_package.sh",
+        "package.yaml"
+      ],
+      "tests": [
+        "scripts/test_skill_integration.py",
+        "tests/test_package_consistency_check.py",
+        "tests/test_skill_pointer_check.py",
+        "tests/test_windows_skill_installer.py"
+      ]
+    },
+    {
+      "changes": [
+        "data/**",
+        "assets/**",
+        "content/**",
+        "skills/**",
+        "vendor/**"
+      ],
+      "tests": [
+        "scripts/test_skill_integration.py",
+        "tests/test_package_consistency_check.py",
+        "tests/test_skill_pointer_check.py",
+        "tests/test_pre_publish_editorial_review.py"
+      ]
+    },
+    {
+      "changes": [
+        "README.md",
+        "README.rendered.html",
+        "CHANGELOG.md"
+      ],
+      "dependency_mode": "mapped",
+      "tests": [
+        "tests/test_docs_sync_check.py",
+        "scripts/test_skill_integration.py",
+        "tests/test_package_consistency_check.py",
+        "tests/test_skill_pointer_check.py"
+      ]
+    },
+    {
+      "changes": [
+        "references/**",
+        "docs/**",
+        "SKILL.md",
+        "AGENTS.md",
+        "PUBLIC_READY.md",
+        "PUBLIC_RELEASE_CHECKLIST.md",
+        "CONTRIBUTING.md",
+        "OPERATIONS.md",
+        "USER_TEST.md",
+        "ROADMAP.md",
+        "PROJECT_SSOT.md",
+        "SECURITY.md",
+        "LICENSE",
+        "issue-drafts.md",
+        "issue-packet.json",
+        ".gitignore",
+        ".gitattributes",
+        ".editorconfig"
+      ],
+      "tests": [
+        "tests/test_docs_sync_check.py"
+      ]
+    },
+    {
+      "changes": [
+        "writing-app/**",
+        ".npmrc",
+        ".nvmrc",
+        "package.json",
+        "package-lock.json",
+        "pnpm-lock.yaml"
+      ],
+      "no_tests": true
+    },
+    {
+      "changes": [
+        "scripts/note_editor_guarded_input.mjs",
+        "tests/note_editor_guarded_input.test.mjs"
+      ],
+      "tests": [
+        "tests/test_note_editor_guarded_input.py"
+      ]
+    },
+    {
+      "changes": [
+        "tests/note_editor_image_upload.test.mjs"
+      ],
+      "tests": [
+        "tests/test_note_image_upload_boundary.py"
+      ]
+    }
+  ]
+}

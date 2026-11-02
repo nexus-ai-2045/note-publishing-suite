@@ -26,6 +26,10 @@ def store(tmp_path):
 def test_theme_articles_draft_and_restart(store):
     db, root = store
     assert db.preflight()["ok"]
+    capabilities = db.preflight()["capabilities"]
+    assert not capabilities["atomic_writes"] and not capabilities["cas"]
+    assert capabilities["metadata_atomic_writes"] and capabilities["cooperative_revision_cas"]
+    assert capabilities["displaced_draft_inode_preserved"]
     theme = db.create_theme("二つの記事", "theme")
     theme = db.mutate("theme", "create_article", {"title": "一話", "article_id": "one"}, 0)
     db.mutate("theme", "create_article", {"title": "二話", "article_id": "two"}, 1)
@@ -397,3 +401,99 @@ def test_last_moment_disk_edit_during_feedback_staging_is_not_overwritten(store,
     with pytest.raises(module.SessionError) as error:
         db.mutate("t", "save_draft", {"article_id": "a", "draft": "上書きしない。"}, theme["revision"])
     assert error.value.code == "external_edit" and path.read_text() == "保存準備中の外部編集。"
+
+
+def test_reload_never_writes_draft(store, monkeypatch):
+    db, root, theme = article_ready(store)
+    draft = db._draft_path('t', 'a')
+    draft.write_bytes(b'external')
+    original = module._atomic
+    def observe(path, data):
+        assert path != draft
+        return original(path, data)
+    monkeypatch.setattr(module, '_atomic', observe)
+    db.mutate('t', 'reload_draft', {'article_id': 'a'}, theme['revision'])
+
+
+def test_initial_crash_can_recover(store, monkeypatch):
+    db, root = store
+    original = module._atomic
+    def crash(path, data):
+        if path.name == 'session.json':
+            raise KeyboardInterrupt()
+        return original(path, data)
+    monkeypatch.setattr(module, '_atomic', crash)
+    with pytest.raises(KeyboardInterrupt): db.create_theme('T', 't')
+    monkeypatch.setattr(module, '_atomic', original)
+    journal = db._theme_path('t').with_name('transaction.json')
+    evidence = journal.read_bytes()
+    with pytest.raises(module.SessionError) as error:
+        db.create_theme('replacement', 't')
+    assert error.value.code == 'recovery_required'
+    assert journal.read_bytes() == evidence
+    assert db.mutate('t', 'recover', {}, None)['recovered']
+    db.create_theme('T', 't')
+
+
+def test_racing_editor_bytes_survive_save_and_rollback(store, monkeypatch):
+    db, root, theme = article_ready(store)
+    draft = db._draft_path('t', 'a')
+    original = Path.rename
+    fired = False
+    def race(path, target):
+        nonlocal fired
+        if path == draft and not fired:
+            fired = True
+            path.write_bytes(b'external race')
+        return original(path, target)
+    monkeypatch.setattr(Path, 'rename', race)
+    db.mutate('t', 'save_draft', {'article_id': 'a', 'draft': 'new'}, theme['revision'])
+    assert any(p.read_bytes() == b'external race' for p in draft.parent.glob('.nps-preserved-*/a.md'))
+
+
+def test_exclusive_install_and_failed_restore_preserve_both_versions(store, monkeypatch):
+    db, root, theme = article_ready(store)
+    draft = db._draft_path('t', 'a')
+    original = module.os.link
+    def race(source, target):
+        if Path(target) == draft:
+            draft.write_bytes(b'external install')
+            raise FileExistsError()
+        return original(source, target)
+    monkeypatch.setattr(module.os, 'link', race)
+    with pytest.raises(module.SessionError):
+        db.mutate('t', 'save_draft', {'article_id': 'a', 'draft': 'candidate'}, theme['revision'])
+    retained = [p.read_bytes() for p in draft.parent.glob('.nps-preserved-*/*')]
+    assert b'candidate' in retained
+    assert b'external install' in retained or draft.read_bytes() == b'external install'
+    assert db._theme_path('t').with_name('transaction.json').exists()
+
+
+def test_open_inode_late_write_is_retained(store):
+    db, root, theme = article_ready(store)
+    draft = db._draft_path('t', 'a')
+    with draft.open('r+b') as editor:
+        size = len(draft.read_bytes())
+        db.mutate('t', 'save_draft', {'article_id': 'a', 'draft': 'new'}, theme['revision'])
+        editor.seek(0)
+        editor.write(b'x' * size)
+        editor.flush()
+    assert draft.read_bytes() == b'new'
+    assert any(p.read_bytes() == b'x' * size for p in draft.parent.glob('.nps-preserved-*/a.md'))
+
+
+def test_candidate_io_failure_restores_original_exclusively(store, monkeypatch):
+    db, root, theme = article_ready(store)
+    draft = db._draft_path('t', 'a')
+    before = draft.read_bytes()
+    original = module._atomic
+    def fail(path, data):
+        if path.name == 'candidate':
+            raise OSError('synthetic disk full')
+        return original(path, data)
+    monkeypatch.setattr(module, '_atomic', fail)
+    with pytest.raises(module.SessionError):
+        db.mutate('t', 'save_draft', {'article_id': 'a', 'draft': 'new'}, theme['revision'])
+    assert draft.read_bytes() == before
+    assert any(p.read_bytes() == before for p in draft.parent.glob('.nps-preserved-*/a.md'))
+    assert db._theme_path('t').with_name('transaction.json').exists()
