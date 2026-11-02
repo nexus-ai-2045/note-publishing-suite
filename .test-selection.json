@@ -10,16 +10,46 @@
     "test_*.py"
   ],
   "code_suffixes": [
-    ".py",
-    ".mjs",
-    ".js"
+    ".py"
   ],
   "rules": [
     {
       "changes": [
-        ".github/**",
+        ".github/workflows/test.yml",
         ".test-selection.json",
         "scripts/run_selected_tests.py",
+        "tests/test_run_selected_tests.py"
+      ],
+      "tests": [
+        "tests/test_run_selected_tests.py",
+        "tests/test_ci_execution_routing.py",
+        "tests/test_ci_private_readiness.py",
+        "tests/test_pytest_scope.py",
+        "scripts/test_skill_integration.py",
+        "tests/test_package_consistency_check.py",
+        "tests/test_skill_pointer_check.py",
+        "tests/test_windows_skill_installer.py"
+      ],
+      "dependency_mode": "mapped"
+    },
+    {
+      "changes": [
+        ".github/**"
+      ],
+      "tests": [
+        "tests/test_run_selected_tests.py",
+        "tests/test_ci_execution_routing.py",
+        "tests/test_ci_private_readiness.py",
+        "tests/test_pytest_scope.py",
+        "scripts/test_skill_integration.py",
+        "tests/test_package_consistency_check.py",
+        "tests/test_skill_pointer_check.py",
+        "tests/test_windows_skill_installer.py"
+      ],
+      "dependency_mode": "supplement"
+    },
+    {
+      "changes": [
         "pytest.ini",
         "ruff.toml",
         "requirements*.txt"
