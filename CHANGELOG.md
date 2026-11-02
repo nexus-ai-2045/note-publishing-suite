@@ -2,6 +2,12 @@
 
 ## 未リリース
 
+- 共同執筆の保存・復旧時に置換される本文ファイルを保持し、保存確認後の外部編集や開いたままの旧ファイルへの書込みを失わない。再読込みは本文を書き直さない。
+- 初回テーマ作成中断の復旧と、未復旧の同じテーマへの作成拒否を追加。保全先と保存方式の制約は `docs/collaborative-writing.md` に記載。
+- 非空の生成本文は由来blocksが空・省略でも全文との対応を検査する。
+- 入力と異なる深さへ出力したpreviewのCSS・相対画像参照を出力先基準へ修正。
+- 合成回帰で保存競合・中断・由来欠落・資産参照を検査する。実Noteの操作、公開、認証変更は含まない。
+
 日付: 2026-10-30
 
 変更:
@@ -13,16 +19,94 @@
 - `python -m pytest tests/test_note_publication_lifecycle.py tests/test_note_work_packet_check.py tests/test_publication_lifecycle_workflow.py tests/test_note_workflow_gate.py -q`
 - 実観測の真正性、外部操作の成功、他端末での稼働はローカルJSONの検査だけでは保証しない。公開・配布は別承認。
 
+## 0.3.31
+
+日付: 2026-11-02
+
+変更:
+- note_preview.py のプレビューで **…** を太字として表示する（要点の見出しが記号のまま出ていた）。#21 の 0.3.26 予定分を main に合わせて版を付け直した。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `python -m pytest tests/test_note_preview_bold.py tests/test_content_pdca_check.py -q`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
+## 0.3.30
+
+日付: 2026-11-02
+
+変更:
+- `scripts/draft_source_trace.py` を追加。本文のうち本人の原文と重なりの少ない文を「原文にない文」として行番号つきで一覧にする。AI提案の言い回しは原文に数えない。
+
+検証:
+- `python -m pytest tests/test_draft_source_trace.py tests/test_draft_topic_coverage_check.py -q`
+- 一覧は文字の重なりだけで作るため、由来の証明ではない。残す・直す・消すは本人が決める。
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
+## 0.3.29
+
+日付: 2026-11-02
+
+変更:
+- 控え `imported/archive-20261024/main/writing-app` の vite を `^6.4.5`、vitest を `^4.1.12` に上げ、依存の既知の脆弱性（tinypool の critical 2件ほか）を解消。今の `writing-app` と同じ中身。控えは実行されない。
+
+検証:
+- `npm audit --package-lock-only`（0件）
+- `python -m pytest scripts/test_skill_integration.py -q`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
+## 0.3.28
+
+日付: 2026-11-02
+
+変更:
+- 論点台帳 v2: 採用したAI提案に本人の言い直しを、着手前・転送前に意図の復唱確認を必須にする（v1は従来どおり）
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `pytest 2761件合格、docs_sync・package_consistency・skill_pointer 合格`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
+## 0.3.27
+
+日付: 2026-11-02
+
+変更:
+- repo所有の差分・依存policyでCIとローカル検証を選択し、全件pytestを既定にしない
+- WindowsのGit checkoutでも実行対象の正本bytesを保つよう、属性ファイルとJavaScriptのLFを明示する
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `選択入口・空plan・未知変更・argv・receiptの関連回帰と合成Git検証`
+- `既存5修正の2775件の結果は維持し、CI増分だけを追加検証。nativeとhostedは別に確認`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.3.26
 
 日付: 2026-10-31
 
 変更:
-- note_preview.py のプレビューで **…** を太字として表示する（要点の見出しが記号のまま出ていた）
+- 共同執筆の原稿保全・中断復旧と、生成由来・previewの出力先参照を修復
 
 検証:
 - `python -m pytest scripts/test_skill_integration.py tests -q`
-- `python -m pytest tests/test_note_preview_bold.py tests/test_content_pdca_check.py -q`
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+- `統合版2775件成功、既存14件skip。Windows実機のopen-file移動と実ブラウザ描画は未確認`
 
 公開境界:
 - Note 投稿、予約投稿、SNS 共有、外部告知は未実行。

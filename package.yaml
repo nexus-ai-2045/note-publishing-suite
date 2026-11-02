@@ -1,5 +1,5 @@
 name: note-publishing-suite
-version: 0.3.26
+version: 0.3.31
 license: MIT
 scope: repo-local
 repo_root: .
@@ -11,6 +11,8 @@ user_test: USER_TEST.md
 issue_draft: issue-drafts.md
 issue_packet: issue-packet.json
 references:
+  test_selection_policy: .test-selection.json
+  collaborative_writing: docs/collaborative-writing.md
   note_workflow_review_contract: references/note-workflow-review-contract.md
   note_draft_authority_and_layout_contract: references/note-draft-authority-and-layout-contract.md
   note_editor_capability_inventory: references/note-editor-capability-inventory.md
@@ -177,6 +179,7 @@ footer_selection_contract:
   observation_scope: supplied_snapshot_only
   manual_boundary_is_pass: false
 existing_scripts:
+  - scripts/run_selected_tests.py
   - scripts/note_collaborative_session.py
   - scripts/note_collaborative_ai.py
   - scripts/note_writing_server.py
@@ -186,6 +189,7 @@ existing_scripts:
   - scripts/note_update_authorization.py
   - scripts/note_editor_guarded_input.mjs
   - scripts/draft_topic_coverage_check.py
+  - scripts/draft_source_trace.py
   - scripts/note_work_packet_check.py
   - scripts/note_publication_lifecycle.py
   - scripts/fetch_note_official_specs.py

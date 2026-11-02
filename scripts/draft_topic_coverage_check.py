@@ -12,7 +12,12 @@ from typing import Any
 
 
 SCHEMA_VERSION = "note-topic-coverage/v1"
+# v2 adds author-intent checks: every adopted AI suggestion carries the author's own
+# explanation, and the AI's reading of the author's intent was confirmed at start and transfer.
+SCHEMA_VERSION_V2 = "note-topic-coverage/v2"
 ORIGINS = {"user_speech", "external_source", "ai_suggestion"}
+ORIGINS_V2 = ORIGINS | {"ai_connective"}
+READBACK_STAGES = ("start", "transfer")
 DISPOSITIONS = {"include", "defer", "exclude", "hold"}
 CAPTURE_STATUSES = {"complete", "partial", "missing"}
 TOPIC_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
@@ -61,8 +66,12 @@ def evaluate(ledger: Any, draft: str) -> dict[str, Any]:
     if not isinstance(ledger, dict):
         ledger = {}
         errors.append("ledger must be an object")
-    if ledger.get("schema_version") != SCHEMA_VERSION:
-        errors.append(f"schema_version must be {SCHEMA_VERSION}")
+    version = ledger.get("schema_version")
+    v2 = version == SCHEMA_VERSION_V2
+    if version not in {SCHEMA_VERSION, SCHEMA_VERSION_V2}:
+        errors.append(f"schema_version must be {SCHEMA_VERSION} or {SCHEMA_VERSION_V2}")
+    origins = ORIGINS_V2 if v2 else ORIGINS
+    unexplained: list[str] = []
 
     sources = ledger.get("sources")
     if not isinstance(sources, list) or not sources:
@@ -115,8 +124,12 @@ def evaluate(ledger: Any, draft: str) -> dict[str, Any]:
             dispositions[topic_id] = disposition
         if source_id and source_id not in source_ids:
             errors.append(f"{label}: unknown source_id: {source_id}")
-        if origin and origin not in ORIGINS:
+        if origin and origin not in origins:
             errors.append(f"{label}: invalid origin: {origin}")
+        if v2 and origin == "ai_suggestion" and disposition == "include":
+            explanation = topic.get("author_explanation")
+            if not isinstance(explanation, str) or not explanation.strip():
+                unexplained.append(topic_id or label)
         if disposition and disposition not in DISPOSITIONS:
             errors.append(f"{label}: invalid disposition: {disposition}")
         if disposition in {"defer", "exclude"}:
@@ -137,6 +150,10 @@ def evaluate(ledger: Any, draft: str) -> dict[str, Any]:
     )
     errors.extend(f"included topic missing draft marker: {topic_id}" for topic_id in missing)
     errors.extend(f"source capture incomplete: {source_id}" for source_id in incomplete_sources)
+    errors.extend(
+        f"adopted AI suggestion lacks author_explanation: {topic_id}" for topic_id in unexplained
+    )
+    confirmed_stages = _check_readbacks(ledger.get("intent_readbacks"), errors) if v2 else []
     return {
         "schema_version": "note-topic-coverage-check/v1",
         "ok": not errors,
@@ -148,10 +165,43 @@ def evaluate(ledger: Any, draft: str) -> dict[str, Any]:
         "incomplete_sources": incomplete_sources,
         "missing_included_topics": missing,
         "stop_causes": errors,
-        "guarantee_scope": "ledger_rows_and_draft_markers_only; source_extraction_completeness_requires_review",
+        "author_checks": "required" if v2 else "not_requested",
+        "unexplained_ai_suggestions": unexplained,
+        "confirmed_readback_stages": confirmed_stages,
+        "guarantee_scope": (
+            "ledger_rows_and_draft_markers_only; source_extraction_completeness_requires_review"
+            + ("; author_explanation_and_readback_presence_only_not_their_truth" if v2 else "")
+        ),
         "external_actions_performed": [],
         "publication_actions_performed": [],
     }
+
+
+def _check_readbacks(readbacks: Any, errors: list[str]) -> list[str]:
+    """Require the AI's restated intent and the author's confirming words per stage."""
+    if not isinstance(readbacks, list):
+        errors.append("intent_readbacks must be an array")
+        return []
+    confirmed: list[str] = []
+    for index, item in enumerate(readbacks):
+        label = f"intent_readbacks[{index}]"
+        if not isinstance(item, dict):
+            errors.append(f"{label} must be an object")
+            continue
+        stage = _required_string(item, "stage", label, errors)
+        _required_string(item, "ai_summary", label, errors)
+        _required_string(item, "author_reply", label, errors)
+        if stage and stage not in READBACK_STAGES:
+            errors.append(f"{label}: invalid stage: {stage}")
+        if item.get("confirmed") is not True:
+            errors.append(f"{label}: confirmed must be true")
+        elif stage in READBACK_STAGES and stage not in confirmed:
+            confirmed.append(stage)
+    errors.extend(
+        f"intent readback missing for stage: {stage}"
+        for stage in READBACK_STAGES if stage not in confirmed
+    )
+    return confirmed
 
 
 def main() -> int:

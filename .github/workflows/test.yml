@@ -10,6 +10,11 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      base_ref:
+        description: "差分選択の比較元（不明な場合は停止）"
+        default: ""
+        required: true
 
 # workflow/eventを分け、古いPR検証だけを止める。差分単位のmain/tag/release/手動は保持する。
 concurrency:
@@ -18,6 +23,12 @@ concurrency:
 
 permissions:
   contents: read
+
+env:
+  PYTHONUTF8: "1"
+  # テストの内容・環境はNPS policyが所有し、選択処理だけ固定版を参照する。
+  TEST_SELECTOR_REF: "5f457810481fcf978f72f25d2c40234a40bd150b"
+  TEST_SELECTION_BASE: ${{ github.event.pull_request.base.sha || github.event.before || inputs.base_ref }}
 
 jobs:
   writing-ui:
@@ -28,7 +39,7 @@ jobs:
         working-directory: writing-app
     steps:
       - name: ソースを取得
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           fetch-depth: 0
       - name: 共同執筆画面への変更を確認
@@ -66,7 +77,7 @@ jobs:
           PY
       - name: Node.jsを準備
         if: steps.writing-impact.outputs.relevant == 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "22"
           cache: npm
@@ -93,11 +104,26 @@ jobs:
     needs: repository-guarantees
     name: package-smoke
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nps
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
+          path: nps
           fetch-depth: 0
+
+      - name: 共通selectorの固定版を取得
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: nexus-ai-2045/repo-preflight
+          ref: ${{ env.TEST_SELECTOR_REF }}
+          path: selector
+          persist-credentials: false
+
+      - name: selectorの固定版を照合
+        run: python -c "import os, subprocess; assert subprocess.check_output(['git', '-C', '../selector', 'rev-parse', 'HEAD'], text=True).strip() == os.environ['TEST_SELECTOR_REF']"
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -105,7 +131,7 @@ jobs:
           python-version: "3.x"
 
       - name: Set up Node for guarded URL input tests
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "22"
 
@@ -116,7 +142,7 @@ jobs:
         run: python -m ruff check scripts tests
 
       - name: Run package contract tests
-        run: python -m pytest scripts/test_skill_integration.py tests -q
+        run: python scripts/run_selected_tests.py --selector-script ../selector/scripts/local_check.py --base-ref "$TEST_SELECTION_BASE" --receipt "${{ runner.temp }}/nps-test-selection.json"
 
       - name: Check package SSOT pointer targets
         run: python scripts/skill_pointer_check.py --json
@@ -147,30 +173,71 @@ jobs:
 
       # 上記verifierがprovenance・名義・日本語・画像境界を実行する。同じCLIを再実行しない。
 
+      - name: 選択根拠を保存
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: nps-python-test-selection
+          path: ${{ runner.temp }}/nps-test-selection.json
+
   windows-installer-smoke:
     name: windows-installer-smoke
     runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: nps
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: nps
+          fetch-depth: 0
+
+      - name: 共通selectorの固定版を取得
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: nexus-ai-2045/repo-preflight
+          ref: ${{ env.TEST_SELECTOR_REF }}
+          path: selector
+          persist-credentials: false
+
+      - name: selectorの固定版を照合
+        run: python -c "import os, subprocess; assert subprocess.check_output(['git', '-C', '../selector', 'rev-parse', 'HEAD'], text=True).strip() == os.environ['TEST_SELECTOR_REF']"
 
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.x"
 
+      - name: Windows検査の対象を選択
+        id: selection
+        shell: pwsh
+        run: python scripts/run_selected_tests.py --selector-script ../selector/scripts/local_check.py --base-ref "$env:TEST_SELECTION_BASE" --environment windows --plan-only --github-output "$env:GITHUB_OUTPUT" --receipt "${{ runner.temp }}/nps-windows-test-selection.json"
+
       - name: Install test dependencies
+        if: steps.selection.outputs.native_required == 'true'
         run: python -m pip install -r requirements-dev.txt
 
       - name: Run Windows installer tests
-        run: python -m pytest tests/test_windows_skill_installer.py -q
+        if: steps.selection.outputs.native_required == 'true'
+        shell: pwsh
+        run: python scripts/run_selected_tests.py --selector-script ../selector/scripts/local_check.py --base-ref "$env:TEST_SELECTION_BASE" --environment windows --receipt "${{ runner.temp }}/nps-windows-test-selection.json"
 
       - name: Check package SSOT pointer targets
+        if: steps.selection.outputs.native_required == 'true'
         run: python scripts/skill_pointer_check.py --json
 
       - name: Run Windows clean-machine public package verifier
+        if: steps.selection.outputs.native_required == 'true'
         shell: pwsh
         run: .\scripts\verify_public_package.ps1
+
+      - name: 選択根拠を保存
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: nps-windows-test-selection
+          path: ${{ runner.temp }}/nps-windows-test-selection.json
 
   docs-sync:
     name: docs-sync
@@ -179,7 +246,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           fetch-depth: 0
 
@@ -218,7 +285,7 @@ jobs:
 
       - name: Upload docs sync evidence
         if: steps.check.outputs.status != '0'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: docs-sync-evidence
           path: build/docs-sync/
