@@ -74,3 +74,10 @@ def test_cli_writes_list_and_requires_a_source(tmp_path):
     missing = subprocess.run([sys.executable, str(script), str(draft)],
                              capture_output=True, text=True, encoding="utf-8")
     assert missing.returncode == 1
+
+
+def test_author_reaction_counts_but_wall_bounce_ai_answer_does_not():
+    ledger = {"topics": [{"origin": "ai_accepted", "evidence": "reply 7",
+                          "ai_answer": "収入が止まる不安の方が先に来る", "author_reaction": "確かにそれはある"}]}
+    sources = ledger_sources(ledger)
+    assert sources == ["確かにそれはある"]

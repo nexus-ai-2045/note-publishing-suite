@@ -4,7 +4,7 @@
 The draft is split into sentences. Each sentence is compared with the author's
 source texts (original messages, transcripts) and, when a topic ledger is
 given, with the author-owned ledger fields (evidence of user_speech and
-external_source topics, and author_explanation). A sentence whose character
+external_source topics, author_explanation and author_reaction). A sentence whose character
 bigrams mostly do not appear in those sources is listed as "not in the
 original" for the author to keep, rewrite or delete. AI suggestion evidence is
 not counted as a source, so AI wording stays visible.
@@ -73,8 +73,9 @@ def ledger_sources(ledger: Any) -> list[str]:
             continue
         if topic.get("origin") in AUTHOR_ORIGINS and isinstance(topic.get("evidence"), str):
             texts.append(topic["evidence"])
-        if isinstance(topic.get("author_explanation"), str):
-            texts.append(topic["author_explanation"])
+        for key in ("author_explanation", "author_reaction"):
+            if isinstance(topic.get(key), str):
+                texts.append(topic[key])
     return texts
 
 

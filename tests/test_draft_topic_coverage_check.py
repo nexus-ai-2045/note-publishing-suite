@@ -184,3 +184,53 @@ def test_v1_ledger_is_unchanged_by_author_checks() -> None:
     result = evaluate(ledger(), "<!-- topic: a3-income -->\n収入。\n")
     assert result["ok"] is True
     assert result["author_checks"] == "not_requested"
+
+
+def accepted_topic(reaction: str, **extra: object) -> dict[str, object]:
+    return {
+        "id": "wall-accepted",
+        "topic": "AI answer the author agreed with",
+        "source_id": "grok",
+        "origin": "ai_accepted",
+        "evidence": "reply 7",
+        "ai_answer": "収入が止まる不安の方が、仕事が無くなる不安より先に来る",
+        "author_reaction": reaction,
+        "disposition": "include",
+        "destination": "A3 / middle",
+        "author_explanation": "確かに、先に来るのはお金の方",
+        **extra,
+    }
+
+
+ACCEPTED_DRAFT = V2_DRAFT + "<!-- topic: wall-accepted -->\nお金。\n"
+
+
+def test_v2_accepts_wall_bounce_answer_the_author_agreed_with() -> None:
+    data = ledger_v2()
+    data["topics"].append(accepted_topic("確かに"))
+    assert evaluate(data, ACCEPTED_DRAFT)["ok"] is True
+
+
+def test_v2_wall_bounce_needs_answer_reaction_and_explanation() -> None:
+    data = ledger_v2()
+    topic = accepted_topic("確かに")
+    del topic["ai_answer"], topic["author_explanation"]
+    data["topics"].append(topic)
+    result = evaluate(data, ACCEPTED_DRAFT)
+    assert "topics[3]: ai_answer is required" in result["stop_causes"]
+    assert "wall-accepted" in result["unexplained_ai_suggestions"]
+
+
+def test_v2_question_reaction_is_not_acceptance_until_confirmed() -> None:
+    data = ledger_v2()
+    data["topics"].append(accepted_topic("じゃあ仕事よりお金の方が先なの？"))
+    assert any("is a question" in cause for cause in evaluate(data, ACCEPTED_DRAFT)["stop_causes"])
+    data["topics"][-1]["acceptance_confirmed"] = True
+    assert evaluate(data, ACCEPTED_DRAFT)["ok"] is True
+
+
+def test_v1_does_not_know_ai_accepted() -> None:
+    data = ledger()
+    data["topics"].append(accepted_topic("確かに"))
+    result = evaluate(data, V2_DRAFT.split("<!-- topic: grok")[0] + "<!-- topic: wall-accepted -->\nお金。\n")
+    assert any("invalid origin: ai_accepted" in cause for cause in result["stop_causes"])
