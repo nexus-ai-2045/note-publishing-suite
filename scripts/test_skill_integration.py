@@ -288,7 +288,7 @@ def test_read_only_docs_sync_contract_present():
     assert "docs_sync_contract: |" in package
     assert "scripts/docs_sync_check.py" in package
     assert "permissions:\n  contents: read" in workflow
-    assert "actions/upload-artifact@v4" in workflow
+    assert re.search(r"actions/upload-artifact@[0-9a-f]{40}\b", workflow)
     for forbidden in ["git push", "gh pr edit", "pull-requests: write", "contents: write"]:
         assert forbidden not in workflow
     assert "更新不要。理由:" in template
@@ -380,7 +380,7 @@ def test_public_release_checklist_matches_current_public_gate():
     checklist = (ROOT / "PUBLIC_RELEASE_CHECKLIST.md").read_text(encoding="utf-8")
 
     for needle in [
-        "python -m pytest scripts/test_skill_integration.py tests -q",
+        "python scripts/run_selected_tests.py --selector-script",
         "tests/test_review_draft_cli.py",
         "python scripts/note_image_upload_boundary_check.py --json",
         "sh scripts/verify_public_package.sh",

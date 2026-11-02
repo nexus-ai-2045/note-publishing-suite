@@ -274,3 +274,25 @@ def test_preview_stylesheet_can_be_overridden_without_external_fetch(nvp, tmp_pa
     assert custom_css.read_text(encoding="utf-8") == "p { color: black; }"
     assert nvp.DEFAULT_CSS_PATH.is_file()
     assert nvp.DEFAULT_CSS_PATH.name == "note-preview.css"
+
+
+@pytest.mark.parametrize("destination", ["article.html", "preview/deep/article.html"])
+def test_cli_output_assets_resolve_from_output_directory(tmp_path, monkeypatch, nvp, destination):
+    import html
+    from urllib.parse import unquote, urlsplit
+    source = tmp_path / "drafts/article.md"
+    source.parent.mkdir()
+    image = source.parent / 'image & quote".png'
+    image.write_bytes(b"synthetic image")
+    source.write_text('# title\n\n![local](image%20%26%20quote%22.png?size=1&v=2#image)\n\n![remote](https://example.com/a.png?x=1&y=2)\n')
+    output = tmp_path / destination
+    output.parent.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(sys, "argv", [str(MODULE_PATH), str(source), "-o", str(output)])
+    nvp.main()
+    rendered = output.read_text()
+    href = html.unescape(re.search(r'<link[^>]+href="([^"]+)"', rendered).group(1))
+    assert (output.parent / unquote(href)).resolve() == CSS_PATH.resolve()
+    src = urlsplit(html.unescape(re.search(r'<img src="([^"]+)"', rendered).group(1)))
+    assert (output.parent / unquote(src.path)).resolve() == image.resolve()
+    assert src.query == "size=1&v=2" and src.fragment == "image"
+    assert 'src="https://example.com/a.png?x=1&amp;y=2"' in rendered
