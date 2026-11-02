@@ -19,6 +19,22 @@
 - `python -m pytest tests/test_note_publication_lifecycle.py tests/test_note_work_packet_check.py tests/test_publication_lifecycle_workflow.py tests/test_note_workflow_gate.py -q`
 - 実観測の真正性、外部操作の成功、他端末での稼働はローカルJSONの検査だけでは保証しない。公開・配布は別承認。
 
+## 0.3.32
+
+日付: 2026-11-02
+
+変更:
+- 論点台帳 v2 に `origin: ai_accepted`（壁打ちで本人が納得したAIの答え）を追加。AIの答えと本人の反応の原文、本文に入れる時は本人の言い直しを必須にし、問い返しの反応は本人の確認まで止める。
+- `scripts/wall_bounce_candidates.py` を追加。会話のターンから、本人が納得した・問い返したAIの答えを候補として出す。
+- 原文にない文の一覧で、本人の反応（`author_reaction`）を原文に数える。
+
+検証:
+- `python -m pytest scripts/test_skill_integration.py tests -q`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.3.31
 
 日付: 2026-11-02

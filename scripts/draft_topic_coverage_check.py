@@ -16,7 +16,10 @@ SCHEMA_VERSION = "note-topic-coverage/v1"
 # explanation, and the AI's reading of the author's intent was confirmed at start and transfer.
 SCHEMA_VERSION_V2 = "note-topic-coverage/v2"
 ORIGINS = {"user_speech", "external_source", "ai_suggestion"}
-ORIGINS_V2 = ORIGINS | {"ai_connective"}
+# ai_accepted: 壁打ちでAIが答え、本人が「確かに」などと納得した考え。AIの答えと本人の反応を原文で残す。
+ORIGINS_V2 = ORIGINS | {"ai_connective", "ai_accepted"}
+ADOPTED_AI_ORIGINS = {"ai_suggestion", "ai_accepted"}
+QUESTION_END_RE = re.compile(r"[?？]\s*$")
 READBACK_STAGES = ("start", "transfer")
 DISPOSITIONS = {"include", "defer", "exclude", "hold"}
 CAPTURE_STATUSES = {"complete", "partial", "missing"}
@@ -126,10 +129,17 @@ def evaluate(ledger: Any, draft: str) -> dict[str, Any]:
             errors.append(f"{label}: unknown source_id: {source_id}")
         if origin and origin not in origins:
             errors.append(f"{label}: invalid origin: {origin}")
-        if v2 and origin == "ai_suggestion" and disposition == "include":
+        if v2 and origin in ADOPTED_AI_ORIGINS and disposition == "include":
             explanation = topic.get("author_explanation")
             if not isinstance(explanation, str) or not explanation.strip():
                 unexplained.append(topic_id or label)
+        if v2 and origin == "ai_accepted":
+            _required_string(topic, "ai_answer", label, errors)
+            reaction = _required_string(topic, "author_reaction", label, errors)
+            if (disposition == "include" and reaction and QUESTION_END_RE.search(reaction)
+                    and topic.get("acceptance_confirmed") is not True):
+                # 「じゃあこうなの？」は問い返しで、まだ納得ではない。本人に確かめてから入れる。
+                errors.append(f"{label}: author_reaction is a question; confirm acceptance with the author")
         if disposition and disposition not in DISPOSITIONS:
             errors.append(f"{label}: invalid disposition: {disposition}")
         if disposition in {"defer", "exclude"}:
