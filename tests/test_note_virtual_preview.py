@@ -20,6 +20,18 @@ TEMPLATE_PATH = ROOT / "assets" / "note-preview" / "template.html"
 CSS_PATH = ROOT / "assets" / "note-preview" / "note-preview.css"
 
 
+@pytest.mark.parametrize("separator,relative,expected", [
+    ("\\", r"..\assets\note preview.css", "../assets/note%20preview.css"),
+    ("\\", r"..\images\image & quote.png", "../images/image%20%26%20quote.png"),
+    ("/", r"../images/literal\name.png", "../images/literal%5Cname.png"),
+])
+def test_relative_asset_url_uses_url_separators(monkeypatch, separator, relative, expected):
+    module = load_note_virtual_preview_module()
+    monkeypatch.setattr(module.os, "sep", separator)
+    monkeypatch.setattr(module.os.path, "relpath", lambda *_args: relative)
+    assert module._relative_asset_url(Path("asset"), Path("output")) == expected
+
+
 def load_note_virtual_preview_module():
     spec = importlib.util.spec_from_file_location("note_virtual_preview", MODULE_PATH)
     assert spec is not None

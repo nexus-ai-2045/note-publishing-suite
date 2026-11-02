@@ -692,6 +692,11 @@ def render_body_html(body_md: str, figure_details: Dict[int, dict]) -> str:
     return render_toc_if_present(body_html)
 
 
+def _relative_asset_url(path: Path, output_dir: Path) -> str:
+    relative = os.path.relpath(path, output_dir).replace(os.sep, "/")
+    return quote(relative, safe="/")
+
+
 def render(
     md_text: str,
     input_path: Path,
@@ -754,14 +759,14 @@ def render(
 
 
     output_dir = (output_path or input_path).parent.resolve()
-    css_href = quote(os.path.relpath(css_path.resolve(), output_dir), safe="/")
+    css_href = _relative_asset_url(css_path.resolve(), output_dir)
     if output_dir != input_path.parent.resolve():
         def rebase_image(match):
             src = urlsplit(html.unescape(match.group(1)))
             if src.scheme or src.netloc or not src.path or src.path.startswith("/"):
                 return match.group(0)
             asset = input_path.parent.resolve() / unquote(src.path)
-            relative = quote(os.path.relpath(asset, output_dir), safe="/")
+            relative = _relative_asset_url(asset, output_dir)
             rebased = urlunsplit(("", "", relative, src.query, src.fragment))
             return '<img src="' + html.escape(rebased, quote=True) + '"'
         body_html = re.sub(r'<img src="([^"]*)"', rebase_image, body_html)
