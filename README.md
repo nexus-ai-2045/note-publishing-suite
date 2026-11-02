@@ -280,7 +280,7 @@ Noteログイン、常時接続、画像アップロードの完全自動化は�
 
 CIの `repo-preflight` は v0.10.0 の `5b7c774deb8e9abcf0fce0c5f39ec1c1f3a894f3` を固定参照します。保護された版のタグ（v*）から辿れる SHA です。
 
-テスト選択は共通ゲートとは別に、`repo-preflight` の `0d220f19256bd3edcca014d14091f66cd64ccfb1` にある選択処理を使います。対象と必要環境は本packageの `.test-selection.json` が所有し、`scripts/run_selected_tests.py --selector-script <selector>/scripts/local_check.py --base-ref origin/main` をCI・手元の共通入口にします。変更と依存周辺を選び、不明な対応関係は停止します。文書metadataと、実際に処理が読み取る契約資料を分け、未知のNode test等を既存検査だけで済ませません。空planから全件pytestを起動しません。
+テスト選択は共通ゲートとは別に、`repo-preflight` の `7194351a90069c4fbcd92e571e2b3114b6b551fa` にある選択処理を使います。対象と必要環境は本packageの `.test-selection.json` が所有し、`scripts/run_selected_tests.py --selector-script <selector>/scripts/local_check.py --base-ref origin/main` をCI・手元の共通入口にします。変更と依存周辺を選び、不明な対応関係は停止します。文書metadataと、実際に処理が読み取る契約資料を分け、未知のNode test等を既存検査だけで済ませません。空planから全件pytestを起動しません。
 
 [対話を続けながら骨組みと全文を育てる](docs/collaborative-writing.md)では、テーマごとの対話、複数記事、ローカルの全文編集画面、AI候補の選択反映、保存・取消し・再開を扱います。既存の外部workspaceと採否履歴を使い、公開操作は行いません。
 
