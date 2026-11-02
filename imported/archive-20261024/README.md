@@ -2,7 +2,7 @@
 
 このフォルダには、履歴を作り直す前の非公開の控えにだけ残っていた中身を、消さずに残すために置いています。
 
-- 置き方: `<控えの枝またはタグ>/<元のパス>`。中身は控えのままです（下の「伏せたもの」を除く）。
+- 置き方: `<控えの枝またはタグ>/<元のパス>`。中身は控えのままです（下の「伏せたもの」「変えたもの」を除く）。
 - ここにあるファイルは実行も読み込みもされません。テストの収集からも外しています。
 - 今のコードへ採り入れるかは、ファイルごとに別のPRで決めます。
 - 公開側の履歴に同じ中身があるもの、行がすべて公開側にあるもの、ほかの版で行がそろうものは入れていません。
@@ -33,8 +33,8 @@
 | `scripts/provenance_label_check.py` | `main` ほか3 | `main/scripts/provenance_label_check.py` |  |
 | `tests/test_note_editor_timeout_recovery.py` | `main` ほか85 | `main/tests/test_note_editor_timeout_recovery.py` |  |
 | `tests/test_note_virtual_preview.py` | `main` ほか48 | `main/tests/test_note_virtual_preview.py` |  |
-| `writing-app/package-lock.json` | `main` ほか1 | `main/writing-app/package-lock.json` |  |
-| `writing-app/package.json` | `main` ほか1 | `main/writing-app/package.json` |  |
+| `writing-app/package-lock.json` | `main` ほか1 | `main/writing-app/package-lock.json` | 2026-11-02 依存の脆弱性（critical 2・high 1）のため、vite・vitest を今の `writing-app` と同じ版にした |
+| `writing-app/package.json` | `main` ほか1 | `main/writing-app/package.json` | 2026-11-02 依存の脆弱性（critical 2・high 1）のため、vite・vitest を今の `writing-app` と同じ版にした |
 | `.github/workflows/test.yml` | `pull/1` ほか1 | `pull/1/.github/workflows/test.yml` |  |
 | `CHANGELOG.md` | `pull/1` ほか1 | `pull/1/CHANGELOG.md` |  |
 | `PUBLIC_RELEASE_CHECKLIST.md` | `pull/1` ほか1 | `pull/1/PUBLIC_RELEASE_CHECKLIST.md` |  |
@@ -437,3 +437,7 @@
 ## 伏せたもの
 
 - なし
+
+## 変えたもの
+
+- `main/writing-app/package.json` と `package-lock.json`: 2026-11-02、GitHub の依存の警告（tinypool の critical 2件、vite・esbuild・vitest ほか）を消すため、vite を `^6.4.5`、vitest を `^4.1.12` に上げた。今の `writing-app` と同じ中身。元の版は git の履歴に残っている。

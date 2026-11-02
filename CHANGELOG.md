@@ -19,6 +19,21 @@
 - `python -m pytest tests/test_note_publication_lifecycle.py tests/test_note_work_packet_check.py tests/test_publication_lifecycle_workflow.py tests/test_note_workflow_gate.py -q`
 - 実観測の真正性、外部操作の成功、他端末での稼働はローカルJSONの検査だけでは保証しない。公開・配布は別承認。
 
+## 0.3.29
+
+日付: 2026-11-02
+
+変更:
+- 控え `imported/archive-20261024/main/writing-app` の vite を `^6.4.5`、vitest を `^4.1.12` に上げ、依存の既知の脆弱性（tinypool の critical 2件ほか）を解消。今の `writing-app` と同じ中身。控えは実行されない。
+
+検証:
+- `npm audit --package-lock-only`（0件）
+- `python -m pytest scripts/test_skill_integration.py -q`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.3.28
 
 日付: 2026-11-02
