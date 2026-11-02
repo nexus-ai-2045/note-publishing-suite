@@ -53,3 +53,20 @@ python scripts/draft_topic_coverage_check.py <topics.json> <draft.md> --json
 ```
 
 検査は全台帳行の分類、採用論点の本文マーカー、保留・除外先、ソースの取得状態を確認する。`partial` / `missing` は `ok=false` となり、未取得の対話があることを隠さない。検査は**台帳に列挙された論点**を照合する。元会話からの抽出漏れを自動発見する機能ではないため、会話全文と台帳の人間レビューは別に必要。壁打ちは論点と仮説の素材であり、外部事実の根拠にはならない。公開可否もこの検査の結果だけでは決めない。
+
+## 本人の意図の確認（v2・任意で有効化）
+
+AI作文を防ぐため、`schema_version` を `note-topic-coverage/v2` にすると次も止める。v1 の台帳は従来どおり。
+
+- `origin` に `ai_connective`（AIが足したつなぎ文）を使える。本人の言葉・外部事実・AI提案と区別して記録する。
+- `origin: ai_suggestion` で `disposition: include`（AI提案を本人が採用）の論点は、本人が自分の言葉で言い直した `author_explanation` が必須。言い直せないものは本文に入れない。質問は採用時に3件ずつまとめて聞く。
+- `intent_readbacks` に、AIが受け取った意図の要約（`ai_summary`）と本人の返事（`author_reply`）、`confirmed: true` を、着手前（`stage: start`）と転送前（`stage: transfer`）の2回分記録する。どちらか欠けると止まる。
+
+```json
+"intent_readbacks": [
+  {"stage": "start", "ai_summary": "収入の不安を軸に書く", "author_reply": "そう", "confirmed": true},
+  {"stage": "transfer", "ai_summary": "収入の不安を軸に書いた。AI提案は1件採用", "author_reply": "OK", "confirmed": true}
+]
+```
+
+検査が確かめるのは記録の有無と形だけで、本人の返事が本物か、説明が正しいかは保証しない。
