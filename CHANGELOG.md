@@ -19,6 +19,22 @@
 - `python -m pytest tests/test_note_publication_lifecycle.py tests/test_note_work_packet_check.py tests/test_publication_lifecycle_workflow.py tests/test_note_workflow_gate.py -q`
 - 実観測の真正性、外部操作の成功、他端末での稼働はローカルJSONの検査だけでは保証しない。公開・配布は別承認。
 
+## 0.3.34
+
+日付: 2026-11-02
+
+変更:
+- 共通selectorの固定版をPython依存解析へ移し、CI componentの必須検査と未知依存の停止をrepository所有のpolicyで維持。
+- packageの版数行だけの変更を、比較元・現版・既存parserへ束縛して評価。既存契約検査を保持し、他fieldの変更や入力の差替えは停止。
+
+検証:
+- `python scripts/docs_sync_check.py --base-ref origin/main`
+- `python scripts/run_selected_tests.py --plan-only --base-ref origin/main --selector-script <fixed-selector>/scripts/local_check.py`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.3.33
 
 日付: 2026-11-02

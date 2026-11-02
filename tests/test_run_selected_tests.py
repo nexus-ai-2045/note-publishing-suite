@@ -98,3 +98,125 @@ def test_cli_empty_and_checks_only_do_not_launch_pytest(tmp_path):
             assert recorded["executed"] is False
             assert recorded["pytest_command"] is None
             assert len(recorded["binding"]["policy_file_sha256"]) == 64
+
+
+@pytest.fixture
+def version_repo(tmp_path):
+    import json
+
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    (tmp_path / ".gitignore").write_text(".pytest_cache/\n")
+    (tmp_path / "package.yaml").write_text("name: fixture\nversion: 1.2.3\ncontract: preserved\n")
+    policy = {"rules": [{"changes": ["package.yaml", "adapters/**"],
+                          "tests": ["tests/test_package_contract.py"],
+                          "checks": []}]}
+    (tmp_path / ".test-selection.json").write_text(json.dumps(policy))
+    subprocess.run(["git", "-C", str(tmp_path), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "-c", "user.name=Fixture", "-c",
+                    "user.email=fixture@example.invalid", "commit", "-qm", "base"], check=True)
+    return tmp_path
+
+
+def test_version_only_private_policy_preserves_owner_contract_and_hashes(version_repo):
+    import hashlib
+    import json
+
+    module = adapter()
+    package = version_repo / "package.yaml"
+    package.write_text(package.read_text().replace("1.2.3", "1.2.4"))
+    original = (version_repo / ".test-selection.json").read_bytes()
+    with module.selection_policy(version_repo, "HEAD") as (path, binding):
+        assert path != version_repo / ".test-selection.json"
+        effective = json.loads(path.read_text())
+        assert binding["package_version_only"] is True
+        assert binding["original_policy_sha256"] == hashlib.sha256(original).hexdigest()
+        assert binding["effective_policy_sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+        assert binding["base_package_sha256"] != binding["current_package_sha256"]
+        assert binding["current_version"] == [1, 2, 4]
+        assert effective["rules"][0]["changes"] == ["adapters/**"]
+        assert effective["rules"][-1]["dependency_mode"] == "mapped"
+        assert set(effective["rules"][-1]["tests"]) == {
+            "tests/test_package_contract.py", "tests/test_docs_sync_check.py"}
+    assert not path.exists()
+    assert (version_repo / ".test-selection.json").read_bytes() == original
+
+
+@pytest.mark.parametrize("current", [
+    "name: fixture\nversion: 1.2.4\ncontract: altered\n",
+    "name: fixture\nversion: 1.2.4\nversion: 1.2.5\ncontract: preserved\n",
+    "name: fixture\nversion: invalid\ncontract: preserved\n",
+    "name: fixture\nversion: 1.2.4\ncontract: preserved \n",
+])
+def test_non_version_bytes_or_invalid_metadata_keep_original_auto_policy(version_repo, current):
+    (version_repo / "package.yaml").write_text(current)
+    with adapter().selection_policy(version_repo, "HEAD") as (path, binding):
+        assert path == version_repo / ".test-selection.json"
+        assert binding["package_version_only"] is False
+        assert binding["original_policy_sha256"] == binding["effective_policy_sha256"]
+
+
+def test_duplicate_base_version_keeps_original_auto_policy(version_repo):
+    package = version_repo / "package.yaml"
+    package.write_text(package.read_text() + "version: 1.2.3\n")
+    subprocess.run(["git", "-C", str(version_repo), "add", "package.yaml"], check=True)
+    subprocess.run(["git", "-C", str(version_repo), "-c", "user.name=Fixture", "-c",
+                    "user.email=fixture@example.invalid", "commit", "-qm", "duplicate"], check=True)
+    package.write_text("name: fixture\nversion: 1.2.4\ncontract: preserved\n")
+    assert adapter().package_version_only(version_repo, "HEAD") is None
+
+
+def test_symlink_package_keeps_original_auto_policy(version_repo, tmp_path):
+    package = version_repo / "package.yaml"
+    target = tmp_path / "other.yaml"
+    target.write_text(package.read_text().replace("1.2.3", "1.2.4"))
+    package.unlink()
+    try:
+        package.symlink_to(target)
+    except OSError:
+        pytest.skip("symlink creation unavailable")
+    assert adapter().package_version_only(version_repo, "HEAD") is None
+
+
+@pytest.mark.parametrize("field,value", [
+    ("tests", "tests/test_package_contract.py"), ("checks", "package-check"),
+    ("dependency_mode", "unsupported"), ("no_tests", "true"),
+])
+def test_invalid_owner_rule_is_not_repaired_by_metadata_mapping(version_repo, field, value):
+    import json
+
+    package = version_repo / "package.yaml"
+    package.write_text(package.read_text().replace("1.2.3", "1.2.4"))
+    path = version_repo / ".test-selection.json"
+    policy = json.loads(path.read_text())
+    policy["rules"][0][field] = value
+    path.write_text(json.dumps(policy))
+    with pytest.raises(ValueError, match="selection policy"):
+        with adapter().selection_policy(version_repo, "HEAD"):
+            pytest.fail("invalid owner policy became effective")
+
+
+def test_package_replacement_after_plan_stops_before_pytest(version_repo):
+    import json
+
+    package = version_repo / "package.yaml"
+    package.write_text(package.read_text().replace("1.2.3", "1.2.4"))
+    (version_repo / "tests").mkdir()
+    (version_repo / "tests/test_forbidden.py").write_text(
+        "from pathlib import Path\ndef test_forbidden(): Path('executed-marker').write_text('bad')\n")
+    selector = version_repo / "selector.py"
+    selector.write_text(
+        "from pathlib import Path\nimport json\n"
+        "p=Path('package.yaml'); p.write_text(p.read_text().replace('1.2.4','1.2.5'))\n"
+        "print(" + repr(json.dumps(plan(["tests/test_forbidden.py"]))) + ")\n")
+    receipt = version_repo / "receipt.json"
+    result = subprocess.run([sys.executable, str(ROOT / "scripts/run_selected_tests.py"),
+                             "--repo", str(version_repo), "--selector-script", str(selector),
+                             "--base-ref", "HEAD", "--receipt", str(receipt)],
+                            capture_output=True, text=True)
+    assert result.returncode == 2, result.stdout + result.stderr
+    assert "version metadata inputs changed" in result.stderr
+    assert not (version_repo / "executed-marker").exists()
+    recorded = json.loads(receipt.read_text())
+    assert recorded["executed"] is False
+    assert recorded["status"] == "unresolved"
+    assert recorded["binding"]["package_version_only"] is True
