@@ -280,7 +280,7 @@ Noteログイン、常時接続、画像アップロードの完全自動化は�
 
 CIの `repo-preflight` は v0.10.0 の `5b7c774deb8e9abcf0fce0c5f39ec1c1f3a894f3` を固定参照します。保護された版のタグ（v*）から辿れる SHA です。
 
-テスト選択は共通ゲートとは別に、`repo-preflight` の `c262a07418663dd862c8b6bb7c6d9d6564fa24cf` にある選択処理を使います。対象と必要環境は本packageの `.test-selection.json` が所有し、`scripts/run_selected_tests.py --selector-script <selector>/scripts/local_check.py --base-ref origin/main` をCI・手元の共通入口にします。変更と依存周辺を選び、不明な対応関係は停止します。文書metadataと、実際に処理が読み取る契約資料を分け、未知のNode test等を既存検査だけで済ませません。空planから全件pytestを起動しません。 `package.yaml` は、比較元と現版の有効なrootの版数行が各1件で、その行以外のbytesが一致する場合だけ、既存のpackage契約検査へ対応付けます。元policyは変更せず、評価済みの一時policyと元資料のhashをreceiptへ記録し、実行前の差替えは停止します。他fieldの変更は自動解析を維持します。
+テスト選択は共通ゲートとは別に、`repo-preflight` の `95fa08cffad3210387cd7576eb76a6435af99ac5` にある選択処理を使います。対象と必要環境は本packageの `.test-selection.json` が所有し、`scripts/run_selected_tests.py --selector-script <selector>/scripts/local_check.py --base-ref origin/main` をCI・手元の共通入口にします。変更と依存周辺を選び、不明な対応関係は停止します。文書metadataと、実際に処理が読み取る契約資料を分け、未知のNode test等を既存検査だけで済ませません。空planから全件pytestを起動しません。 `package.yaml` は、比較元と現版の有効なrootの版数行が各1件で、その行以外のbytesが一致する場合だけ、既存のpackage契約検査へ対応付けます。元policyは変更せず、評価済みの一時policyと元資料のhashをreceiptへ記録し、実行前の差替えは停止します。他fieldの変更は自動解析を維持します。
 
 [対話を続けながら骨組みと全文を育てる](docs/collaborative-writing.md)では、テーマごとの対話、複数記事、ローカルの全文編集画面、AI候補の選択反映、保存・取消し・再開を扱います。既存の外部workspaceと採否履歴を使い、公開操作は行いません。
 
