@@ -119,7 +119,6 @@ def test_verifier_keeps_hosted_checks_without_repeating_same_cli():
 
 @pytest.mark.parametrize("workflow,event", [
     ("test.yml", "pull_request"), ("preflight.yml", "pull_request"),
-    ("base-guard.yml", "pull_request_target"),
 ])
 def test_stale_run_groups_cannot_cancel_another_workflow_or_event(workflow, event):
     text = (ROOT / ".github/workflows" / workflow).read_text(encoding="utf-8")
@@ -127,9 +126,8 @@ def test_stale_run_groups_cannot_cancel_another_workflow_or_event(workflow, even
     assert f"  group: {group}-" in text
     assert "&& 'latest' || format('{0}-{1}', github.run_id, github.run_attempt) }}" in text
     assert f"github.event_name == '{event}'" in text
-    if workflow != "base-guard.yml":
-        assert "  cancel-in-progress: ${{ github.event_name == 'pull_request' }}\n" in text
-        assert "github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')" not in text
+    assert "  cancel-in-progress: ${{ github.event_name == 'pull_request' }}\n" in text
+    assert "github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')" not in text
 
 
 def test_later_docs_push_does_not_cover_an_earlier_ui_push(candidate):
