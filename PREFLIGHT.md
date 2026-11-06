@@ -29,7 +29,7 @@ repo-preflight の検査結果と、それに対する人間の判断を記録�
 - 開発保証workflow（`repository-guarantees.yml`）は `test.yml` の再利用jobとしてPR・main/masterへのpushごとに自動実行する。`package-smoke` はこのjobの成功を前提とし、抜けたまま進めない
 - `workflow_dispatch` で BASE と HEAD が同一（空 diff）のときは差分検査を緑にしない（fail-closed）
 - 検査ロジックは上流を呼び、コピーしない。通常のPR／branch pushはoriginから取得したイベント基点との差分を検査し、新規branch・タグ・Release公開・通常テストの手動実行は対象コミットの実在する親を取得し、mainが進んでいても現在のmainを基点にしない。対応外イベントは停止する。保証workflowを直接手動dispatchした場合は従来の全体release検査を行う。test workflowからの呼出しは明示inputで区別し、main上の通常テストの手動実行も差分なしを理由に停止しない。readinessのpass以外とratchetの新規悪化は停止する。整合性のshadow所見は所見として区別する
-- マージは人が行う。required status checksやSettingsは変更せず、既存package-smokeの前提jobで接続する
+- マージは現在の本人承認と必須チェックの成功を確認して行う。保証検査は既存package-smokeの前提jobで接続する
 
 ### CIの重複削減と実行の保持
 
@@ -37,32 +37,11 @@ repo-preflight の検査結果と、それに対する人間の判断を記録�
 
 workflowとイベントを分け、同じPRの古い実行だけを取り消す。差分検査のmain pushは後続がdocsだけの場合に先行UI検証を代替できないため、run IDとattemptごとに全実行を保持する。再利用先には呼出元と衝突するconcurrency groupを追加しない。
 
-### 保護パス変更の本人確認
+### 必須チェック
 
-必須チェック名 `base-guard` は常時実行する集約jobである。比較元をcheckoutし、固定したrepo-preflightの `base_guard.py --json` を隔離Pythonで実行する。候補はGit objectとして読むだけでcheckout・実行しない。上流のschema、終了コード、status、caller数、各findingを照合し、正常passは確認不要、head側の `protected_path_changed` だけがあるblockedは本人確認待ちとする。YAML不正、呼出先・pin・release不正、base側所見、未知・欠損・矛盾した出力、tool errorは本人確認で免除しない。
-
-確認待ちへ進む前に、GitHub APIの読取り権限だけで固定Environment `ci-protected-change-review` を取得する。`required_reviewers` がtrusted GitHub contextのrepository owner User ID一人だけ、`prevent_self_review=false`、`deployment_branch_policy.protected_branches=true` と `custom_branch_policies=false` であることを必須とする。未作成、レビュアーなし・別人・追加、型不正、API失敗は停止する。設定はworkflowから作成・変更しない。レビュアーIDをpackageへ固定値で複製しない。
-
-管理者による事前設定はGitHubの[Environment API](https://docs.github.com/en/rest/deployments/environments)で次のpayloadを使用する。`OWNER_USER_ID` はその時点で取得したrepository ownerのUser IDへ置換し、対象repositoryと本人の明示承認を照合する。secretの登録は不要。
-
-```json
-{
-  "wait_timer": 0,
-  "prevent_self_review": false,
-  "can_admins_bypass": false,
-  "reviewers": [{"type": "User", "id": "OWNER_USER_ID (integer)"}],
-  "deployment_branch_policy": {
-    "protected_branches": true,
-    "custom_branch_policies": false
-  }
-}
-```
-
-GitHubの[required reviewers](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments)による確認後だけ `owner-review` jobを実行する。job名とEnvironmentリンクはPR番号と実headを表示し、`pull_request_target` のbase側 `GITHUB_SHA` と区別する。このjobはcheckout、secret参照、書込み権限、公開・リリース処理を持たない。Environmentの管理者による確認省略は`can_admins_bypass=false`で禁止し、欠損・true・型不正は停止する。workflowによる自動承認は行わない。ローカルfixtureやコメントを本人確認の証拠にしない。
-
-集約jobはinspect成功・明示されたboolean出力を要求する。確認不要ならreviewのskip、確認必要ならreviewのsuccessのみ通す。拒否、取消、timeout、失敗、必要なreviewのskip、未知状態は通さない。補助コード `.github/scripts/base_guard_review.py` 自体も上流の既存 `.github/` 保護範囲に含める。
-
-導入PRは旧mainの `pull_request_target` が動くため、この変更の局所検証で旧チェックが緑になったとは扱わない。Environmentの設定・読戻し、現在の規則と明示許可に従う導入判断、マージ後の実PRでの待機→本人確認→成功、および確認不要経路の実行を別々に確認する。ローカル試験はlive本人確認の代替ではない。
+必須チェックは `all-green` とし、通常のpreflight・package・Windows・資料同期の検査結果を確認する。
+`base-guard` ワークフローと専用の本人確認ジョブは廃止する。
+GitHubの必須チェック設定も同じ変更単位で `base-guard` を除き、厳密な最新baseの検査を維持する。
 
 ### CIのprivate identity設定と実行境界
 
