@@ -18,7 +18,7 @@ publication_gate: human_review_required
 **NPS（Note Publishing Suite）** です。Codex / Claude Code から使えます。
 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。
 
-パッケージ版: `0.3.34`
+パッケージ版: `0.3.35`
 
 キャラクター画像の参照・生成添付・出力・目視観察を同じ版へ束縛する検査は `scripts/image_reference_gate.py` を使います。画像設定は利用者側の既存記事profileへ置き、packageに個人の画像や名前を保存しません。
 
@@ -278,7 +278,7 @@ Noteログイン、常時接続、画像アップロードの完全自動化は�
 
 ## 詳しい制作・開発手順
 
-CIの `repo-preflight` は v0.10.0 の `5b7c774deb8e9abcf0fce0c5f39ec1c1f3a894f3` を固定参照します。保護された版のタグ（v*）から辿れる SHA です。
+CIの共通 `preflight-gate` は、base-guard廃止を統合した `fe2e90f91615a5e5ed3f9b2b497c99f5786e5847` を固定参照します。検証済み移行タグ `base-guard-retired-20261106` が指すcommitです。
 
 テスト選択は共通ゲートとは別に、`repo-preflight` の `1382b86b80ad1d7a55dee82d705a139aee24fd7d` にある選択処理を使います。対象と必要環境は本packageの `.test-selection.json` が所有し、`scripts/run_selected_tests.py --selector-script <selector>/scripts/local_check.py --base-ref origin/main` をCI・手元の共通入口にします。変更と依存周辺を選び、不明な対応関係は停止します。文書metadataと、実際に処理が読み取る契約資料を分け、未知のNode test等を既存検査だけで済ませません。空planから全件pytestを起動しません。 `package.yaml` は、比較元と現版の有効なrootの版数行が各1件で、その行以外のbytesが一致する場合だけ、既存のpackage契約検査へ対応付けます。元policyは変更せず、評価済みの一時policyと元資料のhashをreceiptへ記録し、実行前の差替えは停止します。他fieldの変更は自動解析を維持します。
 
