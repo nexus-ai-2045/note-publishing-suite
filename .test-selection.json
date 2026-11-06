@@ -22,7 +22,8 @@
         ".github/workflows/base-guard.yml",
         ".github/scripts/base_guard_review.py",
         "tests/test_base_guard_review.py",
-        "tests/test_ci_execution_routing.py"
+        "tests/test_ci_execution_routing.py",
+        ".github/workflows/preflight.yml"
       ],
       "tests": [
         "tests/test_run_selected_tests.py",
