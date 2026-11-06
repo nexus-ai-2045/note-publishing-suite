@@ -19,6 +19,22 @@
 - `python -m pytest tests/test_note_publication_lifecycle.py tests/test_note_work_packet_check.py tests/test_publication_lifecycle_workflow.py tests/test_note_workflow_gate.py -q`
 - 実観測の真正性、外部操作の成功、他端末での稼働はローカルJSONの検査だけでは保証しない。公開・配布は別承認。
 
+## 0.3.35
+
+日付: 2026-11-06
+
+変更:
+- base-guard廃止後の共通preflight参照と選択ポリシーの更新をパッケージ版0.3.35へ反映する。
+
+検証:
+- `VERSION_BUMP_BASE_REF=origin/main python scripts/check_version_bump.py`
+- `python scripts/docs_sync_check.py --base-ref origin/main`
+- `python -m pytest -q tests/test_package_consistency_check.py tests/test_docs_sync_check.py`
+
+公開境界:
+- Note 投稿、予約投稿、SNS 共有、外部告知は未実行。
+- GitHub リリース作成、タグ作成、リポジトリ公開範囲変更は未実行。
+
 ## 0.3.34
 
 日付: 2026-11-02
