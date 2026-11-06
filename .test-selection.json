@@ -18,7 +18,11 @@
         ".github/workflows/test.yml",
         ".test-selection.json",
         "scripts/run_selected_tests.py",
-        "tests/test_run_selected_tests.py"
+        "tests/test_run_selected_tests.py",
+        ".github/workflows/base-guard.yml",
+        ".github/scripts/base_guard_review.py",
+        "tests/test_base_guard_review.py",
+        "tests/test_ci_execution_routing.py"
       ],
       "tests": [
         "tests/test_run_selected_tests.py",
@@ -99,7 +103,8 @@
       "changes": [
         "README.md",
         "README.rendered.html",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "PREFLIGHT.md"
       ],
       "dependency_mode": "mapped",
       "tests": [
