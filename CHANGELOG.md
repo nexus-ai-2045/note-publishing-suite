@@ -19,6 +19,19 @@
 - `python -m pytest tests/test_note_publication_lifecycle.py tests/test_note_work_packet_check.py tests/test_publication_lifecycle_workflow.py tests/test_note_workflow_gate.py -q`
 - 実観測の真正性、外部操作の成功、他端末での稼働はローカルJSONの検査だけでは保証しない。公開・配布は別承認。
 
+## 0.3.36
+
+日付: 2026-11-22
+
+変更:
+- `note_fact_check.py` がX投稿URLの投稿IDから投稿日時（JST）を通信なしで算出し、`x_post_time` として出す。採番方式変更前の旧形式IDは `unknown`。
+- `note_fact_check.py --terms` で利用者が採用した表記辞書JSONと照合し、一致を `term_mismatch` として出す。原稿は書き換えない。形式のサンプルは `data/note_terms.example.json`。
+- `note-prepublish-qa` に、候補を一次資料と照合する判断手順（本人指定の優先、主張の分類、並列照合、重点的に疑う型、出力順、表記辞書への追加案）を追加。
+
+検証:
+- `python -m pytest tests/test_note_fact_check_search.py -q`
+- 真偽の判定、出典本文の取得、表記辞書の内容の正しさはスクリプトでは保証しない。
+
 ## 0.3.35
 
 日付: 2026-11-06

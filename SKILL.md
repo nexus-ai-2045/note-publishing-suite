@@ -220,6 +220,7 @@ Note editor 実測で見つかった失敗、手動境界、復旧手順、成�
 python scripts\note_virtual_preview.py <draft.md> -o <preview.html>
 python scripts\pre_publish_check.py <draft.md>
 python scripts\note_fact_check.py local <draft.md>
+python scripts\note_fact_check.py local <draft.md> --terms USER_TERMS_JSON --json
 python scripts\note_diff_check.py <note_url> <draft.md> <phrase...> --snapshot-out <local-snapshot.txt> --json
 ```
 

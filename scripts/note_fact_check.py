@@ -7,7 +7,7 @@ import argparse
 import hashlib
 import json
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.error import URLError
 from urllib.parse import urlencode, urlsplit
@@ -29,12 +29,66 @@ PATTERNS = {
 }
 
 
-def scan(text: str) -> list[dict[str, str]]:
+X_STATUS = re.compile(r"https?://(?:www\.|mobile\.)?(?:x|twitter)\.com/[A-Za-z0-9_]+/status(?:es)?/(\d{10,20})")
+X_EPOCH_MS = 1288834974657
+JST = timezone(timedelta(hours=9))
+
+
+def x_post_time(post_id: int) -> str | None:
+    """X投稿IDに埋め込まれた投稿時刻をJSTで返す。
+
+    2010年11月の採番方式変更より前の連番IDは時刻を持たない。連番IDを変換すると
+    エポック直後の時刻になるため、エポックから1日未満に落ちるIDは不明(None)とする。
+    """
+    offset_ms = post_id >> 22
+    if offset_ms < 86_400_000:
+        return None
+    return datetime.fromtimestamp((offset_ms + X_EPOCH_MS) / 1000, JST).strftime("%Y-%m-%d %H:%M JST")
+
+
+def load_terms(path: Path) -> list[dict]:
+    """表記辞書JSONを読む。形式: {"terms": [{"pattern": 正規表現, "preferred": 推奨表記, "reason": 理由}]}"""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    items = data.get("terms") if isinstance(data, dict) else None
+    if not isinstance(items, list):
+        raise ValueError("表記辞書は {\"terms\": [...]} の形式で指定してください")
+    terms = []
+    for index, item in enumerate(items):
+        if not isinstance(item, dict) or not isinstance(item.get("pattern"), str) or not isinstance(item.get("preferred"), str):
+            raise ValueError(f"表記辞書の{index}番目に pattern と preferred（文字列）が必要です")
+        try:
+            compiled = re.compile(item["pattern"])
+        except re.error as exc:
+            raise ValueError(f"表記辞書の{index}番目の pattern が不正です: {exc}") from exc
+        terms.append({"regex": compiled, "preferred": item["preferred"], "reason": str(item.get("reason", ""))})
+    return terms
+
+
+def scan(text: str, terms: list[dict] | None = None) -> list[dict[str, str]]:
     findings: list[dict[str, str]] = []
     for line_no, line in enumerate(text.splitlines(), 1):
         for code, pattern in PATTERNS.items():
             if pattern.search(line):
                 findings.append({"line": line_no, "code": code, "text": line.strip()[:180]})
+        for match in X_STATUS.finditer(line):
+            posted = x_post_time(int(match.group(1)))
+            findings.append({
+                "line": line_no,
+                "code": "x_post_time",
+                "text": line.strip()[:180],
+                "post_id": match.group(1),
+                "posted_at_jst": posted or "unknown",
+            })
+        for term in terms or []:
+            for match in term["regex"].finditer(line):
+                findings.append({
+                    "line": line_no,
+                    "code": "term_mismatch",
+                    "text": line.strip()[:180],
+                    "found": match.group(0),
+                    "preferred": term["preferred"],
+                    "reason": term["reason"],
+                })
     return findings
 
 
@@ -118,6 +172,7 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=5, help="検索語ごとの候補数（1〜20）")
     parser.add_argument("--dry-run", action="store_true", help="検索語と送信先の確認のみ。通信・保存しない")
     parser.add_argument("--report-path", type=Path, help="候補と未確認状態をJSON保存（既存ファイルは上書きしない）")
+    parser.add_argument("--terms", type=Path, help="利用者が採用した表記辞書JSON。一致箇所を term_mismatch として出す（自動修正しない）")
     args = parser.parse_args()
 
     if not 1 <= args.limit <= 20 or len(args.search_query) > 10:
@@ -130,8 +185,14 @@ def main() -> int:
         parser.error(str(exc))
     if args.report_path and args.report_path.exists() and not args.dry_run:
         parser.error("既存のレポートは上書きしません。別の保存先を指定してください")
+    terms = None
+    if args.terms:
+        try:
+            terms = load_terms(args.terms)
+        except (OSError, ValueError) as exc:
+            parser.error(f"表記辞書を読めません: {exc}")
     draft_bytes = args.draft.read_bytes()
-    findings = scan(draft_bytes.decode("utf-8"))
+    findings = scan(draft_bytes.decode("utf-8"), terms)
     result = {"draft": str(args.draft), "mode": args.mode, "finding_count": len(findings), "findings": findings}
     exit_code = 0
     if args.search_query or args.report_path or args.dry_run:
@@ -159,7 +220,12 @@ def main() -> int:
     else:
         print(f"finding_count={len(findings)}")
         for item in findings:
-            print(f"line={item['line']} code={item['code']} text={item['text']}")
+            extra = ""
+            if item["code"] == "x_post_time":
+                extra = f" posted_at={item['posted_at_jst']}"
+            elif item["code"] == "term_mismatch":
+                extra = f" found={item['found']} preferred={item['preferred']}"
+            print(f"line={item['line']} code={item['code']}{extra} text={item['text']}")
         if args.dry_run:
             print(f"通信なし: endpoint={endpoint} queries={args.search_query}")
         for search in result.get("search_results", []):

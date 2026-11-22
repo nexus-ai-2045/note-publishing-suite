@@ -185,3 +185,57 @@ def test_invalid_responses_are_errors(monkeypatch, payload):
     result = checker.search_sources("検索", "http://127.0.0.1:8888", 5)
     assert result["status"] == "error"
     assert "error" in result
+
+
+def snowflake(jst_text: str) -> int:
+    from datetime import datetime
+    moment = datetime.strptime(jst_text, "%Y-%m-%d %H:%M").replace(tzinfo=checker.JST)
+    return (int(moment.timestamp() * 1000) - checker.X_EPOCH_MS) << 22
+
+
+def test_x_post_time_is_decoded_offline_in_jst(monkeypatch, capsys, tmp_path, deny_network):
+    post_id = snowflake("2026-10-25 08:30")
+    path = tmp_path / "draft.md"
+    path.write_text(
+        f"埋め込み https://x.com/example/status/{post_id}\n旧形式 https://twitter.com/old/status/1234567890\n",
+        encoding="utf-8",
+    )
+    code, result = invoke(monkeypatch, capsys, path)
+    posts = [f for f in result["findings"] if f["code"] == "x_post_time"]
+    assert code == 0
+    assert posts[0]["post_id"] == str(post_id)
+    assert posts[0]["posted_at_jst"] == "2026-10-25 08:30 JST"
+    assert posts[1]["posted_at_jst"] == "unknown"
+    deny_network.assert_not_called()
+
+
+def test_terms_flag_mismatches_without_rewriting(monkeypatch, capsys, tmp_path):
+    terms = tmp_path / "terms.json"
+    terms.write_text(json.dumps({"terms": [
+        {"pattern": "(?<!Chat)GPTアプリ", "preferred": "ChatGPTアプリ", "reason": "正式名称"},
+    ]}, ensure_ascii=False), encoding="utf-8")
+    path = tmp_path / "draft.md"
+    path.write_text("GPTアプリの新機能。ChatGPTアプリは正しい。\n", encoding="utf-8")
+    before = path.read_bytes()
+    code, result = invoke(monkeypatch, capsys, path, "--terms", str(terms))
+    hits = [f for f in result["findings"] if f["code"] == "term_mismatch"]
+    assert code == 0
+    assert len(hits) == 1
+    assert hits[0]["found"] == "GPTアプリ"
+    assert hits[0]["preferred"] == "ChatGPTアプリ"
+    assert path.read_bytes() == before
+
+
+def test_sample_terms_file_loads():
+    sample = Path(__file__).resolve().parents[1] / "data/note_terms.example.json"
+    assert len(checker.load_terms(sample)) >= 1
+
+
+@pytest.mark.parametrize("payload", ['[]', '{"terms": [{"pattern": "("}]}', '{"terms": [{"pattern": "(", "preferred": "x"}]}'])
+def test_invalid_terms_file_stops(monkeypatch, capsys, tmp_path, draft, payload):
+    terms = tmp_path / "bad.json"
+    terms.write_text(payload, encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", [str(SCRIPT), "local", str(draft), "--terms", str(terms)])
+    with pytest.raises(SystemExit) as exc:
+        checker.main()
+    assert exc.value.code == 2
