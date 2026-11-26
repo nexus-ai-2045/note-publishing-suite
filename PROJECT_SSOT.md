@@ -16,10 +16,12 @@ external_action: none
 
 ## 正本宣言
 
-`nexus-ai-2045/note-publishing-suite` の default branch `main` の履歴を
-Note Publishing Suite のプロダクト正本とする。
-ローカル checkout、private workspace、runtime skill、過去のコピーは正本そのものではなく、
-この repository を参照または更新するための作業面・来歴である。
+Note Publishing Suite の正本は、所有者の Mac にあるローカル clone
+（`~/Projects/repos/nexus_ai/note-publishing-suite`）とする（2026-11-26 JST、所有者確定）。
+note-articles・marketing と3つでセットとして扱い、作業は同 clone 直下の worktree で行う。
+GitHub の `nexus-ai-2045/note-publishing-suite`（default branch `main`）は、この正本を公開・共有する写しである。
+private workspace、runtime skill、過去のコピー、AI の共有フォルダやメモリは正本そのものではなく、
+正本を参照または更新するための作業面・来歴である。
 
 正本内の責務は次の通り。
 
