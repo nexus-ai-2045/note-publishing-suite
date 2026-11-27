@@ -26,6 +26,7 @@
 変更:
 - `note_fact_check.py` がX投稿URLの投稿IDから投稿日時（JST）を通信なしで算出し、`x_post_time` として出す。採番方式変更前の旧形式IDは `unknown`。
 - `note_fact_check.py --terms` で利用者が採用した表記辞書JSONと照合し、一致を `term_mismatch` として出す。原稿は書き換えない。形式のサンプルは `data/note_terms.example.json`。
+- `.test-selection.json` に `note_fact_check.py` の対応テストを `mapped` で追加（呼び出し元の静的解析が unresolved になるため）。
 - `note-prepublish-qa` に、候補を一次資料と照合する判断手順（本人指定の優先、主張の分類、並列照合、重点的に疑う型、出力順、表記辞書への追加案）を追加。
 
 検証:
