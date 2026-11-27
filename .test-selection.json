@@ -167,6 +167,19 @@
       "tests": [
         "tests/test_note_image_upload_boundary.py"
       ]
+    },
+    {
+      "changes": [
+        "scripts/note_fact_check.py",
+        "tests/test_note_fact_check_search.py"
+      ],
+      "dependency_mode": "mapped",
+      "tests": [
+        "tests/test_note_fact_check_search.py",
+        "tests/test_local_qa_search.py",
+        "tests/test_content_pdca_check.py",
+        "scripts/test_skill_integration.py"
+      ]
     }
   ]
 }

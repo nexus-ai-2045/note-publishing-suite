@@ -18,7 +18,7 @@ publication_gate: human_review_required
 **NPS（Note Publishing Suite）** です。Codex / Claude Code から使えます。
 公開・予約投稿・SNS 共有は自動で行わず、必ず公開直前で止まります。
 
-パッケージ版: `0.3.35`
+パッケージ版: `0.3.36`
 
 キャラクター画像の参照・生成添付・出力・目視観察を同じ版へ束縛する検査は `scripts/image_reference_gate.py` を使います。画像設定は利用者側の既存記事profileへ置き、packageに個人の画像や名前を保存しません。
 
@@ -145,7 +145,7 @@ note-publishing-suite で進めて。
 | --- | --- | --- |
 | 記事候補 | [`note-idea-intake`](skills/note-idea-intake/SKILL.md) | 素材フォルダを指定して候補出し |
 | 下書き | [`note-draft-production`](skills/note-draft-production/SKILL.md) | 問答packet → 本文 |
-| 投稿前QA | [`note-prepublish-qa`](skills/note-prepublish-qa/SKILL.md) | preview / pre_publish / fact |
+| 投稿前QA | [`note-prepublish-qa`](skills/note-prepublish-qa/SKILL.md) | preview / pre_publish / fact（X投稿日時・表記辞書の照合を含む） |
 | エディタ反映 | [`note-editor-prepublish`](skills/note-editor-prepublish/SKILL.md) | 下書き保存まで |
 | 公開停止線 | [`note-publication-gate`](skills/note-publication-gate/SKILL.md) | 公開ボタン手前で停止 |
 | 公開後台帳 | [`note-postpublish-ledger`](skills/note-postpublish-ledger/SKILL.md) | URL 確認後のみ |

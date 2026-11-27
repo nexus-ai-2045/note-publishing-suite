@@ -1,0 +1,16 @@
+{
+  "schema": "note-terms/v1",
+  "note": "サンプル。実際の表記辞書は利用者の外部workspaceに置き、--terms で渡す。pattern は Python 正規表現。",
+  "terms": [
+    {
+      "pattern": "(?<!Chat)GPTアプリ",
+      "preferred": "ChatGPTアプリ",
+      "reason": "製品の正式名称に揃える（例）"
+    },
+    {
+      "pattern": "Github",
+      "preferred": "GitHub",
+      "reason": "大文字小文字の表記ゆれ（例）"
+    }
+  ]
+}
